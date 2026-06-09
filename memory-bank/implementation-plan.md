@@ -1,7 +1,7 @@
 # 盒记 — 实施计划 v2
 
 > 基于 memory-bank/design-document.md + memory-bank/tech-stack.md · 2026-06-09
-> 9 个阶段，约 70 个步骤；每步独立可验证、可回退
+> 9 个阶段，63 步；每步独立可验证、可回退
 > **写代码前必读**：CLAUDE.md、memory-bank/design-document.md、memory-bank/tech-stack.md
 > **每步完成后必做**：更新 memory-bank/architecture.md（如本步是里程碑）
 
@@ -14,15 +14,15 @@
 | 阶段 | 主题 | 步骤 | 估时 |
 |---|---|---|---|
 | 1 | 项目脚手架 | 8 | ~0.5 天 |
-| 2 | 数据层（SQLite） | 7 | ~1 天 |
-| 3 | 类型与工具 | 5 | ~0.5 天 |
-| 4 | API 层 | 9 | ~2 天 |
+| 2 | 数据层（SQLite） | 6 | ~1 天 |
+| 3 | 类型与工具 | 4 | ~0.5 天 |
+| 4 | API 层 | 8 | ~2 天 |
 | 5 | Pinia Stores | 5 | ~1 天 |
-| 6 | 通用 UI 组件 | 4 | ~1 天 |
+| 6 | 通用 UI 组件 | 3 | ~1 天 |
 | 7 | 页面（4 Tab + 子页） | 18 | ~5 天 |
 | 8 | 关键流程串联 | 6 | ~2 天 |
 | 9 | 收尾与发布 | 5 | ~1 天 |
-| **合计** | | **~67** | **~14 天** |
+| **合计** | | **63** | **~14 天** |
 
 ### 0.2 每步固定模板
 
@@ -515,18 +515,21 @@
 - **前置**：4.4 完成
 - **后置**：取消订单不返还次卡次（A1 + 简化次卡）
 - **任务**：
-  1. 在 `orders.ts` 加 `cancelOrder(orderId)`：
+  1. 在 `src/api/errors.ts` 定义 `AlreadyDeliveredError extends Error`（与 Step 4.4 的 `InsufficientCardError` 对称）
+  2. 在 `orders.ts` 加 `cancelOrder(orderId)`：
      - `tx()` 包裹
+     - 查订单当前 status：若 'delivered' → 抛 `AlreadyDeliveredError('订单已配送，不能取消')`
      - UPDATE orders SET status='cancelled', cancelled_at=now
      - **不**碰 meal_cards（因 A1 次卡未扣过）
-  2. 拒绝已 delivered 的订单（直接抛错）
+  3. 重复取消（status='cancelled'）走幂等：直接返回，不抛错（用户重复点取消不报错）
 - **测试用例**：
   - TC1 [pending → cancelled]：录 1 单 pending → cancelOrder → status='cancelled'、cancelled_at 有值
   - TC2 [不影响次卡]：建 20 次卡 → 录 1 单次卡 → **不** markDelivered → cancelOrder → meal_cards.used_meals 仍为 0
-  - TC3 [delivered 不能取消]：建 1 单 → markDelivered → cancelOrder → 抛错"已配送订单不能取消"
-  - 边界 [已 cancelled 重复取消]：再 cancel 一次 → 状态不变（幂等或抛错，按约定）
+  - TC3 [delivered 不能取消]：建 1 单 → markDelivered → cancelOrder → **抛 `AlreadyDeliveredError`**
+  - 边界 [已 cancelled 重复取消]：再 cancel 一次 → 不抛错，状态不变（幂等）
 - **完成定义**：
   - [ ] 3 个测试用例 + 边界全通过
+  - [ ] `AlreadyDeliveredError` 类定义在 `src/api/errors.ts`
 
 ### Step 4.6 — expense-categories API
 
@@ -634,9 +637,14 @@
 - **后置**：订单列表页可用
 - **任务**：
   1. state：`list: Order[]`、`currentDate: string`（默认今天）、`loading: boolean`
-  2. actions：`setDate(date)`、`refreshForDate(date)`、`create(input)`、`markDelivered(id)`、`cancel(id)`
+  2. actions（**全部返回 Promise<实体>**，UI 拿新 ID 用）：
+     - `setDate(date)` → void
+     - `refreshForDate(date)` → Promise<void>
+     - `create(input)` → Promise<Order>（返回新订单）
+     - `markDelivered(id)` → Promise<Order>（返回更新后的订单，**异常时抛 `InsufficientCardError`**）
+     - `cancel(id)` → Promise<void>（**异常时抛 `AlreadyDeliveredError`**）
   3. **写操作后自动 `refreshForDate(currentDate)`**（保证 UI 一致）
-  4. `markDelivered` 捕获 `InsufficientCardError` → 重新抛出（UI 层处理弹窗）
+  4. `markDelivered` / `cancel` 不吞错误，原样抛出给 UI 层处理弹窗
 - **测试用例**：
   - TC1 [refreshForDate]：建 2 单 6/9 + 1 单 6/10 → `refreshForDate('2026-06-09')` → list.length=2
   - TC2 [create]：调 `store.create({...})` → list 立即多 1 条
@@ -696,10 +704,15 @@
   1. 创建 `src/components/StatCard.vue`
   2. props：`label: string`、`value: string | number`、`color?: 'normal' | 'positive' | 'negative'`、`hint?: string`（副标题）
   3. 模板：上方小字 label，下方大数字 value（24-32px），可选 hint
-  4. 颜色：positive 用 #07c160（绿）、negative 用 #ee0a24（红）、normal 用默认
+  4. 颜色值：`positive = #07c160`（绿）、`negative = #ee0a24`（红）、`normal = 主题默认文字色`
+  5. **颜色映射规则**（Dashboard / 统计页统一）：
+     - 订单数 → `normal`（无正负）
+     - 收入 → `normal`（不看正负）
+     - 支出 → `normal`（不看正负）
+     - 利润 → `>= 0` 用 `positive`、`< 0` 用 `negative`（自动判断）
 - **测试用例**：
-  - TC1 [渲染]：在 Dashboard 占位页放 4 个，硬编码 label/value，肉眼验证布局正常
-  - TC2 [color]：分别传 3 种 color，肉眼验证颜色对
+  - TC1 [渲染]：在 Dashboard 占位页放 4 个（订单数/收入/支出/利润），硬编码 label/value，肉眼验证布局正常
+  - TC2 [color]：利润 240 → 绿；利润 -35 → 红；订单数 → 默认色
   - 边界 [空 hint]：不传 hint → 不渲染 hint 区域
 - **本步不处理**：不做动效、不做点击交互
 - **完成定义**：
@@ -847,9 +860,9 @@
 - **后置**：保存时订单金额 = 实际价 × 份数
 - **任务**：
   1. 在 `src/pages/order/new.vue` 加价格区
-  2. 监听 `selectedCustomer` + `mealType` 变化 → 计算 `defaultPrice`
+  2. 监听 `selectedCustomer` + `mealType` 变化 → 计算 `defaultPrice`（**仅当支付方式不是次卡时**，次卡走另一条规则，见 Step 7.6）
   3. `defaultPrice` = `customer.default_lunch_price × customer.discount_rate`（午餐）或用 `default_dinner_price`
-  4. 模板显示"默认价 ¥X.XX × 0.9 = ¥Y.YY"提示行
+  4. 模板显示"默认价 ¥X.XX × 0.9 = ¥Y.YY"提示行（次卡时不显示此行）
   5. 实际价：AmountInput，初始值 = `defaultPrice`，可改
   6. 合计：自动 = `actualPrice × quantity`，用 `computed`
   7. 副逻辑：若客户没有 `default_lunch_price` → 默认价空，提示"请手动填入单价"
@@ -875,15 +888,19 @@
   4. 备注：textarea（可选）
   5. 保存按钮 enabled 条件：客户 + 餐次 + 份数 + 实际价 + 支付方式
   6. 点击保存 → 调 `useOrderStore().create({...})` → 跳回 list
-  7. **关键**：次卡订单的 `amount` 传 0（开卡时已收），`unit_price` 仍按 defaultPrice 填入（design §2.2 决策点）
+  7. **关键**（次卡订单的 unit_price 走单独规则，与 A6 脱钩）：
+     - 次卡订单 `amount` 传 0（开卡时已收）
+     - 次卡订单 `unit_price` = `meal_card.amount / meal_card.total_meals`（**不**乘 `customer.discount_rate`）
+     - 普通订单 `unit_price` = 实际价（用户在 Step 7.5 填的）
 - **测试用例**：
   - TC1 [wechat]：选微信 → 保存 → DB 中 amount = 实际价 × quantity、payment_method='wechat'、meal_card_id=null
-  - TC2 [meal_card]：开 1 张 20 次卡 → 选次卡 → 显示"剩 20/20" → 保存 → DB 中 amount=0、payment_method='meal_card'、meal_card_id=卡的id、unit_price=客户默认价
-  - TC3 [无可用次卡]：客户无 active 卡 → 选次卡时弹提示并自动切到微信
-  - TC4 [次卡订单不扣次]：建 1 张 20 次卡 → 录 1 单次卡 → 查 DB meal_cards.used_meals 仍为 0（**A1 决策生效**）
+  - TC2 [meal_card]：开 1 张 20 次 ¥300 卡 → 选次卡 → 显示"剩 20/20" → 保存 → DB 中 amount=0、payment_method='meal_card'、meal_card_id=卡的id、**unit_price=15.00**（=300/20）
+  - TC3 [meal_card 不享折扣]：客户 default_lunch_price=15、discount_rate=0.9，开 20 次 ¥300 卡 → 选次卡 → **unit_price=15.00**（不乘 0.9）
+  - TC4 [无可用次卡]：客户无 active 卡 → 选次卡时弹提示并自动切到微信
+  - TC5 [次卡订单不扣次]：建 1 张 20 次卡 → 录 1 单次卡 → 查 DB meal_cards.used_meals 仍为 0（**A1 决策生效**）
   - 边界 [取消保存]：填一半后点导航"←" → 弹确认"放弃编辑？"
 - **完成定义**：
-  - [ ] TC1-TC4 + 边界全通过
+  - [ ] TC1-TC5 + 边界全通过
   - [ ] 验证 meal_cards 不被错误扣次
 
 ### Step 7.7 — Tab 2 订单详情页（布局 + 取消）
@@ -894,12 +911,12 @@
 - **任务**：
   1. 创建 `src/pages/order/detail.vue`
   2. 接 `onLoad` 参数 `id`
-  3. 调 `useOrderStore().refreshForDate(...)` 或直接 `api.getOrder(id)` 拿数据
-  4. 模板：显示订单所有字段（只读）+ 客户信息（关联查询）
+  3. 调 `api.getOrder(id)` 拿当前订单数据（**不要** refreshForDate——按 id 查单条更准，且 refreshForDate 会刷整个日期范围，浪费）
+  4. 模板：显示订单所有字段（只读）+ 客户信息（关联查询 customers 表）
   5. 底部按钮：
      - pending 状态：显示 [标记已配送] 和 [取消订单]
      - delivered / cancelled：不显示任何操作按钮
-  6. [取消订单]：弹确认 → 调 `store.cancel(id)` → toast 提示 → 跳回 list
+  6. [取消订单]：弹确认 → 调 `store.cancel(id)`（可能抛 `AlreadyDeliveredError`——见 4.5）→ toast 提示 → 跳回 list
 - **测试用例**：
   - TC1 [pending 显示按钮]：录 1 单 pending → 详情页 → 看到 2 个按钮
   - TC2 [取消成功]：点取消 → 确认 → 跳回 list → 订单状态变 cancelled
@@ -961,13 +978,16 @@
 - **前置**：7.9 完成
 - **后置**：可视化查看
 - **任务**：
-  1. 日趋势区：列表式，每天一行（"MM-DD 周X" + 收入 + CSS 进度条按最大值归一化）
-  2. 分类占比区：列表式，每个分类一行（"🥬 菜品 ¥80" + 百分比 + 进度条）
+  1. 日趋势区：列表式，每天一行（"MM-DD 周X" + 收入 + CSS 进度条）
+     - **归一化策略**：按范围（日/周/月）内**最大值线性归一化**（不是对数）
+     - 视觉诚实优先：若数据稀疏（如一天 ¥1000、一天 ¥1），小那条几乎不可见——是真实数据特征，不掩盖
+  2. 分类占比区：列表式，每个分类一行（"🥬 菜品 ¥80" + 百分比 + 进度条按总和归一化）
   3. 空数据：显示"暂无数据"
 - **测试用例**：
   - TC1 [有数据]：录 3 天数据 → 趋势区显示 3 行 + 进度条长度对应
   - TC2 [空数据]：未来日期 → 显示"暂无数据"
   - TC3 [分类占比正确]：3 笔菜品 + 1 笔耗材 → 菜品 75%、耗材 25%
+  - TC4 [数据稀疏]：一天 ¥1000、一天 ¥1 → 大条满格、小条约 0.1%
   - 边界 [单笔数据]：1 笔 → 进度条 100%
 - **本步不处理**：不做交互式图表（点击、悬浮等）
 - **完成定义**：
@@ -1044,29 +1064,38 @@
   2. 调 `api.meal-cards.getActiveCard(customerId)`
   3. 有 active 卡：显示"剩 X/Y" + CSS 进度条（used/total）
   4. 无 active 卡：显示"该客户暂无次卡"
-  5. "+ 开新卡"按钮 → 弹层 / 跳开卡表单
+  5. "+ 开新卡"按钮 → 跳独立页 `src/pages/me/customers/open-card.vue`（**不用弹层**，表单 3 字段 + 重复开卡确认弹窗，弹层放不下）
 - **测试用例**：
   - TC1 [有 active 卡]：开 1 张 20 次 → 详情页看到"剩 20/20" + 0% 进度条
   - TC2 [用过 3 次]：开 1 张 20 次 + markDelivered 3 单 → 详情页"剩 17/20" + 15% 进度条
   - TC3 [depleted 卡]：开 1 张 20 次 + markDelivered 20 单 → 详情页"该客户暂无次卡"（active 为空）
+  - TC4 [+ 跳转]：点"+ 开新卡"→ 跳 open-card 页
   - 边界 [无卡]：新客户 → 显示"该客户暂无次卡"
 - **完成定义**：
-  - [ ] TC1-TC3 + 边界全通过
+  - [ ] TC1-TC4 + 边界全通过
 
-### Step 7.15 — 开次卡表单
+### Step 7.15 — 开次卡表单（独立页 + 重复开卡确认）
 
-- **目标**：开新卡的弹层 / 页
+- **目标**：开新次卡；若客户已有 active 卡，弹确认（不阻止）
 - **前置**：7.14 完成
 - **后置**：可开新次卡
 - **任务**：
-  1. 创建 `src/pages/me/customers/open-card.vue`（或用弹层）
-  2. 字段：总次数（默认 20）、金额、备注
-  3. 保存 → 调 `api.meal-cards.openCard` → toast → 跳回 detail
-  4. 校验：金额 > 0、次数 > 0
+  1. 创建 `src/pages/me/customers/open-card.vue`（**独立页**，不是弹层）
+  2. 接 `onLoad` 参数 `customerId`
+  3. 入口处调 `api.meal-cards.getActiveCard(customerId)`：
+     - 若有 active 卡 → 弹确认弹窗"该客户已有 active 次卡（剩 X/Y），是否继续开新卡？"，按用户选择继续 / 取消
+     - 若无 active 卡 → 直接进入表单
+  4. 表单字段：总次数（默认 20）、金额、备注
+  5. 保存 → 调 `api.meal-cards.openCard` → toast → 跳回 detail
+  6. 校验：金额 > 0、次数 > 0
 - **测试用例**：
-  - TC1 [默认开 20 次]：填金额 300 → 保存 → DB 中多 1 张 active 卡、20 次
-  - TC2 [开 30 次]：改总次数 30 → 保存 → DB 中 30 次
-  - TC3 [金额 0 拒绝]：金额填 0 → 保存按钮 disabled
+  - TC1 [无 active 卡]：直接进入表单 → 填金额 300 → 保存 → DB 中多 1 张 active 卡
+  - TC2 [有 active 卡 + 继续]：已有 active 卡 → 弹"已有...是否继续" → 选继续 → 填新金额 → 保存 → DB 中**多 1 张** active 卡（旧卡保留）
+  - TC3 [有 active 卡 + 取消]：已有 active 卡 → 弹确认 → 选取消 → 跳回 detail，DB 不变
+  - TC4 [默认开 20 次]：总次数 20 → DB 中 total_meals=20
+  - TC5 [开 30 次]：改总次数 30 → DB 中 total_meals=30
+  - TC6 [金额 0 拒绝]：金额填 0 → 保存按钮 disabled
+  - 边界 [开卡后立即看到]：开 1 张 → 跳回 detail → 看到新卡进度（**多张 active 卡时显示最新一张或汇总，需在 7.14 扩展**，本步只保证单张情况）
   - 边界 [开卡后立即看到]：开 1 张 → 跳回 detail → 看到新卡进度
 - **完成定义**：
   - [ ] TC1-TC3 + 边界全通过
@@ -1115,7 +1144,7 @@
 - **前置**：3.x 全完成、所有 API 完成
 - **后置**：可备份 / 恢复
 - **任务**：
-  1. 创建 `src/pages/me/backup.vue`（也可放 me 主页）
+  1. 创建 `src/pages/me/settings/backup.vue`（**与 tech-stack §4 一致**，不要放 me 根目录）
   2. **导出按钮**：
      - 调全表 SELECT
      - 序列化为 JSON（含 `version`、`exported_at` 字段）
@@ -1184,8 +1213,8 @@
 - **前置**：8.2 完成
 - **后置**：异常处理流程通
 - **任务**：
-  1. 上一状态的卡（剩 17/20）→ 录 1 单次卡 qty=2（要求 2 次，剩 17 不够 M=2？等等：17 ≥ 2，所以仍可扣）
-  2. 改：建 1 张 19/20 的卡 → 录 1 单次卡 qty=2 → 详情页 markDelivered
+  1. 建 1 张 19/20 的卡（剩 1 次）
+  2. 录 1 单次卡 qty=2 → 详情页 markDelivered
   3. 弹"次卡次数不够" → 选"改为微信 ¥30"
   4. 订单 payment_method='wechat'、amount=30、status='delivered'；meal_cards 仍 19/20（**未扣**）
   5. 统计页：收入 +30、订单数 +1
@@ -1367,6 +1396,14 @@
 - 涉及 schema 的步骤（如 2.x）失败 → 卸载 App 重装来重置 DB
 - 涉及多表事务的步骤失败 → 查 `PRAGMA user_version` 和实际表状态确认是 schema 问题还是事务问题
 
+### A.5 v1.0 范围外的实施任务
+
+> 2026-06-10 记录
+
+- **D. 生成自签名 keystore**：Step 9.4 提到"按 `memory-bank/tech-stack.md §8.3` 生成自签名 keystore（一次性）"——这是开发者环境设置，**不算代码任务**。**当前决定：放进 README 的"开发环境"小节，不进 implementation plan**。如未来要纳入：新增 Step 0.0（在 Phase 1 之前），写"准备 keystore + 配置环境变量"。
+
+> 注：design-doc §8.4 同时记录了 A/B/C 三项 v1.0 明确不做的设计功能（支出分类管理 / 关于页 / 清空数据），与本节 D 互不重叠。
+
 ---
 
 ## 附录 B — 完整步骤索引
@@ -1382,7 +1419,7 @@
 | 7 页面 | 7.1-7.18 | ~5 天 |
 | 8 流程串联 | 8.1-8.6 | ~2 天 |
 | 9 收尾 | 9.1-9.5 | ~1 天 |
-| **合计** | **67 步** | **~14 天** |
+| **合计** | **63 步** | **~14 天** |
 
 ---
 
