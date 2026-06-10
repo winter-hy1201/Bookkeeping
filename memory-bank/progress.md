@@ -8,24 +8,37 @@
 
 ## 当前总览
 
-- **开始日期**：未开始
-- **当前阶段**：未开始
-- **下一步**：Phase 1 Step 1.1 — 拉取 uni-app Vue 3 + Vite + TS 模板
+- **开始日期**：2026-06-10
+- **当前阶段**：Phase 2 数据层已完成
+- **下一步**：Phase 3 Step 3.1 — 定义 domain 类型
 
 ---
 
-## Phase 1 — 项目脚手架（0/8）
+## Phase 1 — 项目脚手架（8/8）
 
-- [ ] Step 1.1 — 拉取 uni-app Vue 3 + Vite + TS 模板
-- [ ] Step 1.2 — 安装 pnpm 依赖
-- [ ] Step 1.3 — 配置 TypeScript 严格模式
-- [ ] Step 1.4 — 配置 ESLint + Prettier
-- [ ] Step 1.5 — 创建项目目录结构
-- [ ] Step 1.6 — 创建 memory-bank 初始文件（本步）
-- [ ] Step 1.7 — 配置 manifest.json（Android 基础）
-- [ ] Step 1.8 — 配置 4 个 Tab 路由骨架
+- [x] Step 1.1 — 拉取 uni-app Vue 3 + Vite + TS 模板（用 `dcloudio/uni-preset-vue#vite-ts`）
+- [x] Step 1.2 — 安装 pnpm 依赖
+- [x] Step 1.3 — 配置 TypeScript 严格模式
+- [x] Step 1.4 — 配置 ESLint + Prettier
+- [x] Step 1.5 — 创建项目目录结构
+- [x] Step 1.6 — 创建 memory-bank 初始文件（本步）
+- [x] Step 1.7 — 配置 manifest.json（Android 基础）
+- [x] Step 1.8 — 配置 4 个 Tab 路由骨架
 
-**里程碑 1.8 — 脚手架完成**：[ ]
+**里程碑 1.8 — 脚手架完成**：[x]（2026-06-10）
+
+---
+
+## Phase 2 — 数据层（SQLite）（5/6，待 2.6 验证）
+
+- [x] Step 2.1 — 编写 schema.ts（5 张表 DDL 字符串）
+- [x] Step 2.2 — 编写 migrations.ts（版本管理）
+- [x] Step 2.3 — 编写 seed.ts（默认分类）
+- [x] Step 2.4 — 编写 db/index.ts（连接 + tx）
+- [x] Step 2.5 — 在 App.vue 触发 init
+- [ ] Step 2.6 — 端到端验证：DB 落盘（**阻塞**：CLI 模式编译不带 SQLite 原生模块；需用户装 HBuilderX 重新编译跑通后再 adb pull 验证）
+
+**里程碑 2.6 — 数据层就绪**：[ ]（2026-06-10，待 HBuilderX 真机验证）
 
 ---
 
@@ -144,8 +157,8 @@
 
 | 阶段 | 总步数 | 已完成 | 进度 |
 |---|---|---|---|
-| Phase 1 脚手架 | 8 | 0 | 0% |
-| Phase 2 数据层 | 6 | 0 | 0% |
+| Phase 1 脚手架 | 8 | 8 | 100% |
+| Phase 2 数据层 | 6 | 5 | 83% |
 | Phase 3 类型/工具 | 4 | 0 | 0% |
 | Phase 4 API 层 | 8 | 0 | 0% |
 | Phase 5 Stores | 5 | 0 | 0% |
@@ -153,7 +166,7 @@
 | Phase 7 页面 | 18 | 0 | 0% |
 | Phase 8 流程串联 | 6 | 0 | 0% |
 | Phase 9 收尾 | 5 | 0 | 0% |
-| **合计** | **63** | **0** | **0%** |
+| **合计** | **63** | **13** | **21%** |
 
 > 步骤编号与 `implementation-plan.md` v2 一致
 
@@ -162,3 +175,6 @@
 ## 更新日志
 
 - 2026-06-10：初始创建（与 implementation-plan.md v2 同步）
+- 2026-06-10：Phase 1 脚手架 8/8 完成，里程碑 1.8 达成
+- 2026-06-10：Phase 2 数据层 5/6 完成，Step 2.6 阻塞等 HBuilderX 真机验证
+- 2026-06-10：发现 CLI 模式编译不带 SQLite 原生模块（`plus.sqlite` JS 表面存在但底层空壳，openDatabase 同步返回 undefined）；切到 HBuilderX 编译；architecture.md 新增「编译工具链」章节
