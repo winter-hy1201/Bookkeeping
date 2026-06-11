@@ -33,26 +33,9 @@ function formatDisplayValue(value: number): string {
   return String(value)
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
-
-function readValue(source: unknown): string | number | undefined {
-  if (!isRecord(source)) return undefined
-  const value = source.value
-  return typeof value === 'string' || typeof value === 'number' ? value : undefined
-}
-
-function readInputValue(event: unknown): string {
-  if (!isRecord(event)) return ''
-  const value = readValue(event.detail) ?? readValue(event.target) ?? ''
-  return String(value)
-}
-
-function handleInput(event: unknown): void {
-  const value = readInputValue(event)
-  displayValue.value = value
-  emit('update:modelValue', parseMoney(value))
+function handleInput(value: string | number): void {
+  displayValue.value = String(value)
+  emit('update:modelValue', parseMoney(String(value)))
 }
 </script>
 
@@ -61,13 +44,14 @@ function handleInput(event: unknown): void {
     <text class="amount-label">{{ label }}</text>
     <view class="amount-control">
       <text class="amount-prefix">¥</text>
-      <input
+      <uni-easyinput
         class="amount-input"
+        :model-value="displayValue"
         type="digit"
         inputmode="decimal"
-        :value="displayValue"
         :placeholder="placeholder"
-        placeholder-class="amount-placeholder"
+        :clearable="false"
+        :input-border="false"
         @input="handleInput"
       />
     </view>
@@ -111,12 +95,5 @@ function handleInput(event: unknown): void {
 .amount-input {
   flex: 1;
   min-width: 0;
-  color: #333333;
-  font-size: 30rpx;
-  line-height: 1.4;
-}
-
-.amount-placeholder {
-  color: #c0c0c0;
 }
 </style>

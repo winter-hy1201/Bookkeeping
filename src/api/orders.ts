@@ -128,8 +128,17 @@ async function resolveOrderPrice(input: CreateOrderInput): Promise<{
 }
 
 export async function listOrders(input: ListOrdersInput): Promise<OrderResult[]> {
-  const where = ['order_date >= ?', 'order_date <= ?']
-  const args: Array<number | string | null> = [input.startDate, input.endDate]
+  const where: string[] = []
+  const args: Array<number | string | null> = []
+
+  if (input.startDate !== undefined) {
+    where.push('order_date >= ?')
+    args.push(input.startDate)
+  }
+  if (input.endDate !== undefined) {
+    where.push('order_date <= ?')
+    args.push(input.endDate)
+  }
 
   if (input.status !== undefined) {
     where.push('status = ?')
@@ -157,7 +166,7 @@ export async function listOrders(input: ListOrdersInput): Promise<OrderResult[]>
       updated_at,
       cancelled_at
     FROM orders
-    WHERE ${where.join(' AND ')}
+    ${where.length > 0 ? `WHERE ${where.join(' AND ')}` : ''}
     ORDER BY order_date DESC, created_at DESC, id DESC`,
     args,
   )

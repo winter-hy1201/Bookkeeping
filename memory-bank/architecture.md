@@ -7,8 +7,8 @@
 
 ## 当前状态
 
-- **项目阶段**：Phase 6 通用 UI 组件完成，等待用户验证；验证通过后再进入 Phase 7 页面实现
-- **已建文件**：`docs/PRD.md`、`CLAUDE.md`、`AGENTS.md`、`memory-bank/` 活文档、uni-app Vue 3 + Vite + TS 模板、5 张表 DDL + 迁移 + seed + tx() 工具、domain/api 类型、日期/金额工具、完整 API 层、4 个 Pinia store、3 个通用 UI 组件
+- **项目阶段**：Phase 8 关键流程串联进行中；本地预检已修补次卡不足改支付与备份 schema 校验，等待 HBuilderX / Android 真机逐条跑 8.1-8.6
+- **已建文件**：`docs/PRD.md`、`CLAUDE.md`、`AGENTS.md`、`memory-bank/` 活文档、uni-app Vue 3 + Vite + TS 模板、5 张表 DDL + 迁移 + seed + tx() 工具、domain/api 类型、日期/金额/页面/备份工具、完整 API 层、4 个 Pinia store、3 个通用 UI 组件、uni-ui 表单组件、4 个 Tab 与关键子页
 - **DB 状态**：v0 基线已存（`memory-bank/bookkeeping-v0.db`，CLI sqlite smoke-test 生成）；真机 DB 已拉取到 `memory-bank/bookkeeping-real.db`，业务表齐全、默认分类 5 行、`user_version=1`
 - **最后更新**：2026-06-11
 
@@ -48,9 +48,9 @@
 | `index.html` | Vite H5 入口 HTML；`<script type="module" src="/src/main.ts">` | 几乎不改 |
 | `package.json` | 项目元数据 + scripts（dev / build / lint / format / type-check） | 加新脚本/依赖时 |
 | `pnpm-lock.yaml` | pnpm 锁定文件（**不要**手动编辑） | pnpm install 后自动 |
-| `tsconfig.json` | TypeScript 配置；extends `@vue/tsconfig`，加 3 个 strict 选项 | 调整严格度时 |
+| `tsconfig.json` | TypeScript 配置；extends `@vue/tsconfig`，加 3 个 strict 选项；排除 `src/uni_modules` 第三方 uni-ui 源码 | 调整严格度时 |
 | `vite.config.ts` | Vite 配置；只注册 `uni()` 插件 | 加 Vite 插件时 |
-| `.eslintrc.cjs` | ESLint 配置：vue3 + ts + prettier；`src/pages/**` 关闭多字命名 | 改 lint 规则时 |
+| `.eslintrc.cjs` | ESLint 配置：vue3 + ts + prettier；`src/pages/**` 关闭多字命名；忽略 `src/uni_modules/**` 第三方源码 | 改 lint 规则时 |
 | `.prettierrc` | Prettier 配置：无分号 / 单引号 / 宽度 100 | 改格式时 |
 | `node_modules/` | 依赖安装目录（git 忽略） | pnpm install 后 |
 
@@ -84,15 +84,25 @@
 | `src/uni.scss` | uni-app 全局 SCSS 变量（rpx 换算等）|
 | `src/shime-uni.d.ts` | 扩展 Vue `ComponentCustomOptions` 加上 uni-app 的 App/Page 实例类型（**注：文件名是模板的拼写，保留不修**） |
 | `src/static/` | 静态资源（默认有 `logo.png`）|
+| `src/uni_modules/` | uni-ui easycom 组件源码目录；业务表单统一使用其中的 `uni-easyinput` / `uni-data-checkbox` / `uni-data-select` / `uni-datetime-picker` 等组件，质量检查不 lint/type-check 该第三方源码 |
 
-### pages/ — 页面（uni-app 自动路由；当前 4 个 Tab 占位）
+### pages/ — 页面（uni-app 自动路由；Phase 7 已实现）
 
 | 文件 | 作用 |
 |---|---|
-| `src/pages/index/index.vue` | Tab 1「今日」Dashboard（占位；Phase 7 Step 7.1-7.2 真实实现）|
-| `src/pages/order/index.vue` | Tab 2「订单」列表（占位；Phase 7 Step 7.3+ 真实实现）|
-| `src/pages/stats/index.vue` | Tab 3「统计」（占位；Phase 7 Step 7.9-7.10 真实实现）|
-| `src/pages/me/index.vue` | Tab 4「我的」（占位；Phase 7 Step 7.11+ 真实实现）|
+| `src/pages/index/index.vue` | Tab 1「今日」Dashboard：`onShow` 刷新 stats/order/customer store，展示订单数、收入、支出、利润，以及待配送 / 已配送 / 已取消三组今日订单。 |
+| `src/pages/order/index.vue` | Tab 2「订单」列表：用 `uni-datetime-picker` 按日期筛选 `orderStore.list`，展示客户名、餐次、份数、金额和状态；支持跳转新建订单与订单详情。 |
+| `src/pages/order/new.vue` | 新建订单表单：CustomerPicker 选客户；餐次/支付用 `uni-data-checkbox`，份数/备注用 `uni-easyinput`；普通订单按客户默认价 × 折扣率预填，次卡订单 amount=0 且 unit_price=卡金额/总次数，创建时不扣次。 |
+| `src/pages/order/detail.vue` | 订单详情：按 id 读取单条订单与客户信息；pending 可取消或标记已配送；捕获 `InsufficientCardError` 后按客户默认价 × 折扣率整单改微信/现金再配送，客户无默认价时回退订单原单价。 |
+| `src/pages/stats/index.vue` | Tab 3「统计」：今日/本周/本月/自定义区间切换，自定义日期用 `uni-datetime-picker`；展示收入、支出、利润、订单数、客单价、日趋势 CSS 进度条和支出分类占比。 |
+| `src/pages/me/index.vue` | Tab 4「我的」入口：跳转客户管理、支出管理、备份恢复。 |
+| `src/pages/me/customers/list.vue` | 客户列表：`onShow` 刷新 customer store，前端用 `uni-easyinput` 按姓名/微信/手机号搜索，展示折扣角标，支持新建和详情跳转。 |
+| `src/pages/me/customers/new.vue` | 客户新建/编辑共用页：用 uni-ui 表单组件维护姓名、手机、微信、午餐/晚餐默认价、折扣率、备注；默认价未触碰时保存为 null。 |
+| `src/pages/me/customers/detail.vue` | 客户详情：展示基础信息、当前 active 次卡、历史订单；支持编辑和跳转开次卡。历史订单通过 `listOrders({ customerId })` 查询。 |
+| `src/pages/me/customers/open-card.vue` | 开次卡页：总次数用 `uni-number-box`、金额用 AmountInput，默认 20 次，金额必填；若已有 active 次卡先确认，确认后仍可新开，旧卡保留。 |
+| `src/pages/me/expenses/list.vue` | 支出列表：用 `uni-datetime-picker` 按日期读取 expense store，展示分类 emoji/名称、金额和备注；长按可删除。 |
+| `src/pages/me/expenses/new.vue` | 新建支出页：日期用 `uni-datetime-picker`、分类用 `uni-data-select`、金额用 AmountInput、备注用 `uni-easyinput`；金额 > 0 且分类已选才可保存。 |
+| `src/pages/me/settings/backup.vue` | 备份恢复页：导出 JSON 到 `_doc/backup_YYYYMMDD_HHmmss.json` 并调用系统分享；用 `uni-easyinput` 粘贴 JSON 后全量覆盖导入；危险区三次确认清空 5 张表。 |
 
 ### components/ — 跨页组件
 
@@ -100,8 +110,8 @@
 |---|---|
 | `src/components/.gitkeep` | 占位文件，让空目录被 git 跟踪 |
 | `src/components/StatCard.vue` | 通用数字卡片；props 为 `label` / `value` / `color?: 'normal' \| 'positive' \| 'negative'` / `hint?`；上方展示 label，下方展示大号 value，可选 hint；利润 label 在未显式传 color 时按数值正负自动映射绿色/红色。 |
-| `src/components/AmountInput.vue` | 金额输入组件；props 为 `modelValue: number` / `label` / `placeholder?`；事件 `update:modelValue`；内部保留字符串输入态，使用 `parseMoney()` 将输入解析为 number 回传，模板提供 `¥` 前缀。 |
-| `src/components/CustomerPicker.vue` | 客户选择组件；props 为 `modelValue: Customer \| null` / `showCreate?`；事件 `update:modelValue` / `create`；点击输入区打开底部选择弹层，支持按姓名、微信、手机号前端搜索，列表展示客户名和折扣角标。 |
+| `src/components/AmountInput.vue` | 金额输入组件；props 为 `modelValue: number` / `label` / `placeholder?`；事件 `update:modelValue`；内部用 `uni-easyinput` 保留字符串输入态，使用 `parseMoney()` 将输入解析为 number 回传，模板提供 `¥` 前缀。 |
+| `src/components/CustomerPicker.vue` | 客户选择组件；props 为 `modelValue: Customer \| null` / `showCreate?`；事件 `update:modelValue` / `create`；点击输入区打开底部选择弹层，内部用 `uni-easyinput` 支持按姓名、微信、手机号前端搜索，列表展示客户名和折扣角标。 |
 
 ### stores/ — Pinia 状态
 
@@ -127,7 +137,7 @@
 |---|---|
 | `src/api/customers.ts` | customers 表 CRUD：`listCustomers()` / `getCustomer(id)` / `createCustomer(input)` / `updateCustomer(id, input)` / `deleteCustomer(id)`。`createCustomer` 与 `updateCustomer` 返回最新客户记录；`deleteCustomer` 在客户存在次卡或订单依赖时返回 `false` 并保留数据，避免外键失败。 |
 | `src/api/meal-cards.ts` | meal_cards 表基础 API：`getActiveCard(customerId): Promise<MealCardResult \| null>` / `listCards(customerId): Promise<MealCardResult[]>` / `openCard(input: OpenMealCardInput): Promise<MealCardResult>` / `getCard(id): Promise<MealCardResult \| null>`。`openCard` 用 `tx()` 包裹，写入 `used_meals=0`、`status='active'`。 |
-| `src/api/orders.ts` | orders 表与订单流程 API：`listOrders(input: ListOrdersInput): Promise<OrderResult[]>` / `getOrder(id): Promise<OrderResult \| null>` / `createOrder(input: CreateOrderInput): Promise<OrderResult>` / `updateOrderStatus(id, status): Promise<OrderResult \| null>` / `updateOrderPayment(id, input): Promise<OrderResult \| null>` / `markDelivered(orderId): Promise<OrderResult>` / `cancelOrder(orderId): Promise<OrderResult \| null>`。`createOrder` 不扣次卡；`markDelivered` 在配送完成时扣次并在不足时回滚；`cancelOrder` 不返还次卡次。 |
+| `src/api/orders.ts` | orders 表与订单流程 API：`listOrders(input: ListOrdersInput): Promise<OrderResult[]>` / `getOrder(id): Promise<OrderResult \| null>` / `createOrder(input: CreateOrderInput): Promise<OrderResult>` / `updateOrderStatus(id, status): Promise<OrderResult \| null>` / `updateOrderPayment(id, input): Promise<OrderResult \| null>` / `markDelivered(orderId): Promise<OrderResult>` / `cancelOrder(orderId): Promise<OrderResult \| null>`。`listOrders` 的 `startDate/endDate` 可选，页面可用 `customerId` 查询客户历史订单；`createOrder` 不扣次卡；`markDelivered` 在配送完成时扣次并在不足时回滚；`cancelOrder` 不返还次卡次。 |
 | `src/api/errors.ts` | API 层业务异常：`InsufficientCardError`（次卡次数不足，供配送异常分支捕获）/ `AlreadyDeliveredError`（已配送订单禁止取消）。 |
 | `src/api/expense-categories.ts` | expense_categories 只读 API：`listCategories(): Promise<ExpenseCategoryResult[]>` / `getCategory(id): Promise<ExpenseCategoryResult \| null>`。v1.0 不暴露分类增删改。 |
 | `src/api/expenses.ts` | expenses 表 CRUD：`listExpenses(input: ListExpensesInput): Promise<ExpenseResult[]>` / `getExpense(id): Promise<ExpenseResult \| null>` / `createExpense(input: CreateExpenseInput): Promise<ExpenseResult>` / `deleteExpense(id): Promise<boolean>`。`createExpense` 用 `tx()` 包裹，`amount <= 0` 按 v1.0 约定拒绝。 |
@@ -139,14 +149,15 @@
 |---|---|
 | `src/utils/date.ts` | dayjs 本地时区日期工具：`today()` 返回 `YYYY-MM-DD`；`weekRange(d)` 返回自然周周一到周日；`monthRange(d)` 返回自然月 1 号到月底；`formatDate(d)` 按当前年份显示 `MM-DD` 或 `YYYY-MM-DD`；`daysBetween(a, b)` 返回自然日整数差。 |
 | `src/utils/format.ts` | 金额/百分比格式化工具：`formatMoney(n)` 输出 `¥1,234.50`（空值/非法值为 `¥—`）；`parseMoney(s)` 接受普通数字、`¥`、`￥`、千分位并解析为 number（非法为 0）；`formatPercent(n)` 四舍五入输出整数百分比。 |
-| _（待 Phase 7.18 填写）_ | _`backup.ts`（JSON 导入导出）按设置页备份/恢复步骤再实现_ |
+| `src/utils/ui.ts` | 页面层小工具：toast、confirm/actionSheet Promise 化、数值转换、餐次/支付/状态文案、客户默认价 × 折扣价提示、订单金额展示。 |
+| `src/utils/backup.ts` | JSON 备份恢复工具：全表导出 payload、写 `_doc/backup_*.json`、系统分享、解析校验备份 JSON 与 `schema_version`、事务内全量覆盖导入、三次确认后清空 5 张表。 |
 
 ### types/ — TS 类型
 
 | 文件 | 作用 |
 |---|---|
 | `src/types/domain.ts` | 与 schema snake_case 字段严格对齐的核心领域类型：`Customer` / `MealCard` / `Order` / `ExpenseCategory` / `Expense`，以及枚举联合类型 `MealType` / `PaymentMethod` / `OrderStatus` / `MealCardStatus`。可空 DB 字段统一为 `T \| null`。 |
-| `src/types/api.ts` | 后续 API 层复用的入参/出参契约：客户创建/更新、开次卡、订单创建/支付方式更新/列表筛选、支出创建/筛选、统计范围、`StatsSummary` / `DailyTrendPoint` / `CategoryBreakdown` 等。仅定义类型，不实现 Phase 4 API。 |
+| `src/types/api.ts` | API 层复用的入参/出参契约：客户创建/更新、开次卡、订单创建/支付方式更新/列表筛选、支出创建/筛选、统计范围、`StatsSummary` / `DailyTrendPoint` / `CategoryBreakdown` 等。`ListOrdersInput.startDate/endDate` 为可选，支持客户详情历史订单查询。 |
 | `src/types/pinia.d.ts` | 本地类型声明：在不手动安装 npm `pinia` 的前提下，让 `vue-tsc` 能识别 uni-app/HBuilderX 内置 Pinia 的 `createPinia` / `defineStore`。仅提供类型，不提供运行时代码。 |
 
 ---
@@ -165,6 +176,7 @@
 | 多表写入必走 tx() | `memory-bank/design-document.md §4` | db/index.ts 提供 tx() 工具 |
 | PRAGMA foreign_keys = ON | db/index.ts init() | 维护 customer_id / meal_card_id / category_id 外键完整性 |
 | `user_version` 驱动迁移 | db/migrations.ts | 首次建表=v1；未来加字段在 MIGRATIONS 末尾追加 |
+| 表单控件统一使用 uni-ui | `src/uni_modules` + 各表单页 | 业务页面不直接使用原生 `input` / `textarea` / `picker` / `radio-group` / `slider`，改用 easycom 的 uni-ui 表单组件 |
 
 ## DB 备份
 
@@ -183,6 +195,7 @@
 | `vue` | Vue 3 | `^3.4.21`（实际 3.5.x） |
 | `vue-i18n` | 模板自带；v1.0 不用 | `^9.1.9` |
 | `dayjs` | 日期工具；用于自然日/自然周/自然月计算 | `^1.11.21` |
+| `sass` | uni-ui 组件 `lang="scss"` 编译依赖 | `^1.100.0` |
 | `@dcloudio/vite-plugin-uni` | uni-app Vite 插件 | `3.0.0-4080420251103001` |
 | `vite` | 构建工具 | `5.2.8` |
 | `typescript` | TS 编译器 | `^4.9.4`（实际 4.9.5） |
@@ -195,7 +208,7 @@
 | `prettier` | 代码格式化 | `^3.8.4` |
 | `eslint-config-prettier` | 关掉与 prettier 冲突的 lint 规则 | `^9.1.2` |
 
-> **未装**（按 plan 留到对应步骤）：`@dcloudio/uni-ui`（按需）。`pinia` 按用户要求使用 uni-app/HBuilderX 内置版本，不写入 `package.json`。
+> uni-ui 通过 `src/uni_modules` easycom 方式随项目携带，不通过 npm 安装 `@dcloudio/uni-ui`；`sass` 是这些组件参与 H5/Vite 构建所需的 devDependency。
 
 ---
 
@@ -225,3 +238,6 @@
 - 2026-06-11：Phase 4 Step 4.2-4.8 API 层完成 — 新增 `src/api/meal-cards.ts` / `src/api/orders.ts` / `src/api/errors.ts` / `src/api/expense-categories.ts` / `src/api/expenses.ts` / `src/api/stats.ts`；实现次卡、订单配送扣次、订单取消、支出分类读取、支出 CRUD 和统计聚合；本地 `pnpm type-check` / `pnpm lint` / `pnpm build:h5` 通过，临时 SQLite mock 端到端 smoke test 通过；等待用户验证后再进入 Phase 5
 - 2026-06-11：Phase 5 Pinia Stores 完成 — 按 uni-app 官方文档使用内置 Pinia，清除手动安装的 `pinia` / `@vue/devtools-*` 依赖；`src/main.ts` 使用 `Pinia.createPinia()` 并返回 `Pinia`；新增 `src/types/pinia.d.ts` 供本地 TS 检查；新增 `src/stores/customer.ts` / `src/stores/order.ts` / `src/stores/expense.ts` / `src/stores/stats.ts`，store 只做视图缓存和 action 编排，写入仍走 API 层；`src/api/stats.ts` 导出 `getRangeSummary` 供 stats store 复用。`pnpm type-check` / `pnpm lint` 通过；零手动 Pinia 依赖下 CLI H5 构建失败，需用 HBuilderX 内置 Pinia 验证。
 - 2026-06-11：Phase 6 通用 UI 组件完成 — 新增 `src/components/StatCard.vue` / `src/components/AmountInput.vue` / `src/components/CustomerPicker.vue`；组件只提供跨页 UI 能力和事件上抛，不承接 Phase 7 页面业务实现。
+- 2026-06-11：Phase 7 页面实现完成 — 新增订单、统计、客户、次卡、支出和备份恢复子页，更新 `pages.json` 路由；新增 `src/utils/ui.ts` 与 `src/utils/backup.ts`；扩展 `listOrders` 支持按客户查历史订单；页面层接入既有 store/API，保持次卡创建不扣次、配送完成扣次、次卡不足整单改微信/现金的核心约束。`pnpm type-check` / `pnpm lint` 通过；未进入 Phase 8 端到端流程串联。
+- 2026-06-11：Phase 8 预检进行中 — 用户确认 Phase 7 真机验证通过后进入关键流程串联；修补次卡次数不足异常分支的改支付金额（按客户默认价 × 折扣率，不再沿用次卡次均价）和备份导入 `schema_version` 校验；`pnpm type-check` / `pnpm lint` / `pnpm build:h5` 通过，等待真机逐条跑 8.1-8.6。
+- 2026-06-11：表单组件统一改造 — 业务页面原生 `input` / `textarea` / `picker` / `radio-group` / `slider` 已替换为 uni-ui easycom 组件（`uni-easyinput` / `uni-data-checkbox` / `uni-data-select` / `uni-datetime-picker` / `uni-number-box`）；`tsconfig.json` 与 `.eslintrc.cjs` 排除 `src/uni_modules` 第三方源码；新增 `sass` 供 uni-ui SCSS 编译；`pnpm type-check` / `pnpm lint` / `pnpm build:h5` 通过（H5 build 仅有 uni-ui 内部 Sass deprecation warning）。

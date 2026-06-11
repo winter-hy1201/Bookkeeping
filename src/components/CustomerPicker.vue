@@ -55,26 +55,6 @@ function closeSheet(): void {
   visible.value = false
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
-
-function readValue(source: unknown): string | number | undefined {
-  if (!isRecord(source)) return undefined
-  const value = source.value
-  return typeof value === 'string' || typeof value === 'number' ? value : undefined
-}
-
-function readInputValue(event: unknown): string {
-  if (!isRecord(event)) return ''
-  const value = readValue(event.detail) ?? readValue(event.target) ?? ''
-  return String(value)
-}
-
-function handleSearch(event: unknown): void {
-  keyword.value = readInputValue(event)
-}
-
 function selectCustomer(customer: Customer): void {
   emit('update:modelValue', customer)
   closeSheet()
@@ -109,14 +89,14 @@ function discountLabel(customer: Customer): string {
         <view class="picker-handle"></view>
         <view class="search-box">
           <text class="search-icon">🔍</text>
-          <input
+          <uni-easyinput
+            v-model="keyword"
             class="search-input"
             type="text"
-            :value="keyword"
             placeholder="搜索客户姓名、微信或手机号"
-            placeholder-class="search-placeholder"
             confirm-type="search"
-            @input="handleSearch"
+            :input-border="false"
+            :clearable="true"
           />
         </view>
 
@@ -246,13 +226,6 @@ function discountLabel(customer: Customer): string {
 .search-input {
   flex: 1;
   min-width: 0;
-  color: #333333;
-  font-size: 28rpx;
-  line-height: 1.4;
-}
-
-.search-placeholder {
-  color: #999999;
 }
 
 .customer-list {

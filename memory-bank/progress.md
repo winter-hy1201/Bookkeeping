@@ -9,8 +9,8 @@
 ## 当前总览
 
 - **开始日期**：2026-06-10
-- **当前阶段**：Phase 6 通用 UI 组件已完成，等待用户验证
-- **下一步**：用户验证通过后再进入 Phase 7 Step 7.1 — Tab 1 Dashboard 骨架（mock 数据）
+- **当前阶段**：Phase 8 关键流程串联进行中（本地 type-check / lint / H5 build 已通过，待 HBuilderX / Android 真机手动跑 8.1-8.6）
+- **下一步**：Phase 8 Step 8.1 — 端到端：录单 → 配送 → 对账
 
 ---
 
@@ -90,34 +90,34 @@
 
 ---
 
-## Phase 7 — 页面实现（0/18）
+## Phase 7 — 页面实现（18/18）
 
-- [ ] Step 7.1 — Tab 1 Dashboard 骨架（mock 数据）
-- [ ] Step 7.2 — Dashboard 接入真实数据
-- [ ] Step 7.3 — Tab 2 订单列表页骨架
-- [ ] Step 7.4 — 新建订单表单（布局 + 客户选择）
-- [ ] Step 7.5 — 新建订单：价格计算（A6 核心）
-- [ ] Step 7.6 — 新建订单：支付方式 + 次卡选择
-- [ ] Step 7.7 — 订单详情页（布局 + 取消）
-- [ ] Step 7.8 — 订单详情：标记已配送（含次卡异常）
-- [ ] Step 7.9 — Tab 3 统计页骨架
-- [ ] Step 7.10 — 统计页：日趋势 + 分类占比
-- [ ] Step 7.11 — Tab 4 客户列表
-- [ ] Step 7.12 — 客户新建 / 编辑页
-- [ ] Step 7.13 — 客户详情页（基础信息 + 历史订单）
-- [ ] Step 7.14 — 客户详情：次卡卡片 + 开新卡入口
-- [ ] Step 7.15 — 开次卡表单
-- [ ] Step 7.16 — Tab 4 支出列表
-- [ ] Step 7.17 — 支出新建页
-- [ ] Step 7.18 — Tab 4 设置（备份/恢复）
+- [x] Step 7.1 — Tab 1 Dashboard 骨架（mock 数据）
+- [x] Step 7.2 — Dashboard 接入真实数据
+- [x] Step 7.3 — Tab 2 订单列表页骨架
+- [x] Step 7.4 — 新建订单表单（布局 + 客户选择）
+- [x] Step 7.5 — 新建订单：价格计算（A6 核心）
+- [x] Step 7.6 — 新建订单：支付方式 + 次卡选择
+- [x] Step 7.7 — 订单详情页（布局 + 取消）
+- [x] Step 7.8 — 订单详情：标记已配送（含次卡异常）
+- [x] Step 7.9 — Tab 3 统计页骨架
+- [x] Step 7.10 — 统计页：日趋势 + 分类占比
+- [x] Step 7.11 — Tab 4 客户列表
+- [x] Step 7.12 — 客户新建 / 编辑页
+- [x] Step 7.13 — 客户详情页（基础信息 + 历史订单）
+- [x] Step 7.14 — 客户详情：次卡卡片 + 开新卡入口
+- [x] Step 7.15 — 开次卡表单
+- [x] Step 7.16 — Tab 4 支出列表
+- [x] Step 7.17 — 支出新建页
+- [x] Step 7.18 — Tab 4 设置（备份/恢复）
 
-**里程碑 7.18 — 所有页面就绪**：[ ]
+**里程碑 7.18 — 所有页面就绪**：[x]（2026-06-11）
 
 ---
 
 ## Phase 8 — 关键流程串联（0/6）
 
-- [ ] Step 8.1 — 端到端：录单 → 配送 → 对账
+- [~] Step 8.1 — 端到端：录单 → 配送 → 对账
 - [ ] Step 8.2 — 端到端：次卡完整流程
 - [ ] Step 8.3 — 端到端：次卡次数不够异常
 - [ ] Step 8.4 — 端到端：取消订单
@@ -150,10 +150,10 @@
 | Phase 4 API 层 | 8 | 8 | 100% |
 | Phase 5 Stores | 5 | 5 | 100% |
 | Phase 6 通用组件 | 3 | 3 | 100% |
-| Phase 7 页面 | 18 | 0 | 0% |
+| Phase 7 页面 | 18 | 18 | 100% |
 | Phase 8 流程串联 | 6 | 0 | 0% |
 | Phase 9 收尾 | 5 | 0 | 0% |
-| **合计** | **63** | **34** | **54%** |
+| **合计** | **63** | **52** | **83%** |
 
 > 步骤编号与 `implementation-plan.md` v2 一致
 
@@ -183,3 +183,5 @@
 - 2026-06-11：Phase 5 Step 5.4 完成：新增 `src/stores/expense.ts`，提供支出列表、默认分类、当前日期和 `loading` 状态，以及 `refreshForDate` / `refreshCategories` / `create` / `remove` actions；支出写入后自动刷新当前日期列表。
 - 2026-06-11：Phase 5 Step 5.5 完成：新增 `src/stores/stats.ts`，提供 Dashboard summary、日趋势、支出分类占比、当前 range 和 `loading` 状态；`src/api/stats.ts` 导出已有的 `getRangeSummary` 供统计页区间汇总复用。`pnpm type-check` / `pnpm lint` 通过；按用户要求不手动安装 Pinia 后，CLI `pnpm build:h5` 会因找不到 `pinia/dist/pinia.mjs` 失败，需走 HBuilderX 内置 Pinia 验证。Phase 5 里程碑完成，等待用户验证后再进入 Phase 6。
 - 2026-06-11：Phase 6 Step 6.1-6.3 完成：新增 `src/components/StatCard.vue` / `src/components/AmountInput.vue` / `src/components/CustomerPicker.vue`；分别提供通用数字卡片、金额输入和客户选择弹层。组件可被后续 Dashboard、统计页、订单录入和客户管理页复用；本阶段不进入 Phase 7 页面实现。
+- 2026-06-11：用户确认 Phase 6 验证通过，进入 Phase 7。Phase 7 Step 7.1-7.18 完成：实现 Dashboard、订单列表/新建/详情、统计页、我的入口、客户列表/新建编辑/详情/开次卡、支出列表/新建、备份恢复设置页；新增 `src/utils/ui.ts` 与 `src/utils/backup.ts`，扩展 `listOrders` 支持按客户查询历史订单；`pnpm type-check` / `pnpm lint` 通过。设置页导出使用 `plus.io` 写沙盒并调用系统分享，导入采用粘贴 JSON 后全量覆盖，避免引入额外文件选择插件。
+- 2026-06-11：用户确认 Phase 7 真机验证通过，进入 Phase 8。Phase 8 预检修补两处核心流程：次卡次数不足改微信/现金时，按客户默认价 × 折扣率重算 `unit_price` / `amount`，而不是沿用次卡次均价；备份导入补齐 `schema_version` 兼容性校验。`pnpm type-check` / `pnpm lint` / `pnpm build:h5` 通过。当前 Step 8.1 标记为进行中，待 HBuilderX / Android 真机逐条手动断言 8.1-8.6。

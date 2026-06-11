@@ -13,6 +13,18 @@
       }
     },
     {
+      "path": "pages/order/new",
+      "style": {
+        "navigationBarTitleText": "新建订单"
+      }
+    },
+    {
+      "path": "pages/order/detail",
+      "style": {
+        "navigationBarTitleText": "订单详情"
+      }
+    },
+    {
       "path": "pages/stats/index",
       "style": {
         "navigationBarTitleText": "统计"
@@ -22,6 +34,48 @@
       "path": "pages/me/index",
       "style": {
         "navigationBarTitleText": "我的"
+      }
+    },
+    {
+      "path": "pages/me/customers/list",
+      "style": {
+        "navigationBarTitleText": "客户管理"
+      }
+    },
+    {
+      "path": "pages/me/customers/new",
+      "style": {
+        "navigationBarTitleText": "客户档案"
+      }
+    },
+    {
+      "path": "pages/me/customers/detail",
+      "style": {
+        "navigationBarTitleText": "客户详情"
+      }
+    },
+    {
+      "path": "pages/me/customers/open-card",
+      "style": {
+        "navigationBarTitleText": "开次卡"
+      }
+    },
+    {
+      "path": "pages/me/expenses/list",
+      "style": {
+        "navigationBarTitleText": "支出管理"
+      }
+    },
+    {
+      "path": "pages/me/expenses/new",
+      "style": {
+        "navigationBarTitleText": "新建支出"
+      }
+    },
+    {
+      "path": "pages/me/settings/backup",
+      "style": {
+        "navigationBarTitleText": "备份恢复"
       }
     }
   ],

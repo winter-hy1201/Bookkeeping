@@ -31,5 +31,5 @@ module.exports = {
       },
     },
   ],
-  ignorePatterns: ['dist', 'node_modules', 'src/uni.scss'],
+  ignorePatterns: ['dist', 'node_modules', 'src/uni.scss', 'src/uni_modules/**'],
 };

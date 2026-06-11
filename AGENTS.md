@@ -131,3 +131,47 @@ pnpm format
 写任何代码前必须完整阅读 memory-bank/@architecture.md
 写任何代码前必须完整阅读 memory-bank/@design-document.md
 每完成一个重大功能或里程碑后，必须更新 memory-bank/@architecture.md
+
+<claude-mem-context>
+# Memory Context
+
+# [Bookkeeping] recent context, 2026-06-11 5:36pm GMT+8
+
+Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision
+Format: ID TIME TYPE TITLE
+Fetch details: get_observations([IDs]) | Search: mem-search skill
+
+Stats: 30 obs (11,981t read) | 0t work
+
+### Jun 11, 2026
+28 4:26p 🔵 Phase 6 implementation plan created with 3 UI components
+30 " 🟣 Phase 6 UI components implemented
+31 4:28p ✅ architecture.md updated to register Phase 6 components
+32 4:29p ✅ architecture.md patched in 2 hunks to register components
+35 " 🔴 Type-check failures fixed via type-narrowing helpers and button type removal
+36 4:31p 🔴 CustomerPicker refresh error handling added
+39 4:32p 🔵 Phase 6 final state verified: all checks green, code matches design
+48 4:44p ⚖️ Phase7 implementation kickoff requested after Phase6 verification
+50 4:47p ⚖️ Phase7 implementation plan registered after Phase6 verification
+51 " 🔵 Phase7 page scaffolding dependencies already present from Phases1-6
+52 " 🔵 Phase7 implementation plan Step7.1-7.18 spec confirmed
+55 4:53p ✅ Phase7 utility modules created: src/utils/ui.ts and src/utils/backup.ts
+57 4:54p ✅ Phase 7 page implementation completed (Steps 7.1–7.18)
+58 " 🔴 Type-check surfaced 10 errors blocking Phase 7 verification
+61 5:05p 🔴 Bookkeeping 真机编译报 pinia 模块解析失败
+63 5:08p 🔵 Phase 8 实施指令 — 从 Phase 7 已验证完成过渡到 Phase 8 开始
+64 5:11p 🔵 Phase 8 启动 — 主会话阅读活文档与实施计划定位
+65 " 🔴 Step 8.3 — 次卡不足改支付路径改用客户默认价 × 折扣率
+66 " ✅ Step 8.3 — 备份 schema_version 兼容性校验补齐
+68 5:12p ✅ Step 8.1 进度标记为进行中 + 总览阶段描述更新
+71 5:15p ✅ Phase 8 预检收尾：progress.md / architecture.md 双文档同步 + 计划四步全部 completed
+73 5:29p 🔵 Bookkeeping 用户请求把表单组件改用 uni-ui
+74 " 🔵 Bookkeeping Phase 7 表单页面与组件清单
+75 " ⚖️ uni-ui 引入与工具链约束
+76 " 🔵 主会话在 brainstorming 阶段读取上下文
+82 5:31p 🔵 Bookkeeping 完整 uni-ui 组件清单（uni_modules 形式已就位）
+83 " 🔵 Bookkeeping 表单组件与表单字段映射
+84 " 🔄 AmountInput 改用 uni-easyinput
+85 " 🔄 CustomerPicker 搜索框改用 uni-easyinput
+86 " 🔵 uni-easyinput @input 入参差异（关键迁移纪律）
+</claude-mem-context>

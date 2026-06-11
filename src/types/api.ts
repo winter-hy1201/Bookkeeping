@@ -25,6 +25,7 @@ export interface OpenMealCardInput {
   customer_id: number
   total_meals: number
   amount: number
+  note?: string | null
 }
 
 export interface CreateOrderInput {
@@ -47,8 +48,8 @@ export interface UpdateOrderPaymentInput {
 }
 
 export interface ListOrdersInput {
-  startDate: string
-  endDate: string
+  startDate?: string
+  endDate?: string
   status?: OrderStatus
   customerId?: number
 }
