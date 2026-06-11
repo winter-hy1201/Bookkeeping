@@ -7,9 +7,9 @@
 
 ## 当前状态
 
-- **项目阶段**：Phase 8 关键流程串联进行中；本地预检已修补次卡不足改支付与备份 schema 校验，等待 HBuilderX / Android 真机逐条跑 8.1-8.6
-- **已建文件**：`docs/PRD.md`、`CLAUDE.md`、`AGENTS.md`、`memory-bank/` 活文档、uni-app Vue 3 + Vite + TS 模板、5 张表 DDL + 迁移 + seed + tx() 工具、domain/api 类型、日期/金额/页面/备份工具、完整 API 层、4 个 Pinia store、3 个通用 UI 组件、uni-ui 表单组件、4 个 Tab 与关键子页
-- **DB 状态**：v0 基线已存（`memory-bank/bookkeeping-v0.db`，CLI sqlite smoke-test 生成）；真机 DB 已拉取到 `memory-bank/bookkeeping-real.db`，业务表齐全、默认分类 5 行、`user_version=1`
+- **项目阶段**：**v1.0 已发布**（Phase 1-9 全部完成；9.3 / 9.4 按用户决策跳过，用 HBuilderX 标准基座 debug APK 侧载；CHANGELOG.md v1.0 节已写好）
+- **已建文件**：`docs/PRD.md`、`CLAUDE.md`、`AGENTS.md`、`memory-bank/` 活文档、uni-app Vue 3 + Vite + TS 模板、5 张表 DDL + 迁移 + seed + integrity_check + tx() 工具、domain/api 类型、日期/金额/页面/备份工具、完整 API 层、4 个 Pinia store、3 个通用 UI 组件、uni-ui 表单组件、4 个 Tab 与关键子页、App.vue 全局 onError 兜底
+- **DB 状态**：v0 基线（`memory-bank/bookkeeping-v0.db`，CLI sqlite smoke-test 生成）；v1 阶段基线（`memory-bank/bookkeeping-v1.db`，Phase 8 真机 E2E 通过后归档）；业务表齐全、默认分类 5 行、`user_version=1`
 - **最后更新**：2026-06-11
 
 ---
@@ -65,6 +65,7 @@
 | `memory-bank/implementation-plan.md` | 分步实施计划（63 步，9 阶段） | 计划调整时（极少） |
 | `memory-bank/progress.md` | 实施进度（按 implementation-plan.md 步骤打勾） | 每完成一步 |
 | `memory-bank/architecture.md` | **本文件**：每个代码文件的作用说明 | 每个文件新建/删除/职责变化时 |
+| `memory-bank/CHANGELOG.md` | 版本变更日志：每版记录新增功能 / 行为变更 / 修复 / 已知限制 / TBD；v1.0 起每个里程碑追加新章节，不修改已发布版本 | 每个里程碑完成时 |
 | `memory-bank/DEBUG-HANDOFF.md` | 调试交接文档（sqlite 在 HBuilderX 标准版基座下不工作） | 阶段性快照 / 跨 AI 交接时 |
 | `memory-bank/*.db` | DB 备份（v0 基线、v1 发布版等） | 阶段性快照 |
 
@@ -77,7 +78,7 @@
 | 文件 | 作用 |
 |---|---|
 | `src/main.ts` | App 入口；导出 `createApp()`（Vue 3 SSR 工厂）装载 `App.vue`；按 uni-app Pinia 文档 `import * as Pinia from 'pinia'`，`app.use(Pinia.createPinia())`，并从 `createApp()` 返回 `Pinia`。Pinia 由 HBuilderX / uni-app 内置提供，不在 `package.json` 手动安装。 |
-| `src/App.vue` | 根组件；处理 uni-app 全局生命周期 `onLaunch` / `onShow` / `onHide`；`onLaunch` 调 `db.init()` 并在失败时 toast 提示 |
+| `src/App.vue` | 根组件；处理 uni-app 全局生命周期 `onLaunch` / `onShow` / `onHide` / `onError`；`onLaunch` 调 `db.init()` 并在失败时 toast 提示；`onError` 全局兜底未捕获错误（含 DB 损坏），DB 损坏时提示"数据库损坏，请用备份恢复" |
 | `src/env.d.ts` | Vite 客户端类型（`/// <reference types="vite/client" />`）|
 | `src/manifest.json` | uni-app App 元数据：`name=盒记` / `appid=com.bookkeeping.app` / Android `minSdkVersion=21` `targetSdkVersion=30` |
 | `src/pages.json` | uni-app 路由 + 全局样式 + `tabBar`（4 个 Tab：今日 / 订单 / 统计 / 我的） |
@@ -129,7 +130,7 @@
 | `src/db/schema.ts` | 5 张表 DDL 字符串（`SCHEMA_CUSTOMERS` / `SCHEMA_MEAL_CARDS` / `SCHEMA_ORDERS` / `SCHEMA_EXPENSE_CATEGORIES` / `SCHEMA_EXPENSES`）+ `CURRENT_SCHEMA_VERSION`。字段 / 索引 / CHECK 约束严格对齐 `design-document.md §2.1`，**`meal_cards` 表无 end_date**。 |
 | `src/db/migrations.ts` | 迁移引擎：`MIGRATIONS` 数组（每项一段可独立 SQL）/ `getCurrentVersion()`（读 PRAGMA user_version）/ `setVersion(v)` / `runMigrations()`（从 current 到 MIGRATIONS.length 顺序执行）。**改字段必须新加一段**，不在原段改。 |
 | `src/db/seed.ts` | 首次启动 seed：`seedIfEmpty()` 写入 5 个默认支出分类（菜品 🥬 / 工具 🔧 / 耗材 📦 / 配送 🛵 / 其他 💰），is_default=1。仅在 `expense_categories` 行数为 0 时插入，不强制覆盖用户数据。 |
-| `src/db/index.ts` | 数据层入口：`init()` 启动序列（openDatabase → PRAGMA foreign_keys=ON → runMigrations → seedIfEmpty，逐步 await）/ `close()` / `tx<T>(fn)`（用 5+ `transaction` 的 begin/commit/rollback 包裹 + 嵌套防护）/ `exec()` / `select()`。5+ 官方 `executeSql` 不支持 args 数组，参数在本文件统一转义；`pify()` 动态调用 SQLite 方法时必须用 `fn.call(sqlite, options)` 保留 `this`；callback 静默不返回时 8 秒超时报错，便于识别 native bridge 缺失。**所有多表写入**（建单 / 取消 / 配送 / 开次卡）必须走 `tx()`。 |
+| `src/db/index.ts` | 数据层入口：`init()` 启动序列（openDatabase → PRAGMA foreign_keys=ON → runMigrations → seedIfEmpty → PRAGMA integrity_check(1)，逐步 await；integrity_check 失败抛错让 `App.vue` 提示用备份恢复）/ `close()` / `tx<T>(fn)`（用 5+ `transaction` 的 begin/commit/rollback 包裹 + 嵌套防护）/ `exec()` / `select()`。5+ 官方 `executeSql` 不支持 args 数组，参数在本文件统一转义；`pify()` 动态调用 SQLite 方法时必须用 `fn.call(sqlite, options)` 保留 `this`；callback 静默不返回时 8 秒超时报错，便于识别 native bridge 缺失。**所有多表写入**（建单 / 取消 / 配送 / 开次卡）必须走 `tx()`。 |
 
 ### api/ — 数据访问
 
@@ -184,6 +185,7 @@
 |---|---|---|
 | `memory-bank/bookkeeping-v0.db` | 2026-06-10 Phase 2.6；用 `sqlite3` CLI 跑 schema DDL + seed 生成的"等价基线"（**非**真机 DB） | 后续步骤的 DB 形状参照；真机 adb pull 后**应覆盖**此文件 |
 | `memory-bank/bookkeeping-real.db` | 2026-06-11 Step 2.6；HBuilderX / Android 真机启动后从 `_doc/bookkeeping.db` 拉取 | 真实运行环境基线；已验证 5 张业务表、5 个默认分类、`user_version=1` |
+| `memory-bank/bookkeeping-v1.db` | 2026-06-11 Phase 8.6 通过后；`cp bookkeeping-real.db bookkeeping-v1.db` | v1.0 阶段基线（含 6 条 E2E 流程跑通后的真机数据形态）；v1.1 起按相同节奏归档 `bookkeeping-v1.1.db` 等 |
 
 ---
 
@@ -248,3 +250,8 @@
 - 2026-06-11：开次卡金额校验调整 — `src/pages/me/customers/open-card.vue` 保存条件放开 0 元次卡，仍要求客户有效、总次数大于 0、金额为非负有效数字；`src/api/meal-cards.ts` 原本已允许 `amount >= 0`。
 - 2026-06-11：危险清空默认分类恢复 — `src/utils/backup.ts` 的 `clearAllData()` 清空业务数据后在同一事务内重新执行 `seedIfEmpty()`，`src/pages/me/settings/backup.vue` 同步文案，修复清空后新增支出页分类无选项的问题。
 - 2026-06-11：首页状态色展示 — `src/pages/index/index.vue` 将今日订餐的待配送 / 已配送 / 已取消计数和列表分组改为主题色展示，分别使用 `$uni-color-primary` / `$uni-color-success` / `$uni-color-warning`。
+- 2026-06-11：Phase 8 关键流程串联完成 — 用户在 HBuilderX 真机逐条跑通 8.1-8.6（录单配送对账 / 次卡完整 / 次卡不足异常 / 取消订单 / 折扣临时涨价 / 备份恢复）；6 条流程全部断言通过，`memory-bank/bookkeeping-real.db` 备份为 `memory-bank/bookkeeping-v1.db` 作为 v1 阶段基线。
+- 2026-06-11：Phase 9.1 空状态 + Loading 防重复验收 — 13 个页面 / 组件现状全部就位：列表页全有 `v-if="loading"` + 友好空态文案（Dashboard / 订单列表 / 客户列表 / 客户详情 / 支出列表 / 统计页 / 订单详情 / CustomerPicker），全部保存按钮 `:disabled="!canSave"` 且 canSave 含 `saving.value` 防重（订单新建 / 订单详情编辑 / 客户新建编辑 / 开次卡 / 支出新建 / 备份页），关键 async 操作均 try/catch + `showToast` 兜底。本步骤不需新增代码，已在 progress.md 标记完成。
+- 2026-06-11：Phase 9.2 错误处理兜底 — `src/App.vue` 新增 `onError` 全局钩子，DB 损坏时识别 `integrity_check` 关键字并提示"数据库损坏，请用备份恢复"；`src/db/index.ts` `init()` 末尾跑 `PRAGMA integrity_check(1)`，失败抛 `[db] integrity_check failed: ...` 错误让 `onError` 捕获。`pnpm type-check` / `pnpm lint` 通过。
+- 2026-06-11：Phase 9.5 CHANGELOG 落地 — 新增 `memory-bank/CHANGELOG.md` 写 v1.0 节：已实现 F1-F6 功能 + 关键行为决策（A1/A3/A4/A5/A6/A7）+ 收尾质量门 + 已知限制（含"未做 50 单压测"和"未打 Release APK"两条）+ v1.1 TBD 候选。
+- 2026-06-11：**v1.0 发布**（按用户决策）— Step 9.3 真机性能 smoke test 和 Step 9.4 Release APK 打包侧载**跳过**（个人内用 v1.0 用 HBuilderX 标准基座的 debug APK 侧载，省掉自签名 keystore / 云打包）；`memory-bank/CHANGELOG.md` 已知限制节同步标注这两条；`progress.md` Phase 9 标记为 3/5 完成、里程碑 9.5 勾选。

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm config *)",
+      "Bash(pnpm install *)",
+      "Bash(./node_modules/.bin/vue-tsc --noEmit)",
+      "Bash(./node_modules/.bin/eslint --ext .ts,.vue src/)"
+    ]
+  }
+}

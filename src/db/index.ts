@@ -163,6 +163,20 @@ export async function init(): Promise<void> {
 
   await runMigrations()
   await seedIfEmpty()
+  await checkIntegrity()
+}
+
+/**
+ * 启动时跑一次轻量 integrity_check(1)，失败抛 [db] integrity failed 错。
+ * 失败场景：用户从老版本升级、手动破坏 DB、意外断电导致文件不完整。
+ * 上层（App.vue onError）会捕获并提示用备份恢复。
+ */
+async function checkIntegrity(): Promise<void> {
+  const rows = await select<PlusSqliteRow>('PRAGMA integrity_check(1)')
+  const ok = rows.length === 1 && rows[0]?.integrity_check === 'ok'
+  if (!ok) {
+    throw new Error(`[db] integrity_check failed: ${JSON.stringify(rows)}`)
+  }
 }
 
 /**

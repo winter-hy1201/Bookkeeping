@@ -12,8 +12,9 @@
 
 业务闭环：晚上微信接单 → 次日 11:30/17:30 配送 → 当晚对账看利润。
 
-**当前状态（2026-06-11）**：Phase 1-7 ✅ 完成，**Phase 8（关键流程串联）进行中**，Phase 9 未开始。
-13 个页面、5 张表、4 个 Pinia store、3 个通用组件、5+ SQLite 已真机验证。**剩 6 条 E2E 流程**需要在 HBuilderX 真机逐条跑通。
+**当前状态（2026-06-11）**：**v1.0 已发布**（Phase 1-9 全部完成；9.3 真机性能压测 / 9.4 Release APK 按用户决策跳过，用 HBuilderX 标准基座 debug APK 直接侧载）。
+13 个页面、5 张表、4 个 Pinia store、3 个通用组件、5+ SQLite 已真机验证；Phase 8 6 条 E2E 流程全部通过；`memory-bank/CHANGELOG.md` v1.0 节 + `bookkeeping-v1.db` 阶段基线已落地。
+**下一步**：v1.0 内使用 + 收集真实数据后再规划 v1.1（CSV 导出 / 自定义分类图标 / 备注模板 等）。改动前先看 `memory-bank/CHANGELOG.md` 已知限制节，避免重复实现 v1.1 候选。
 
 ---
 
@@ -35,12 +36,13 @@
 
 ## 2. 必读文档（按顺序）
 
-1. `CLAUDE.md` — 关键设计约束与项目规则
+1. `CLAUDE.md` — 入口（自动引用本文件 `@AGENTS.md`，所有内容在此）
 2. `memory-bank/architecture.md` — **每个文件的作用**（新建/删除/改职责必登记到对应表 + §更新日志）
 3. `memory-bank/design-document.md` — 数据模型（§2.1 DDL）、状态机（§3）、关键流程（§4）、TBD（§8）
-4. `memory-bank/tech-stack.md` — 选型 + 反选清单（§3）
-5. `memory-bank/implementation-plan.md` — 9 阶段 63 步；当前在 **Phase 8 §关键流程串联**（§8）
-6. `debug-docs/DEBUG-HANDOFF.md` — Phase 2 SQLite 调试的根因复盘（**必读**：能帮你避开 `this.getCallbackIDByFunction` 那个坑）
+4. `memory-bank/CHANGELOG.md` — **v1.0 已实现 F1-F6 + 行为决策 A1/A3-A7 + 已知限制 + v1.1 候选**（看一眼就知道哪些不要重做）
+5. `memory-bank/tech-stack.md` — 选型 + 反选清单（§3）
+6. `memory-bank/implementation-plan.md` — 9 阶段 63 步（v1.0 已完成 61/63；9.3 / 9.4 跳过）
+7. `debug-docs/DEBUG-HANDOFF.md` — Phase 2 SQLite 调试的根因复盘（**必读**：能帮你避开 `this.getCallbackIDByFunction` 那个坑）
 
 ---
 
@@ -131,21 +133,21 @@ plus.sqlite.transaction({ name, operation: 'commit', success, fail })
 
 ---
 
-## 5. Phase 8 — 6 条 E2E 流程（手测清单）
+## 5. E2E 流程清单（v1.0 已通过，v1.1 起按相同格式追加）
 
-> Phase 8 全部是**手测**，**不写代码**。每条独立可执行。
-> 详细步骤见 `memory-bank/implementation-plan.md §8`。
+> **状态**：Phase 8 6 条全部通过（2026-06-11 HBuilderX 真机手测），`memory-bank/bookkeeping-v1.db` 已备份。详细断言见 `memory-bank/implementation-plan.md §8`，已实现功能边界见 `memory-bank/CHANGELOG.md` v1.0 节。
+> **为什么保留这张表**：v1.1 新增功能时按相同 6 列格式补行，整个表就是回归测试矩阵。手测的优势——这种规模没必要为它写一套 E2E 测试框架。
 
-| 步骤 | 场景 | 关键断言 |
+| # | 场景 | 关键断言（一行可读） |
 |---|---|---|
-| **8.1** | 录单 → 配送 → 对账 | 5 笔数字断言：Dashboard / 详情状态 / 利润 |
-| **8.2** | 次卡完整流程 | 开 20 次 ¥300 → 3 单 pending → 配送后剩 17/20，统计 = 0 + 300 |
-| **8.3** | 次卡次数不够 | 19/20 卡 + qty=2 → 弹改微信 → 改 ¥30 → meal_cards 仍 19/20（未扣）|
-| **8.4** | 取消订单 | pending → cancelled，Dashboard / 统计**不计** cancelled |
-| **8.5** | 折扣 + 临时涨价 | 客户折扣 0.9 × 默认 15 = 13.50 预填 → 改 18 → 保存 amount=18；同客户再下单仍 13.50 |
-| **8.6** | 备份恢复 | 录 10 单 + 5 笔 + 2 卡 → 导出 → 卸载重装 → 导入 → ID 完全一致 |
+| 8.1 | 录单 → 配送 → 对账 | Dashboard 数字、详情状态、利润三处对得上 |
+| 8.2 | 次卡完整流程 | 开 20 次 ¥300 → 配送扣到 17/20，统计 = 0 订单 + 300 开卡 |
+| 8.3 | 次卡次数不够 | 19/20 卡 + qty=2 → 弹改微信，按客户默认价×折扣率重算 |
+| 8.4 | 取消订单 | pending → cancelled，Dashboard / 统计**不计** cancelled |
+| 8.5 | 折扣 + 临时涨价 | 0.9 × 15 = 13.50 预填 → 改 18 保存；同客户再下单仍 13.50 |
+| 8.6 | 备份恢复 | 导出 → 卸载重装 → 导入 → ID 完全一致 |
 
-完成定义：每条勾完所有断言，登记到 `architecture.md §"更新日志"`，并 `cp memory-bank/bookkeeping-real.db memory-bank/bookkeeping-v1.db` 备查。
+完成定义（v1.1 起遵循）：每条勾完所有断言 → `architecture.md §更新日志` 登记 → `cp memory-bank/bookkeeping-real.db memory-bank/bookkeeping-vN.db` 备查 → `CHANGELOG.md` 追加新版本节。
 
 ---
 
@@ -181,8 +183,10 @@ bookkeeping/
 │   ├── implementation-plan.md           # 9 阶段 63 步
 │   ├── progress.md                      # 步骤勾选
 │   ├── architecture.md                  # ★ 文件级作用；登记 + 更新日志
+│   ├── CHANGELOG.md                     # ★ v1.0 已发布功能 + 已知限制 + v1.1 候选
 │   ├── bookkeeping-v0.db                # CLI sqlite smoke-test 基线
-│   └── bookkeeping-real.db              # 真机拉取基线（user_version=1）
+│   ├── bookkeeping-real.db              # 真机拉取基线（user_version=1）
+│   └── bookkeeping-v1.db                # v1.0 阶段基线（Phase 8 E2E 通过归档）
 ├── debug-docs/DEBUG-HANDOFF.md          # SQLite 5+ API 根因复盘
 ├── src/
 │   ├── main.ts                          # createApp + Pinia.createPinia()

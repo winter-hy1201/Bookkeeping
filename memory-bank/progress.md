@@ -9,8 +9,8 @@
 ## 当前总览
 
 - **开始日期**：2026-06-10
-- **当前阶段**：Phase 8 关键流程串联进行中（本地 type-check / lint / H5 build 已通过，待 HBuilderX / Android 真机手动跑 8.1-8.6）
-- **下一步**：Phase 8 Step 8.1 — 端到端：录单 → 配送 → 对账
+- **当前阶段**：**v1.0 已发布**（Phase 1-9 完成；9.3 / 9.4 按用户决策跳过，用 HBuilderX 标准基座 debug APK 侧载发布；CHANGELOG.md 已写 v1.0 节）
+- **下一步**：v1.0 内使用 + 收集真实数据后再规划 v1.1（CSV 导出 / 自定义分类图标 / 备注模板 等）
 
 ---
 
@@ -115,28 +115,28 @@
 
 ---
 
-## Phase 8 — 关键流程串联（0/6）
+## Phase 8 — 关键流程串联（6/6）
 
-- [~] Step 8.1 — 端到端：录单 → 配送 → 对账
-- [ ] Step 8.2 — 端到端：次卡完整流程
-- [ ] Step 8.3 — 端到端：次卡次数不够异常
-- [ ] Step 8.4 — 端到端：取消订单
-- [ ] Step 8.5 — 端到端：折扣 + 临时涨价
-- [ ] Step 8.6 — 端到端：备份恢复
+- [x] Step 8.1 — 端到端：录单 → 配送 → 对账
+- [x] Step 8.2 — 端到端：次卡完整流程
+- [x] Step 8.3 — 端到端：次卡次数不够异常
+- [x] Step 8.4 — 端到端：取消订单
+- [x] Step 8.5 — 端到端：折扣 + 临时涨价
+- [x] Step 8.6 — 端到端：备份恢复
 
-**里程碑 8.6 — 核心流程全部通过**：[ ]
+**里程碑 8.6 — 核心流程全部通过**：[x]（2026-06-11，HBuilderX 真机手测通过；`memory-bank/bookkeeping-v1.db` 已备份）
 
 ---
 
-## Phase 9 — 收尾与发布（0/5）
+## Phase 9 — 收尾与发布（3/5，2 步跳过）
 
-- [ ] Step 9.1 — 空状态 + Loading 防重复
-- [ ] Step 9.2 — 错误处理兜底
-- [ ] Step 9.3 — 真机性能 smoke test
-- [ ] Step 9.4 — build Release APK + 侧载试装
-- [ ] Step 9.5 — 写 CHANGELOG + v1.0 发布
+- [x] Step 9.1 — 空状态 + Loading 防重复（13 个页面 / 组件已全部就位：列表空态 + 加载中文案 + 全部保存按钮 `:disabled="!canSave"` + saving 防重 + 关键 async try/catch + toast）
+- [x] Step 9.2 — 错误处理兜底（`App.vue` 新增 `onError` 全局钩子，DB 损坏时提示"数据库损坏，请用备份恢复"；`db/index.ts` `init()` 末尾跑 `PRAGMA integrity_check(1)`；`pnpm type-check` / `pnpm lint` 通过）
+- [⏭] Step 9.3 — 真机性能 smoke test（**跳过**：个人内用 v1.0，规模小不跑 50 单压测；Phase 8 真机 6 条 E2E 流程已验证主路径流畅）
+- [⏭] Step 9.4 — build Release APK + 侧载试装（**跳过**：用 HBuilderX 标准基座的 debug APK 直接侧载 v1.0；不打 Release 避免再加签名/云打包步骤）
+- [x] Step 9.5 — 写 CHANGELOG + v1.0 发布（`memory-bank/CHANGELOG.md` v1.0 节已写好，明确记录"debug APK 直发"和"未做性能压测"两条限制；v1.0 发布 = HBuilderX 真机侧载该 debug APK）
 
-**里程碑 9.5 — v1.0 发布**：[ ]
+**里程碑 9.5 — v1.0 发布**：[x]（2026-06-11，HBuilderX 真机 debug APK 侧载发布）
 
 ---
 
@@ -151,9 +151,9 @@
 | Phase 5 Stores | 5 | 5 | 100% |
 | Phase 6 通用组件 | 3 | 3 | 100% |
 | Phase 7 页面 | 18 | 18 | 100% |
-| Phase 8 流程串联 | 6 | 0 | 0% |
-| Phase 9 收尾 | 5 | 0 | 0% |
-| **合计** | **63** | **52** | **83%** |
+| Phase 8 流程串联 | 6 | 6 | 100% |
+| Phase 9 收尾 | 5 | 3 | 60% (2 步跳过) |
+| **合计** | **63** | **61** | **97%** |
 
 > 步骤编号与 `implementation-plan.md` v2 一致
 
