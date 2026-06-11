@@ -33,7 +33,10 @@ async function doImport(): Promise<void> {
 }
 
 async function doClear(): Promise<void> {
-  const first = await confirmDialog('确认清空所有数据？', '这会删除客户、订单、次卡、支出和分类。')
+  const first = await confirmDialog(
+    '确认清空所有数据？',
+    '这会删除客户、订单、次卡和支出，默认支出分类会恢复为初始 5 项。',
+  )
   if (!first) return
   const second = await confirmDialog('再次确认', '清空后无法恢复。')
   if (!second) return
@@ -74,7 +77,7 @@ async function doClear(): Promise<void> {
 
     <view class="panel danger-zone">
       <text class="title">危险区</text>
-      <text class="desc">清空所有表数据，需要三次确认。</text>
+      <text class="desc">清空客户、订单、次卡和支出，需要三次确认；默认支出分类会自动恢复。</text>
       <button class="danger" :disabled="busy" @click="doClear">清空所有数据</button>
     </view>
   </scroll-view>

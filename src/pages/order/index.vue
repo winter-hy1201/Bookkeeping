@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useCustomerStore } from '../../stores/customer'
 import { useOrderStore } from '../../stores/order'
-import type { OrderStatus } from '../../types/domain'
+import type { MealType, Order, OrderStatus } from '../../types/domain'
 import { today } from '../../utils/date'
 import { formatMoney } from '../../utils/format'
 import { mealTypeText, orderDisplayAmount, statusText } from '../../utils/ui'
@@ -11,7 +11,40 @@ import { mealTypeText, orderDisplayAmount, statusText } from '../../utils/ui'
 const orderStore = useOrderStore()
 const customerStore = useCustomerStore()
 
-const groupedOrders = computed(() => orderStore.list)
+interface OrderSection {
+  type: MealType
+  title: string
+  orders: Order[]
+  activeCount: number
+  quantity: number
+  amount: number
+}
+
+const mealTypes: MealType[] = ['lunch', 'dinner']
+
+const orderSections = computed<OrderSection[]>(() =>
+  mealTypes.map((type) => {
+    const orders = orderStore.list.filter((order) => order.meal_type === type)
+    const activeOrders = orders.filter((order) => order.status !== 'cancelled')
+
+    return {
+      type,
+      title: mealTypeText(type),
+      orders,
+      activeCount: activeOrders.length,
+      quantity: activeOrders.reduce((total, order) => total + order.quantity, 0),
+      amount: activeOrders.reduce((total, order) => total + order.amount, 0),
+    }
+  })
+)
+
+const defaultOpenSections = computed(() =>
+  orderSections.value.filter((section) => section.orders.length > 0).map((section) => section.type)
+)
+
+function sectionTitle(section: OrderSection): string {
+  return `${section.title} · ${section.activeCount}单 ${section.quantity}份 ${formatMoney(section.amount)}`
+}
 
 function customerName(id: number): string {
   return customerStore.list.find((customer) => customer.id === id)?.name ?? `客户 #${id}`
@@ -19,6 +52,12 @@ function customerName(id: number): string {
 
 function statusClass(status: OrderStatus): string {
   return `status status--${status}`
+}
+
+function orderMetaText(order: Order): string {
+  const note = order.note?.trim()
+  const base = `${mealTypeText(order.meal_type)} × ${order.quantity} · 单价 ${formatMoney(order.unit_price)}`
+  return note ? `${base} · ${note}` : base
 }
 
 async function refresh(): Promise<void> {
@@ -61,20 +100,41 @@ onShow(() => {
     </view>
 
     <view v-if="orderStore.loading" class="empty">订单加载中...</view>
-    <view v-else-if="groupedOrders.length === 0" class="empty">该日期暂无订单</view>
+    <view v-else-if="orderStore.list.length === 0" class="empty">该日期暂无订单</view>
     <scroll-view v-else class="list" scroll-y>
-      <view v-for="order in groupedOrders" :key="order.id" class="order-item" @click="goDetail(order.id)">
-        <view class="order-main">
-          <view class="order-title-row">
-            <text class="order-name">{{ customerName(order.customer_id) }}</text>
-            <text :class="statusClass(order.status)">{{ statusText(order.status) }}</text>
+      <uni-collapse :value="defaultOpenSections">
+        <uni-collapse-item
+          v-for="section in orderSections"
+          :key="section.type"
+          :name="section.type"
+          :title="sectionTitle(section)"
+          :border="false"
+          title-border="none"
+        >
+          <view v-if="section.orders.length === 0" class="section-empty">
+            暂无{{ section.title }}订单
           </view>
-          <text class="order-meta">
-            {{ mealTypeText(order.meal_type) }} × {{ order.quantity }} · 单价 {{ formatMoney(order.unit_price) }}
-          </text>
-        </view>
-        <text class="order-amount">{{ orderDisplayAmount(order) }}</text>
-      </view>
+          <template v-else>
+            <view
+              v-for="order in section.orders"
+              :key="order.id"
+              class="order-item"
+              @click="goDetail(order.id)"
+            >
+              <view class="order-main">
+                <view class="order-title-row">
+                  <text class="order-name">{{ customerName(order.customer_id) }}</text>
+                  <text :class="statusClass(order.status)">{{ statusText(order.status) }}</text>
+                </view>
+                <text class="order-meta">
+                  {{ orderMetaText(order) }}
+                </text>
+              </view>
+              <text class="order-amount">{{ orderDisplayAmount(order) }}</text>
+            </view>
+          </template>
+        </uni-collapse-item>
+      </uni-collapse>
     </scroll-view>
   </view>
 </template>
@@ -118,12 +178,16 @@ onShow(() => {
   height: calc(100vh - 132rpx);
 }
 
-.order-item {
-  min-height: 120rpx;
-  margin-bottom: 16rpx;
+.order-item,
+.section-empty {
+  margin: 0 0 16rpx;
   padding: 22rpx 24rpx;
   border-radius: 12rpx;
   background: #ffffff;
+}
+
+.order-item {
+  min-height: 120rpx;
 }
 
 .order-main {
@@ -183,6 +247,12 @@ onShow(() => {
 
 .empty {
   padding: 120rpx 0;
+  text-align: center;
+}
+
+.section-empty {
+  color: #8f8f94;
+  font-size: 26rpx;
   text-align: center;
 }
 </style>

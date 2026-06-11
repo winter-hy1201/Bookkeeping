@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import AmountInput from '../../components/AmountInput.vue'
+import CustomerPicker from '../../components/CustomerPicker.vue'
 import { getCustomer } from '../../api/customers'
+import { getActiveCard, getCard } from '../../api/meal-cards'
 import { getOrder, updateOrderPayment } from '../../api/orders'
 import { InsufficientCardError } from '../../api/errors'
 import { useOrderStore } from '../../stores/order'
-import type { Customer, Order } from '../../types/domain'
+import type { Customer, MealCard, MealType, Order, PaymentMethod } from '../../types/domain'
 import { formatMoney } from '../../utils/format'
 import dayjs from 'dayjs'
 import {
@@ -14,14 +17,57 @@ import {
   customerPrice,
   mealTypeText,
   paymentText,
+  priceHint,
   showToast,
   statusText,
+  toNumber,
 } from '../../utils/ui'
 
 const orderStore = useOrderStore()
 const order = ref<Order | null>(null)
 const customer = ref<Customer | null>(null)
 const loading = ref(false)
+const editing = ref(false)
+const saving = ref(false)
+const selectedCustomer = ref<Customer | null>(null)
+const editDate = ref('')
+const editMealType = ref<MealType>('lunch')
+const editQuantity = ref(1)
+const editPrice = ref(0)
+const editPaymentMethod = ref<PaymentMethod>('wechat')
+const editActiveCard = ref<MealCard | null>(null)
+const editNote = ref('')
+const userEditedPrice = ref(false)
+const initializingEditForm = ref(false)
+
+const mealTypeOptions = [
+  { text: '午餐', value: 'lunch' },
+  { text: '晚餐', value: 'dinner' },
+]
+const paymentOptions = [
+  { text: '微信', value: 'wechat' },
+  { text: '现金', value: 'cash' },
+  { text: '次卡', value: 'meal_card' },
+]
+
+const canEdit = computed(() => order.value?.status === 'pending')
+const isEditMealCard = computed(() => editPaymentMethod.value === 'meal_card')
+const editTotalAmount = computed(() =>
+  isEditMealCard.value ? 0 : editPrice.value * editQuantity.value,
+)
+const canSaveEdit = computed(() => {
+  if (
+    !order.value ||
+    !selectedCustomer.value ||
+    !editDate.value ||
+    editQuantity.value <= 0 ||
+    saving.value
+  ) {
+    return false
+  }
+  if (isEditMealCard.value) return editActiveCard.value !== null
+  return editPrice.value >= 0
+})
 
 const fallbackUnitPrice = computed(() => {
   const current = order.value
@@ -35,16 +81,126 @@ const fallbackAmount = computed(() => {
   return fallbackUnitPrice.value * current.quantity
 })
 
+watch([selectedCustomer, editMealType], () => {
+  if (!editing.value || initializingEditForm.value) return
+  userEditedPrice.value = false
+  const price = customerPrice(selectedCustomer.value, editMealType.value)
+  editPrice.value = price ?? 0
+  if (editPaymentMethod.value === 'meal_card') {
+    void loadEditActiveCard()
+  }
+})
+
+watch(editPaymentMethod, async (value) => {
+  if (!editing.value || initializingEditForm.value) return
+  if (value !== 'meal_card') {
+    editActiveCard.value = null
+    const price = customerPrice(selectedCustomer.value, editMealType.value)
+    if (!userEditedPrice.value) editPrice.value = price ?? 0
+    return
+  }
+  await loadEditActiveCard()
+})
+
 async function load(id: number): Promise<void> {
   loading.value = true
   try {
     order.value = await getOrder(id)
     customer.value = order.value ? await getCustomer(order.value.customer_id) : null
+    editing.value = false
   } catch {
     showToast('订单详情加载失败')
   } finally {
     loading.value = false
   }
+}
+
+async function loadEditActiveCard(): Promise<void> {
+  if (!selectedCustomer.value) {
+    editPaymentMethod.value = 'wechat'
+    showToast('请先选择客户')
+    return
+  }
+  try {
+    editActiveCard.value = await getActiveCard(selectedCustomer.value.id)
+    if (!editActiveCard.value) {
+      editPaymentMethod.value = 'wechat'
+      showToast('该客户无可用次卡')
+    }
+  } catch {
+    editPaymentMethod.value = 'wechat'
+    showToast('次卡加载失败')
+  }
+}
+
+async function startEdit(): Promise<void> {
+  if (!order.value || !customer.value || !canEdit.value) return
+  initializingEditForm.value = true
+  editing.value = true
+  selectedCustomer.value = customer.value
+  editDate.value = order.value.order_date
+  editMealType.value = order.value.meal_type
+  editQuantity.value = order.value.quantity
+  editPrice.value = order.value.unit_price
+  editPaymentMethod.value = order.value.payment_method
+  editNote.value = order.value.note ?? ''
+  userEditedPrice.value = true
+  editActiveCard.value = null
+
+  try {
+    if (order.value.payment_method === 'meal_card' && order.value.meal_card_id != null) {
+      editActiveCard.value = await getCard(order.value.meal_card_id)
+    }
+  } catch {
+    showToast('次卡加载失败')
+  } finally {
+    initializingEditForm.value = false
+  }
+}
+
+function cancelEdit(): void {
+  editing.value = false
+}
+
+function onQuantityChange(value: string | number): void {
+  editQuantity.value = Math.max(1, Math.floor(toNumber(value)))
+}
+
+function onPriceChange(value: number): void {
+  userEditedPrice.value = true
+  editPrice.value = value
+}
+
+async function saveEdit(): Promise<void> {
+  if (!canSaveEdit.value || !order.value || !selectedCustomer.value) return
+  saving.value = true
+  try {
+    const card = editActiveCard.value
+    const mealCardUnitPrice = card ? card.amount / card.total_meals : undefined
+    const updated = await orderStore.update(order.value.id, {
+      customer_id: selectedCustomer.value.id,
+      order_date: editDate.value,
+      meal_type: editMealType.value,
+      quantity: editQuantity.value,
+      payment_method: editPaymentMethod.value,
+      unit_price: isEditMealCard.value ? mealCardUnitPrice : editPrice.value,
+      amount: isEditMealCard.value ? 0 : editTotalAmount.value,
+      meal_card_id: isEditMealCard.value ? (card?.id ?? null) : null,
+      note: editNote.value.trim() || null,
+    })
+    order.value = updated
+    customer.value = await getCustomer(updated.customer_id)
+    editing.value = false
+    showToast('修改已保存')
+  } catch {
+    showToast('订单修改失败')
+  } finally {
+    saving.value = false
+  }
+}
+
+function goCreateCustomer(): void {
+  uni.navigateTo({ url: '/pages/me/customers/new' })
 }
 
 async function cancelOrder(): Promise<void> {
@@ -116,55 +272,144 @@ onLoad((query) => {
     <view v-else-if="!order" class="empty">订单不存在</view>
     <template v-else>
       <view class="hero">
-        <text class="name">{{ customer?.name ?? `客户 #${order.customer_id}` }}</text>
-        <text class="status">{{ statusText(order.status) }}</text>
+        <view class="hero-main">
+          <text class="name">{{ customer?.name ?? `客户 #${order.customer_id}` }}</text>
+          <text class="status">{{ statusText(order.status) }}</text>
+        </view>
+        <button v-if="canEdit && !editing" class="edit-button" @click="startEdit">编辑</button>
       </view>
 
-      <view class="panel">
-        <view class="row"
-          ><text>日期</text><text>{{ order.order_date }}</text></view
-        >
-        <view class="row"
-          ><text>餐次</text
-          ><text>{{ mealTypeText(order.meal_type) }} × {{ order.quantity }}</text></view
-        >
-        <view class="row"
-          ><text>支付</text><text>{{ paymentText(order.payment_method) }}</text></view
-        >
-        <view class="row"
-          ><text>单价</text><text>{{ formatMoney(order.unit_price) }}</text></view
-        >
-        <view class="row"
-          ><text>金额</text
-          ><text>{{
-            order.payment_method === 'meal_card' ? '次卡订单记 0' : formatMoney(order.amount)
-          }}</text></view
-        >
-        <view class="row"
-          ><text>备注</text><text>{{ order.note || '—' }}</text></view
-        >
-        <view class="row"
-          ><text>创建</text
-          ><text>{{ dayjs(order.created_at).format('YYYY-MM-DD HH:mm:ss') }}</text></view
-        >
-        <view v-if="order.cancelled_at" class="row"
-          ><text>取消</text><text>{{ order.cancelled_at }}</text></view
-        >
+      <view v-if="editing" class="form">
+        <CustomerPicker v-model="selectedCustomer" show-create @create="goCreateCustomer" />
+
+        <view class="field">
+          <text class="label">日期</text>
+          <uni-datetime-picker v-model="editDate" class="date-picker" type="date" />
+        </view>
+
+        <view class="field">
+          <text class="label">餐次</text>
+          <uni-data-checkbox
+            v-model="editMealType"
+            class="segmented"
+            mode="button"
+            :localdata="mealTypeOptions"
+            selected-color="#007aff"
+          />
+        </view>
+
+        <view class="field">
+          <text class="label">份数</text>
+          <uni-number-box
+            v-model="editQuantity"
+            class="number-box"
+            :min="1"
+            :max="99"
+            :width="72"
+            @change="onQuantityChange"
+          />
+        </view>
+
+        <view v-if="!isEditMealCard" class="hint">
+          {{ priceHint(selectedCustomer, editMealType) }}
+        </view>
+        <AmountInput
+          v-if="!isEditMealCard"
+          :model-value="editPrice"
+          label="实际价"
+          placeholder="请填单价"
+          @update:model-value="onPriceChange"
+        />
+
+        <view class="field">
+          <text class="label">支付</text>
+          <uni-data-checkbox
+            v-model="editPaymentMethod"
+            class="payment-grid"
+            mode="button"
+            :localdata="paymentOptions"
+            selected-color="#007aff"
+          />
+        </view>
+
+        <view v-if="isEditMealCard && editActiveCard" class="card-box">
+          次卡 #{{ editActiveCard.id }} 剩
+          {{ editActiveCard.total_meals - editActiveCard.used_meals }}/{{
+            editActiveCard.total_meals
+          }}，次均 {{ formatMoney(editActiveCard.amount / editActiveCard.total_meals) }}
+        </view>
+
+        <view class="field field--top">
+          <text class="label">备注</text>
+          <uni-easyinput
+            v-model="editNote"
+            class="textarea"
+            type="textarea"
+            placeholder="可不填"
+            :input-border="false"
+          />
+        </view>
+
+        <view class="total-row">
+          <text>合计</text>
+          <text>{{
+            isEditMealCard ? '次卡支付，订单金额记 0' : formatMoney(editTotalAmount)
+          }}</text>
+        </view>
+
+        <view class="actions">
+          <button class="secondary" @click="cancelEdit">取消编辑</button>
+          <button class="primary" :disabled="!canSaveEdit" @click="saveEdit">保存修改</button>
+        </view>
       </view>
 
-      <view v-if="customer" class="panel">
-        <view class="row"
-          ><text>微信</text><text>{{ customer.wechat || '—' }}</text></view
-        >
-        <view class="row"
-          ><text>手机</text><text>{{ customer.phone || '—' }}</text></view
-        >
-      </view>
+      <template v-else>
+        <view class="panel">
+          <view class="row"
+            ><text>日期</text><text>{{ order.order_date }}</text></view
+          >
+          <view class="row"
+            ><text>餐次</text
+            ><text>{{ mealTypeText(order.meal_type) }} × {{ order.quantity }}</text></view
+          >
+          <view class="row"
+            ><text>支付</text><text>{{ paymentText(order.payment_method) }}</text></view
+          >
+          <view class="row"
+            ><text>单价</text><text>{{ formatMoney(order.unit_price) }}</text></view
+          >
+          <view class="row"
+            ><text>金额</text
+            ><text>{{
+              order.payment_method === 'meal_card' ? '次卡订单记 0' : formatMoney(order.amount)
+            }}</text></view
+          >
+          <view class="row"
+            ><text>备注</text><text>{{ order.note || '—' }}</text></view
+          >
+          <view class="row"
+            ><text>创建</text
+            ><text>{{ dayjs(order.created_at).format('YYYY-MM-DD HH:mm:ss') }}</text></view
+          >
+          <view v-if="order.cancelled_at" class="row"
+            ><text>取消</text><text>{{ order.cancelled_at }}</text></view
+          >
+        </view>
 
-      <view v-if="order.status === 'pending'" class="actions">
-        <button class="primary" @click="markDelivered">标记已配送</button>
-        <button class="danger" @click="cancelOrder">取消订单</button>
-      </view>
+        <view v-if="customer" class="panel">
+          <view class="row"
+            ><text>微信</text><text>{{ customer.wechat || '—' }}</text></view
+          >
+          <view class="row"
+            ><text>手机</text><text>{{ customer.phone || '—' }}</text></view
+          >
+        </view>
+
+        <view v-if="order.status === 'pending'" class="actions">
+          <button class="primary" @click="markDelivered">标记已配送</button>
+          <button class="danger" @click="cancelOrder">取消订单</button>
+        </view>
+      </template>
     </template>
   </scroll-view>
 </template>
@@ -178,7 +423,8 @@ onLoad((query) => {
 }
 
 .hero,
-.panel {
+.panel,
+.form {
   margin-bottom: 20rpx;
   padding: 28rpx 24rpx;
   border-radius: 12rpx;
@@ -189,17 +435,98 @@ onLoad((query) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 20rpx;
+}
+
+.hero-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .name {
+  overflow: hidden;
   color: #222222;
   font-size: 38rpx;
   font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .status {
+  margin-top: 8rpx;
   color: #007aff;
   font-size: 26rpx;
+}
+
+.edit-button {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0 28rpx;
+  border-radius: 12rpx;
+  background: #eef5ff;
+  color: #007aff;
+  font-size: 28rpx;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.field,
+.total-row {
+  display: flex;
+  align-items: center;
+}
+
+.field {
+  min-height: 88rpx;
+}
+
+.field--top {
+  align-items: flex-start;
+}
+
+.label {
+  flex: 0 0 140rpx;
+  color: #333333;
+  font-size: 28rpx;
+}
+
+.date-picker,
+.segmented,
+.payment-grid,
+.number-box,
+.textarea {
+  flex: 1;
+}
+
+.textarea {
+  min-height: 160rpx;
+  padding: 18rpx 22rpx;
+  border: 1rpx solid #e5e5e5;
+  border-radius: 12rpx;
+  background: #ffffff;
+  box-sizing: border-box;
+}
+
+.hint {
+  color: #8f8f94;
+  font-size: 24rpx;
+}
+
+.total-row,
+.card-box {
+  justify-content: space-between;
+  padding: 24rpx;
+  border-radius: 12rpx;
+  background: #f8f9fb;
+  color: #222222;
+  font-size: 30rpx;
+  font-weight: 600;
 }
 
 .row {
@@ -222,19 +549,26 @@ onLoad((query) => {
 }
 
 .primary,
+.secondary,
 .danger {
   flex: 1;
   border-radius: 12rpx;
-  color: #ffffff;
   font-size: 30rpx;
 }
 
 .primary {
   background: #007aff;
+  color: #ffffff;
+}
+
+.secondary {
+  background: #eef0f4;
+  color: #333333;
 }
 
 .danger {
   background: #ee0a24;
+  color: #ffffff;
 }
 
 .empty {

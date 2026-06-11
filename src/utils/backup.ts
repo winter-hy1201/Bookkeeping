@@ -1,4 +1,5 @@
 import { exec, select, tx, type PlusSqliteRow } from '../db'
+import { seedIfEmpty } from '../db/seed'
 import type { Customer, Expense, ExpenseCategory, MealCard, Order } from '../types/domain'
 
 const BACKUP_VERSION = '1.0'
@@ -247,5 +248,6 @@ export async function clearAllData(): Promise<void> {
     await exec('DELETE FROM meal_cards')
     await exec('DELETE FROM customers')
     await exec('DELETE FROM expense_categories')
+    await seedIfEmpty()
   })
 }

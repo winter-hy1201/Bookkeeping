@@ -3,27 +3,45 @@ import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AmountInput from '../../../components/AmountInput.vue'
 import { getCustomer } from '../../../api/customers'
-import { getActiveCard, openCard } from '../../../api/meal-cards'
+import { listCards, openCard } from '../../../api/meal-cards'
 import type { Customer, MealCard } from '../../../types/domain'
 import { confirmDialog, showToast, toNumber } from '../../../utils/ui'
 
 const customerId = ref<number | null>(null)
 const customer = ref<Customer | null>(null)
-const activeCard = ref<MealCard | null>(null)
+const activeCards = ref<MealCard[]>([])
 const totalMeals = ref(20)
 const amount = ref(0)
 const saving = ref(false)
 
-const canSave = computed(() => customerId.value !== null && totalMeals.value > 0 && amount.value > 0 && !saving.value)
+const canSave = computed(
+  () =>
+    customerId.value !== null &&
+    totalMeals.value > 0 &&
+    Number.isFinite(amount.value) &&
+    amount.value >= 0 &&
+    !saving.value,
+)
+const activeCardSummary = computed(() => {
+  const total = activeCards.value.reduce((sum, item) => sum + item.total_meals, 0)
+  const used = activeCards.value.reduce((sum, item) => sum + item.used_meals, 0)
+  return {
+    count: activeCards.value.length,
+    total,
+    remaining: total - used,
+  }
+})
 
 async function load(id: number): Promise<void> {
   customerId.value = id
   try {
     customer.value = await getCustomer(id)
-    activeCard.value = await getActiveCard(id)
-    if (activeCard.value) {
-      const remaining = activeCard.value.total_meals - activeCard.value.used_meals
-      const ok = await confirmDialog('该客户已有 active 次卡', `当前剩 ${remaining}/${activeCard.value.total_meals}，是否继续开新卡？`)
+    activeCards.value = (await listCards(id)).filter((card) => card.status === 'active')
+    if (activeCardSummary.value.count > 0) {
+      const ok = await confirmDialog(
+        '该客户已有 active 次卡',
+        `当前 ${activeCardSummary.value.count} 张共剩 ${activeCardSummary.value.remaining}/${activeCardSummary.value.total}，是否继续开新卡？`,
+      )
       if (!ok) uni.navigateBack()
     }
   } catch {

@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getCustomer } from '../../../api/customers'
-import { getActiveCard } from '../../../api/meal-cards'
+import { listCards } from '../../../api/meal-cards'
 import { listOrders } from '../../../api/orders'
 import type { Customer, MealCard, Order } from '../../../types/domain'
 import { formatMoney, formatPercent } from '../../../utils/format'
@@ -10,17 +10,24 @@ import { mealTypeText, orderDisplayAmount, showToast, statusText } from '../../.
 
 const customerId = ref<number | null>(null)
 const customer = ref<Customer | null>(null)
-const card = ref<MealCard | null>(null)
+const cards = ref<MealCard[]>([])
 const orders = ref<Order[]>([])
 const loading = ref(false)
 
-const cardRemaining = computed(() => {
-  if (!card.value) return 0
-  return card.value.total_meals - card.value.used_meals
+const activeCards = computed(() => cards.value.filter((item) => item.status === 'active'))
+const activeCardSummary = computed(() => {
+  const totalMeals = activeCards.value.reduce((sum, item) => sum + item.total_meals, 0)
+  const usedMeals = activeCards.value.reduce((sum, item) => sum + item.used_meals, 0)
+  return {
+    count: activeCards.value.length,
+    totalMeals,
+    usedMeals,
+    remainingMeals: totalMeals - usedMeals,
+  }
 })
 const cardProgress = computed(() => {
-  if (!card.value || card.value.total_meals <= 0) return 0
-  return card.value.used_meals / card.value.total_meals
+  if (activeCardSummary.value.totalMeals <= 0) return 0
+  return activeCardSummary.value.usedMeals / activeCardSummary.value.totalMeals
 })
 
 async function refresh(): Promise<void> {
@@ -29,11 +36,11 @@ async function refresh(): Promise<void> {
   try {
     const [customerResult, cardResult, orderResult] = await Promise.all([
       getCustomer(customerId.value),
-      getActiveCard(customerId.value),
+      listCards(customerId.value),
       listOrders({ customerId: customerId.value }),
     ])
     customer.value = customerResult
-    card.value = cardResult
+    cards.value = cardResult
     orders.value = orderResult
   } catch {
     showToast('客户详情加载失败')
@@ -43,7 +50,8 @@ async function refresh(): Promise<void> {
 }
 
 function goEdit(): void {
-  if (customerId.value !== null) uni.navigateTo({ url: `/pages/me/customers/new?id=${customerId.value}` })
+  if (customerId.value !== null)
+    uni.navigateTo({ url: `/pages/me/customers/new?id=${customerId.value}` })
 }
 
 function goOpenCard(): void {
@@ -80,22 +88,44 @@ onShow(() => {
       </view>
 
       <view class="panel">
-        <view class="row"><text>手机</text><text>{{ customer.phone || '—' }}</text></view>
-        <view class="row"><text>微信</text><text>{{ customer.wechat || '—' }}</text></view>
-        <view class="row"><text>午餐价</text><text>{{ formatMoney(customer.default_lunch_price) }}</text></view>
-        <view class="row"><text>晚餐价</text><text>{{ formatMoney(customer.default_dinner_price) }}</text></view>
-        <view class="row"><text>折扣</text><text>{{ formatPercent(customer.discount_rate) }}</text></view>
-        <view class="row"><text>备注</text><text>{{ customer.note || '—' }}</text></view>
+        <view class="row"
+          ><text>手机</text><text>{{ customer.phone || '—' }}</text></view
+        >
+        <view class="row"
+          ><text>微信</text><text>{{ customer.wechat || '—' }}</text></view
+        >
+        <view class="row"
+          ><text>午餐价</text><text>{{ formatMoney(customer.default_lunch_price) }}</text></view
+        >
+        <view class="row"
+          ><text>晚餐价</text><text>{{ formatMoney(customer.default_dinner_price) }}</text></view
+        >
+        <view class="row"
+          ><text>折扣</text><text>{{ formatPercent(customer.discount_rate) }}</text></view
+        >
+        <view class="row"
+          ><text>备注</text><text>{{ customer.note || '—' }}</text></view
+        >
       </view>
 
       <view class="panel">
-        <view class="section-head"><text class="section-title">次卡</text><button class="small" @click="goOpenCard">+ 开新卡</button></view>
-        <view v-if="card" class="card-box">
+        <view class="section-head"
+          ><text class="section-title">次卡</text
+          ><button class="small" @click="goOpenCard">+ 开新卡</button></view
+        >
+        <view v-if="activeCardSummary.count > 0" class="card-box">
           <view class="card-top">
-            <text>#{{ card.id }} 剩 {{ cardRemaining }}/{{ card.total_meals }}</text>
+            <text
+              >共剩 {{ activeCardSummary.remainingMeals }}/{{ activeCardSummary.totalMeals }}</text
+            >
             <text>{{ formatPercent(cardProgress) }}</text>
           </view>
-          <view class="progress"><view class="progress-fill" :style="{ width: `${cardProgress * 100}%` }" /></view>
+          <text class="card-meta"
+            >当前 {{ activeCardSummary.count }} 张 active 次卡，剩余次数已叠加显示</text
+          >
+          <view class="progress"
+            ><view class="progress-fill" :style="{ width: `${cardProgress * 100}%` }"
+          /></view>
         </view>
         <view v-else class="empty-inline">该客户暂无次卡</view>
       </view>
@@ -105,7 +135,10 @@ onShow(() => {
         <view v-if="orders.length === 0" class="empty-inline">暂无订单</view>
         <view v-for="order in orders" v-else :key="order.id" class="order-row">
           <view>
-            <text class="order-title">{{ order.order_date }} · {{ mealTypeText(order.meal_type) }} × {{ order.quantity }}</text>
+            <text class="order-title"
+              >{{ order.order_date }} · {{ mealTypeText(order.meal_type) }} ×
+              {{ order.quantity }}</text
+            >
             <text class="order-meta">{{ statusText(order.status) }}</text>
           </view>
           <text class="order-amount">{{ orderDisplayAmount(order) }}</text>
@@ -156,6 +189,7 @@ onShow(() => {
 }
 
 .meta,
+.card-meta,
 .empty,
 .empty-inline,
 .order-meta {
@@ -191,6 +225,11 @@ onShow(() => {
 
 .card-box {
   margin-top: 18rpx;
+}
+
+.card-meta {
+  display: block;
+  margin-top: 10rpx;
 }
 
 .progress {

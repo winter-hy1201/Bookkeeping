@@ -40,6 +40,8 @@ export interface CreateOrderInput {
   note?: string | null
 }
 
+export type UpdateOrderInput = CreateOrderInput
+
 export interface UpdateOrderPaymentInput {
   payment_method: Exclude<PaymentMethod, 'meal_card'>
   unit_price: number

@@ -66,15 +66,24 @@ onShow(() => {
         <text class="section-meta">{{ orderStore.list.length }} 单</text>
       </view>
 
-      <view class="status-tabs">
-        <text>待配送 {{ pendingOrders.length }}</text>
-        <text>已配送 {{ deliveredOrders.length }}</text>
-        <text>已取消 {{ cancelledOrders.length }}</text>
+      <view class="status-cards">
+        <view class="status-card status-card--pending">
+          <text class="status-label">待配送</text>
+          <text class="status-value">{{ pendingOrders.length }}</text>
+        </view>
+        <view class="status-card status-card--delivered">
+          <text class="status-label">已配送</text>
+          <text class="status-value">{{ deliveredOrders.length }}</text>
+        </view>
+        <view class="status-card status-card--cancelled">
+          <text class="status-label">已取消</text>
+          <text class="status-value">{{ cancelledOrders.length }}</text>
+        </view>
       </view>
 
       <view v-if="orderStore.loading" class="empty">加载中...</view>
       <template v-else>
-        <view class="group">
+        <view class="group group--pending">
           <text class="group-title">待配送</text>
           <view v-if="pendingOrders.length === 0" class="empty">暂无待配送订单</view>
           <view v-for="order in pendingOrders" :key="order.id" class="order-row">
@@ -86,7 +95,7 @@ onShow(() => {
           </view>
         </view>
 
-        <view class="group">
+        <view class="group group--delivered">
           <text class="group-title">已配送</text>
           <view v-if="deliveredOrders.length === 0" class="empty">暂无已配送订单</view>
           <view v-for="order in deliveredOrders" :key="order.id" class="order-row">
@@ -98,7 +107,7 @@ onShow(() => {
           </view>
         </view>
 
-        <view class="group">
+        <view class="group group--cancelled">
           <text class="group-title">已取消</text>
           <view v-if="cancelledOrders.length === 0" class="empty">暂无已取消订单</view>
           <view v-for="order in cancelledOrders" :key="order.id" class="order-row order-row--muted">
@@ -114,7 +123,7 @@ onShow(() => {
   </scroll-view>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .page {
   min-height: 100vh;
   background: #f6f7f9;
@@ -153,8 +162,7 @@ onShow(() => {
 }
 
 .section-title-row,
-.order-row,
-.status-tabs {
+.order-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -173,24 +181,89 @@ onShow(() => {
   font-size: 26rpx;
 }
 
-.status-tabs {
+.status-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14rpx;
   margin-top: 20rpx;
-  padding: 18rpx 22rpx;
+}
+
+.status-card {
+  min-width: 0;
+  padding: 18rpx 14rpx;
+  border: 1rpx solid currentColor;
   border-radius: 12rpx;
-  background: #f6f7f9;
-  color: #555555;
-  font-size: 24rpx;
+  text-align: center;
+}
+
+.status-card--pending {
+  color: $uni-color-primary;
+  background: rgba($uni-color-primary, 0.08);
+}
+
+.status-card--delivered {
+  color: $uni-color-success;
+  background: rgba($uni-color-success, 0.08);
+}
+
+.status-card--cancelled {
+  color: $uni-color-warning;
+  background: rgba($uni-color-warning, 0.1);
+}
+
+.status-label {
+  display: block;
+  font-size: 23rpx;
+  line-height: 1.3;
+}
+
+.status-value {
+  display: block;
+  margin-top: 6rpx;
+  font-size: 36rpx;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .group {
   margin-top: 28rpx;
+  padding: 20rpx 22rpx 4rpx;
+  border: 1rpx solid transparent;
+  border-radius: 14rpx;
+}
+
+.group--pending {
+  border-color: rgba($uni-color-primary, 0.28);
+  background: rgba($uni-color-primary, 0.06);
+}
+
+.group--pending .group-title {
+  color: $uni-color-primary;
+}
+
+.group--delivered {
+  border-color: rgba($uni-color-success, 0.28);
+  background: rgba($uni-color-success, 0.06);
+}
+
+.group--delivered .group-title {
+  color: $uni-color-success;
+}
+
+.group--cancelled {
+  border-color: rgba($uni-color-warning, 0.32);
+  background: rgba($uni-color-warning, 0.08);
+}
+
+.group--cancelled .group-title {
+  color: $uni-color-warning;
 }
 
 .group-title {
   display: block;
   margin-bottom: 12rpx;
   color: #333333;
-  font-size: 28rpx;
+  font-size: 36rpx;
   font-weight: 600;
 }
 

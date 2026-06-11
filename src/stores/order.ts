@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
-import { cancelOrder, createOrder, listOrders, markDelivered } from '../api/orders'
-import type { CreateOrderInput } from '../types/api'
+import { cancelOrder, createOrder, listOrders, markDelivered, updateOrder } from '../api/orders'
+import type { CreateOrderInput, UpdateOrderInput } from '../types/api'
 import type { Order } from '../types/domain'
 import { today } from '../utils/date'
 
@@ -34,6 +34,12 @@ export const useOrderStore = defineStore('order', {
 
     async create(input: CreateOrderInput): Promise<Order> {
       const order = await createOrder(input)
+      await this.refreshForDate(this.currentDate)
+      return order
+    },
+
+    async update(id: number, input: UpdateOrderInput): Promise<Order> {
+      const order = await updateOrder(id, input)
       await this.refreshForDate(this.currentDate)
       return order
     },

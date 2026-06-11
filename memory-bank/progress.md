@@ -185,3 +185,10 @@
 - 2026-06-11：Phase 6 Step 6.1-6.3 完成：新增 `src/components/StatCard.vue` / `src/components/AmountInput.vue` / `src/components/CustomerPicker.vue`；分别提供通用数字卡片、金额输入和客户选择弹层。组件可被后续 Dashboard、统计页、订单录入和客户管理页复用；本阶段不进入 Phase 7 页面实现。
 - 2026-06-11：用户确认 Phase 6 验证通过，进入 Phase 7。Phase 7 Step 7.1-7.18 完成：实现 Dashboard、订单列表/新建/详情、统计页、我的入口、客户列表/新建编辑/详情/开次卡、支出列表/新建、备份恢复设置页；新增 `src/utils/ui.ts` 与 `src/utils/backup.ts`，扩展 `listOrders` 支持按客户查询历史订单；`pnpm type-check` / `pnpm lint` 通过。设置页导出使用 `plus.io` 写沙盒并调用系统分享，导入采用粘贴 JSON 后全量覆盖，避免引入额外文件选择插件。
 - 2026-06-11：用户确认 Phase 7 真机验证通过，进入 Phase 8。Phase 8 预检修补两处核心流程：次卡次数不足改微信/现金时，按客户默认价 × 折扣率重算 `unit_price` / `amount`，而不是沿用次卡次均价；备份导入补齐 `schema_version` 兼容性校验。`pnpm type-check` / `pnpm lint` / `pnpm build:h5` 通过。当前 Step 8.1 标记为进行中，待 HBuilderX / Android 真机逐条手动断言 8.1-8.6。
+- 2026-06-11：订单列表体验调整：`src/pages/order/index.vue` 使用 uni-ui `uni-collapse` 按午餐 / 晚餐分成两个折叠面板，面板标题统计有效订单数、份数和金额；Phase 8 手测状态不变，仍待真机断言。
+- 2026-06-11：次卡展示修正：`src/pages/me/customers/detail.vue`、`open-card.vue` 与 `src/pages/order/new.vue` 改为按所有 active 次卡汇总剩余 / 总次数；新开卡后客户详情和订单录入页都显示为旧卡 + 新卡的叠加次数，不再只显示最新卡造成覆盖感。Phase 8 手测状态不变，仍待真机断言。
+- 2026-06-11：订单详情编辑能力补齐：`src/pages/order/detail.vue` 新增 pending 订单编辑态，支持修改客户、日期、餐次、份数、价格、支付方式与备注；`src/api/orders.ts` 新增 `updateOrder`，限制只编辑 pending 订单，避免已配送次卡扣次回写复杂化；Phase 8 手测状态不变。
+- 2026-06-11：订单列表备注展示补齐：`src/pages/order/index.vue` 的订单元信息行在单价后显示非空备注；Phase 8 手测状态不变。
+- 2026-06-11：开次卡金额校验调整：`src/pages/me/customers/open-card.vue` 放开 0 元次卡保存，保留总次数大于 0 与金额非负有效数字校验；Phase 8 手测状态不变。
+- 2026-06-11：危险清空修复：`src/utils/backup.ts` 的 `clearAllData()` 清空后在同一事务内重新 seed 5 个默认支出分类，`backup.vue` 与 design/architecture 文档同步说明，修复清空所有数据后新增支出页分类无选项的问题；Phase 8 手测状态不变。
+- 2026-06-11：首页状态色展示：`src/pages/index/index.vue` 将今日订餐的待配送 / 已配送 / 已取消计数卡片和列表分组改为主题色展示，颜色分别取 `$uni-color-primary` / `$uni-color-success` / `$uni-color-warning`；Phase 8 手测状态不变。

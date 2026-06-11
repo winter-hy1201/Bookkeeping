@@ -2,12 +2,12 @@
 import { computed, ref, watch } from 'vue'
 import CustomerPicker from '../../components/CustomerPicker.vue'
 import AmountInput from '../../components/AmountInput.vue'
-import { getActiveCard } from '../../api/meal-cards'
+import { listCards } from '../../api/meal-cards'
 import { useOrderStore } from '../../stores/order'
 import type { Customer, MealCard, MealType, PaymentMethod } from '../../types/domain'
 import { today } from '../../utils/date'
 import { formatMoney } from '../../utils/format'
-import { confirmDialog, customerPrice, priceHint, showToast, toNumber } from '../../utils/ui'
+import { customerPrice, priceHint, showToast, toNumber } from '../../utils/ui'
 
 const orderStore = useOrderStore()
 
@@ -16,7 +16,7 @@ const mealType = ref<MealType>('lunch')
 const quantity = ref(1)
 const actualPrice = ref(0)
 const paymentMethod = ref<PaymentMethod>('wechat')
-const activeCard = ref<MealCard | null>(null)
+const activeCards = ref<MealCard[]>([])
 const note = ref('')
 const saving = ref(false)
 const userEditedPrice = ref(false)
@@ -32,10 +32,21 @@ const paymentOptions = [
 
 const isMealCard = computed(() => paymentMethod.value === 'meal_card')
 const totalAmount = computed(() => (isMealCard.value ? 0 : actualPrice.value * quantity.value))
+const selectedMealCard = computed(() => activeCards.value[0] ?? null)
+const activeCardSummary = computed(() => {
+  const totalMeals = activeCards.value.reduce((sum, card) => sum + card.total_meals, 0)
+  const usedMeals = activeCards.value.reduce((sum, card) => sum + card.used_meals, 0)
+  return {
+    count: activeCards.value.length,
+    totalMeals,
+    usedMeals,
+    remainingMeals: totalMeals - usedMeals,
+  }
+})
 const canSave = computed(() => {
   if (!selectedCustomer.value || !mealType.value || quantity.value <= 0 || saving.value)
     return false
-  if (isMealCard.value) return activeCard.value !== null
+  if (isMealCard.value) return selectedMealCard.value !== null
   return actualPrice.value >= 0
 })
 
@@ -50,7 +61,7 @@ watch([selectedCustomer, mealType], () => {
 
 watch(paymentMethod, async (value) => {
   if (value !== 'meal_card') {
-    activeCard.value = null
+    activeCards.value = []
     const price = customerPrice(selectedCustomer.value, mealType.value)
     if (!userEditedPrice.value) actualPrice.value = price ?? 0
     return
@@ -65,8 +76,10 @@ async function loadActiveCard(): Promise<void> {
     return
   }
   try {
-    activeCard.value = await getActiveCard(selectedCustomer.value.id)
-    if (!activeCard.value) {
+    activeCards.value = (await listCards(selectedCustomer.value.id)).filter(
+      (card) => card.status === 'active',
+    )
+    if (activeCards.value.length === 0) {
       paymentMethod.value = 'wechat'
       showToast('该客户无可用次卡')
     }
@@ -89,16 +102,11 @@ function goCreateCustomer(): void {
   uni.navigateTo({ url: '/pages/me/customers/new' })
 }
 
-async function handleBack(): Promise<void> {
-  const ok = await confirmDialog('放弃编辑？', '当前订单尚未保存，确认返回吗？')
-  if (ok) uni.navigateBack()
-}
-
 async function save(): Promise<void> {
   if (!canSave.value || !selectedCustomer.value) return
   saving.value = true
   try {
-    const card = activeCard.value
+    const card = selectedMealCard.value
     const mealCardUnitPrice = card ? card.amount / card.total_meals : undefined
     await orderStore.create({
       customer_id: selectedCustomer.value.id,
@@ -169,10 +177,15 @@ async function save(): Promise<void> {
         />
       </view>
 
-      <view v-if="isMealCard && activeCard" class="card-box">
-        次卡 #{{ activeCard.id }} 剩 {{ activeCard.total_meals - activeCard.used_meals }}/{{
-          activeCard.total_meals
-        }}，次均 {{ formatMoney(activeCard.amount / activeCard.total_meals) }}
+      <view v-if="isMealCard && selectedMealCard" class="card-box">
+        <text>
+          次卡共剩 {{ activeCardSummary.remainingMeals }}/{{ activeCardSummary.totalMeals }}
+        </text>
+        <text class="card-meta">
+          当前 {{ activeCardSummary.count }} 张 active 次卡，本单优先使用 #{{
+            selectedMealCard.id
+          }}，次均 {{ formatMoney(selectedMealCard.amount / selectedMealCard.total_meals) }}
+        </text>
       </view>
 
       <view class="field field--top">
@@ -288,5 +301,13 @@ async function save(): Promise<void> {
   color: #222222;
   font-size: 30rpx;
   font-weight: 600;
+}
+
+.card-meta {
+  display: block;
+  margin-top: 10rpx;
+  color: #8f8f94;
+  font-size: 24rpx;
+  font-weight: 400;
 }
 </style>

@@ -2,8 +2,9 @@
     "version" : "1.0",
     "configurations" : [
         {
-            "customPlaygroundType" : "local",
-            "playground" : "custom",
+            "customPlaygroundType" : "device",
+            "packageName" : "com.bookkeeping.app",
+            "playground" : "standard",
             "type" : "uni-app:app-android"
         }
     ]

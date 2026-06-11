@@ -343,6 +343,19 @@ INSERT INTO expense_categories (name, icon, sort_order, is_default) VALUES
    5. 提示"导入成功，请重启 App 刷新缓存"
 ```
 
+**清空数据**：
+```
+设置 → 危险区 → 清空所有数据
+   ↓
+   1. 三次确认
+   2. 事务：
+      DELETE orders / expenses / meal_cards / customers / expense_categories
+      重新 seed 5 个默认支出分类
+   3. 提示"已清空"
+```
+
+注：默认支出分类是系统参考数据。清空后要恢复 5 个默认分类，保证下一次进入"新增支出"仍可直接选择分类。
+
 ### 4.5 开次卡
 
 ```

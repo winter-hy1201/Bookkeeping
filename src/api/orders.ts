@@ -3,6 +3,7 @@ import type {
   CreateOrderInput,
   ListOrdersInput,
   OrderResult,
+  UpdateOrderInput,
   UpdateOrderPaymentInput,
 } from '../types/api'
 import type { Customer, MealCard, Order, OrderStatus } from '../types/domain'
@@ -92,6 +93,9 @@ async function resolveOrderPrice(input: CreateOrderInput): Promise<{
     const card = await getMealCard(input.meal_card_id)
     if (!card) {
       throw new Error('[orders] meal card was not found')
+    }
+    if (card.customer_id !== input.customer_id) {
+      throw new Error('[orders] meal card does not belong to the customer')
     }
     if (card.total_meals <= 0) {
       throw new Error('[orders] meal card total_meals is invalid')
@@ -239,6 +243,54 @@ export async function createOrder(input: CreateOrderInput): Promise<OrderResult>
       throw new Error('[orders] inserted order was not found')
     }
     return order
+  })
+}
+
+export async function updateOrder(id: number, input: UpdateOrderInput): Promise<OrderResult> {
+  return tx(async () => {
+    const current = await getOrder(id)
+    if (!current) {
+      throw new Error('[orders] order was not found')
+    }
+    if (current.status !== 'pending') {
+      throw new Error('[orders] only pending orders can be edited')
+    }
+
+    const pricing = await resolveOrderPrice(input)
+
+    await exec(
+      `UPDATE orders
+      SET customer_id = ?,
+        order_date = ?,
+        meal_type = ?,
+        quantity = ?,
+        unit_price = ?,
+        amount = ?,
+        payment_method = ?,
+        meal_card_id = ?,
+        note = ?,
+        updated_at = ?
+      WHERE id = ?`,
+      [
+        input.customer_id,
+        input.order_date,
+        input.meal_type,
+        input.quantity,
+        pricing.unitPrice,
+        pricing.amount,
+        input.payment_method,
+        pricing.mealCardId,
+        input.note ?? null,
+        nowText(),
+        id,
+      ],
+    )
+
+    const updated = await getOrder(id)
+    if (!updated) {
+      throw new Error('[orders] updated order was not found')
+    }
+    return updated
   })
 }
 
