@@ -1,7 +1,7 @@
 # AGENTS.md
 
 > 给 Codex (codex.ai/code) / 其他下游 AI 助手的**操作手册**。
-> 改任何代码前**先完整读完** `CLAUDE.md`、本文件、`memory-bank/architecture.md`、`memory-bank/design-document.md`。
+> 改任何代码前**先完整读完** 本文件、`memory-bank/architecture.md`、`memory-bank/design-document.md`。
 > 完成后更新 `memory-bank/architecture.md` 与 `memory-bank/progress.md`。
 
 ---
