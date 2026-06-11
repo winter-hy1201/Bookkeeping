@@ -33,7 +33,8 @@ const paymentOptions = [
 const isMealCard = computed(() => paymentMethod.value === 'meal_card')
 const totalAmount = computed(() => (isMealCard.value ? 0 : actualPrice.value * quantity.value))
 const canSave = computed(() => {
-  if (!selectedCustomer.value || !mealType.value || quantity.value <= 0 || saving.value) return false
+  if (!selectedCustomer.value || !mealType.value || quantity.value <= 0 || saving.value)
+    return false
   if (isMealCard.value) return activeCard.value !== null
   return actualPrice.value >= 0
 })
@@ -107,7 +108,7 @@ async function save(): Promise<void> {
       payment_method: paymentMethod.value,
       unit_price: isMealCard.value ? mealCardUnitPrice : actualPrice.value,
       amount: isMealCard.value ? 0 : totalAmount.value,
-      meal_card_id: isMealCard.value ? card?.id ?? null : null,
+      meal_card_id: isMealCard.value ? (card?.id ?? null) : null,
       note: note.value.trim() || null,
     })
     showToast('保存成功')
@@ -122,11 +123,6 @@ async function save(): Promise<void> {
 
 <template>
   <scroll-view class="page" scroll-y>
-    <view class="nav">
-      <text class="back" @click="handleBack">← 新建订单</text>
-      <button class="save" :disabled="!canSave" @click="save">保存</button>
-    </view>
-
     <view class="form">
       <CustomerPicker v-model="selectedCustomer" show-create @create="goCreateCustomer" />
 
@@ -162,11 +158,6 @@ async function save(): Promise<void> {
         @update:model-value="onPriceChange"
       />
 
-      <view class="total-row">
-        <text>合计</text>
-        <text>{{ isMealCard ? '次卡支付，订单金额记 0' : formatMoney(totalAmount) }}</text>
-      </view>
-
       <view class="field">
         <text class="label">支付</text>
         <uni-data-checkbox
@@ -194,6 +185,13 @@ async function save(): Promise<void> {
           :input-border="false"
         />
       </view>
+
+      <view class="total-row">
+        <text>合计</text>
+        <text>{{ isMealCard ? '次卡支付，订单金额记 0' : formatMoney(totalAmount) }}</text>
+      </view>
+
+      <button class="save" :disabled="!canSave" @click="save">保存</button>
     </view>
   </scroll-view>
 </template>
@@ -201,7 +199,7 @@ async function save(): Promise<void> {
 <style scoped>
 .page {
   min-height: 100vh;
-  background: #f6f7f9;
+  background: #fff;
 }
 
 .nav,

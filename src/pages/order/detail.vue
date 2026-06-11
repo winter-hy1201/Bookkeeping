@@ -7,6 +7,7 @@ import { InsufficientCardError } from '../../api/errors'
 import { useOrderStore } from '../../stores/order'
 import type { Customer, Order } from '../../types/domain'
 import { formatMoney } from '../../utils/format'
+import dayjs from 'dayjs'
 import {
   actionSheet,
   confirmDialog,
@@ -120,19 +121,44 @@ onLoad((query) => {
       </view>
 
       <view class="panel">
-        <view class="row"><text>日期</text><text>{{ order.order_date }}</text></view>
-        <view class="row"><text>餐次</text><text>{{ mealTypeText(order.meal_type) }} × {{ order.quantity }}</text></view>
-        <view class="row"><text>支付</text><text>{{ paymentText(order.payment_method) }}</text></view>
-        <view class="row"><text>单价</text><text>{{ formatMoney(order.unit_price) }}</text></view>
-        <view class="row"><text>金额</text><text>{{ order.payment_method === 'meal_card' ? '次卡订单记 0' : formatMoney(order.amount) }}</text></view>
-        <view class="row"><text>备注</text><text>{{ order.note || '—' }}</text></view>
-        <view class="row"><text>创建</text><text>{{ order.created_at }}</text></view>
-        <view v-if="order.cancelled_at" class="row"><text>取消</text><text>{{ order.cancelled_at }}</text></view>
+        <view class="row"
+          ><text>日期</text><text>{{ order.order_date }}</text></view
+        >
+        <view class="row"
+          ><text>餐次</text
+          ><text>{{ mealTypeText(order.meal_type) }} × {{ order.quantity }}</text></view
+        >
+        <view class="row"
+          ><text>支付</text><text>{{ paymentText(order.payment_method) }}</text></view
+        >
+        <view class="row"
+          ><text>单价</text><text>{{ formatMoney(order.unit_price) }}</text></view
+        >
+        <view class="row"
+          ><text>金额</text
+          ><text>{{
+            order.payment_method === 'meal_card' ? '次卡订单记 0' : formatMoney(order.amount)
+          }}</text></view
+        >
+        <view class="row"
+          ><text>备注</text><text>{{ order.note || '—' }}</text></view
+        >
+        <view class="row"
+          ><text>创建</text
+          ><text>{{ dayjs(order.created_at).format('YYYY-MM-DD HH:mm:ss') }}</text></view
+        >
+        <view v-if="order.cancelled_at" class="row"
+          ><text>取消</text><text>{{ order.cancelled_at }}</text></view
+        >
       </view>
 
       <view v-if="customer" class="panel">
-        <view class="row"><text>微信</text><text>{{ customer.wechat || '—' }}</text></view>
-        <view class="row"><text>手机</text><text>{{ customer.phone || '—' }}</text></view>
+        <view class="row"
+          ><text>微信</text><text>{{ customer.wechat || '—' }}</text></view
+        >
+        <view class="row"
+          ><text>手机</text><text>{{ customer.phone || '—' }}</text></view
+        >
       </view>
 
       <view v-if="order.status === 'pending'" class="actions">
