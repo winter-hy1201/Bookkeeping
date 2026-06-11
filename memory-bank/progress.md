@@ -9,8 +9,8 @@
 ## 当前总览
 
 - **开始日期**：2026-06-10
-- **当前阶段**：Phase 2 数据层已完成
-- **下一步**：Phase 3 Step 3.1 — 定义 domain 类型
+- **当前阶段**：Phase 5 Pinia Stores 已完成，等待用户验证
+- **下一步**：用户验证通过后再进入 Phase 6 Step 6.1 — StatCard.vue
 
 ---
 
@@ -29,67 +29,54 @@
 
 ---
 
-## Phase 2 — 数据层（SQLite）（5/6，待 2.6 验证）
+## Phase 2 — 数据层（SQLite）（6/6）
 
 - [x] Step 2.1 — 编写 schema.ts（5 张表 DDL 字符串）
 - [x] Step 2.2 — 编写 migrations.ts（版本管理）
 - [x] Step 2.3 — 编写 seed.ts（默认分类）
 - [x] Step 2.4 — 编写 db/index.ts（连接 + tx）
 - [x] Step 2.5 — 在 App.vue 触发 init
-- [ ] Step 2.6 — 端到端验证：DB 落盘（**阻塞**：CLI 模式编译不带 SQLite 原生模块；需用户装 HBuilderX 重新编译跑通后再 adb pull 验证）
+- [x] Step 2.6 — 端到端验证：DB 落盘（HBuilderX / Android 真机验证通过；`bookkeeping-real.db` 已拉取并确认）
 
-**里程碑 2.6 — 数据层就绪**：[ ]（2026-06-10，待 HBuilderX 真机验证）
-
----
-
-## Phase 2 — 数据层（SQLite）（0/6）
-
-- [ ] Step 2.1 — 编写 schema.ts（5 张表 DDL 字符串）
-- [ ] Step 2.2 — 编写 migrations.ts（版本管理）
-- [ ] Step 2.3 — 编写 seed.ts（默认分类）
-- [ ] Step 2.4 — 编写 db/index.ts（连接 + tx）
-- [ ] Step 2.5 — 在 App.vue 触发 init
-- [ ] Step 2.6 — 端到端验证：DB 落盘
-
-**里程碑 2.6 — 数据层就绪**：[ ]
+**里程碑 2.6 — 数据层就绪**：[x]（2026-06-11）
 
 ---
 
-## Phase 3 — 类型与工具（0/4）
+## Phase 3 — 类型与工具（4/4）
 
-- [ ] Step 3.1 — 定义 domain 类型
-- [ ] Step 3.2 — 定义 API 入参出参类型
-- [ ] Step 3.3 — 写日期工具 date.ts
-- [ ] Step 3.4 — 写金额格式化 format.ts
+- [x] Step 3.1 — 定义 domain 类型
+- [x] Step 3.2 — 定义 API 入参出参类型
+- [x] Step 3.3 — 写日期工具 date.ts
+- [x] Step 3.4 — 写金额格式化 format.ts
 
-**里程碑 3.4 — 类型与工具就绪**：[ ]
-
----
-
-## Phase 4 — API 层（0/8）
-
-- [ ] Step 4.1 — customers API（CRUD）
-- [ ] Step 4.2 — meal-cards API
-- [ ] Step 4.3 — orders API（基础 CRUD）
-- [ ] Step 4.4 — orders API（markDelivered 流程）
-- [ ] Step 4.5 — orders API（cancelOrder）
-- [ ] Step 4.6 — expense-categories API
-- [ ] Step 4.7 — expenses API
-- [ ] Step 4.8 — stats API（聚合查询）
-
-**里程碑 4.8 — API 层就绪**：[ ]
+**里程碑 3.4 — 类型与工具就绪**：[x]（2026-06-11）
 
 ---
 
-## Phase 5 — Pinia Stores（0/5）
+## Phase 4 — API 层（8/8）
 
-- [ ] Step 5.1 — 安装 Pinia + 初始化
-- [ ] Step 5.2 — customer store
-- [ ] Step 5.3 — order store
-- [ ] Step 5.4 — expense store
-- [ ] Step 5.5 — stats store
+- [x] Step 4.1 — customers API（CRUD）
+- [x] Step 4.2 — meal-cards API
+- [x] Step 4.3 — orders API（基础 CRUD）
+- [x] Step 4.4 — orders API（markDelivered 流程）
+- [x] Step 4.5 — orders API（cancelOrder）
+- [x] Step 4.6 — expense-categories API
+- [x] Step 4.7 — expenses API
+- [x] Step 4.8 — stats API（聚合查询）
 
-**里程碑 5.5 — Stores 就绪**：[ ]
+**里程碑 4.8 — API 层就绪**：[x]（2026-06-11）
+
+---
+
+## Phase 5 — Pinia Stores（5/5）
+
+- [x] Step 5.1 — 使用 uni-app 内置 Pinia + 初始化
+- [x] Step 5.2 — customer store
+- [x] Step 5.3 — order store
+- [x] Step 5.4 — expense store
+- [x] Step 5.5 — stats store
+
+**里程碑 5.5 — Stores 就绪**：[x]（2026-06-11）
 
 ---
 
@@ -158,15 +145,15 @@
 | 阶段 | 总步数 | 已完成 | 进度 |
 |---|---|---|---|
 | Phase 1 脚手架 | 8 | 8 | 100% |
-| Phase 2 数据层 | 6 | 5 | 83% |
-| Phase 3 类型/工具 | 4 | 0 | 0% |
-| Phase 4 API 层 | 8 | 0 | 0% |
-| Phase 5 Stores | 5 | 0 | 0% |
+| Phase 2 数据层 | 6 | 6 | 100% |
+| Phase 3 类型/工具 | 4 | 4 | 100% |
+| Phase 4 API 层 | 8 | 8 | 100% |
+| Phase 5 Stores | 5 | 5 | 100% |
 | Phase 6 通用组件 | 3 | 0 | 0% |
 | Phase 7 页面 | 18 | 0 | 0% |
 | Phase 8 流程串联 | 6 | 0 | 0% |
 | Phase 9 收尾 | 5 | 0 | 0% |
-| **合计** | **63** | **13** | **21%** |
+| **合计** | **63** | **31** | **49%** |
 
 > 步骤编号与 `implementation-plan.md` v2 一致
 
@@ -178,3 +165,20 @@
 - 2026-06-10：Phase 1 脚手架 8/8 完成，里程碑 1.8 达成
 - 2026-06-10：Phase 2 数据层 5/6 完成，Step 2.6 阻塞等 HBuilderX 真机验证
 - 2026-06-10：发现 CLI 模式编译不带 SQLite 原生模块（`plus.sqlite` JS 表面存在但底层空壳，openDatabase 同步返回 undefined）；切到 HBuilderX 编译；architecture.md 新增「编译工具链」章节
+- 2026-06-10：5+ sqlite API 重写完成（callback 在 options 里、name 引用、async executeSql），type-check / lint 通过；但 HBuilderX "最新正式版" 标准基座下 `getCallbackIDByFunction is not a function`，sqlite native 仍是空壳
+- 2026-06-11：用户决定换 AI 接手，详细调试交接见 `memory-bank/DEBUG-HANDOFF.md`
+- 2026-06-11：接手后重查 `DEBUG-HANDOFF.md` 与官方 5+ SQLite API，修复 `init()` 未 await、`transaction.operation` 误用函数、SQL args 不被官方 API 支持、callback 静默无超时等问题；`pnpm type-check` / `pnpm lint` / `pnpm build:h5` 通过；当时等待 Step 2.6 真机验证，后续已通过
+- 2026-06-11：按用户提供的掘金 SQLite 封装文章对照，发现动态取出 `plus.sqlite[method]` 后裸调用会丢失 `this`，与 `this.getCallbackIDByFunction is not a function` 报错吻合；已改为 `fn.call(sqlite, options)` 保留 `this`，本地三项验证通过
+- 2026-06-11：用户完成真机落盘验证；`memory-bank/bookkeeping-real.db` 可被 sqlite3 打开，业务表齐全、默认支出分类 5 行、`PRAGMA user_version=1`；Phase 2 里程碑完成
+- 2026-06-11：Phase 3 类型与工具 4/4 完成：新增 `src/types/domain.ts`、`src/types/api.ts`、`src/utils/date.ts`、`src/utils/format.ts`，安装 `dayjs`；`pnpm type-check` / `pnpm lint` / `pnpm build:h5` 通过。按用户要求，验证前不进入 Phase 4
+- 2026-06-11：Phase 4 Step 4.1 完成：新增 `src/api/customers.ts`，实现 `listCustomers` / `getCustomer` / `createCustomer` / `updateCustomer` / `deleteCustomer`；删除客户时会拦截已有次卡或订单依赖，避免外键失败；`pnpm type-check` / `pnpm lint` / `pnpm build:h5` 通过，临时 SQLite mock smoke test 通过
+- 2026-06-11：Phase 4 Step 4.2 完成：新增 `src/api/meal-cards.ts`，实现 `getActiveCard` / `listCards` / `openCard` / `getCard`；`openCard` 用 `tx()` 写入 active 次卡
+- 2026-06-11：Phase 4 Step 4.3-4.5 完成：新增 `src/api/orders.ts` 与 `src/api/errors.ts`，实现订单基础 CRUD、`markDelivered` 配送扣次、`cancelOrder` 取消；次卡次数不足会抛 `InsufficientCardError` 并事务回滚，已配送订单取消会抛 `AlreadyDeliveredError`
+- 2026-06-11：Phase 4 Step 4.6 完成：新增 `src/api/expense-categories.ts`，只读默认支出分类，不暴露 v1.0 不做的分类增删改
+- 2026-06-11：Phase 4 Step 4.7 完成：新增 `src/api/expenses.ts`，实现支出列表 / 详情 / 创建 / 删除；`amount <= 0` 按 v1.0 约定拒绝
+- 2026-06-11：Phase 4 Step 4.8 完成：新增 `src/api/stats.ts`，实现 Dashboard 汇总、日趋势、支出分类占比；收入口径对齐 design §5.2（非 cancelled 订单 + 开次卡收入）；`pnpm type-check` / `pnpm lint` / `pnpm build:h5` 通过，临时 SQLite mock 端到端 smoke test 通过；Phase 4 里程碑完成，等待用户验证后再进入 Phase 5
+- 2026-06-11：Phase 5 Step 5.1 完成：按 uni-app 官方文档改用内置 Pinia，不在 `package.json` 手动安装；`src/main.ts` 使用 `import * as Pinia from 'pinia'`、`app.use(Pinia.createPinia())`，并从 `createApp()` 返回 `Pinia`；新增 `src/types/pinia.d.ts` 供本地 `vue-tsc` 在零运行时依赖模式下识别类型。
+- 2026-06-11：Phase 5 Step 5.2 完成：新增 `src/stores/customer.ts`，提供客户列表缓存、`loading`、`byId(id)` getter，以及 `refresh` / `create` / `update` / `remove` actions；写操作后自动刷新列表。
+- 2026-06-11：Phase 5 Step 5.3 完成：新增 `src/stores/order.ts`，提供订单日期筛选、列表缓存、`loading`，以及 `setDate` / `refreshForDate` / `create` / `markDelivered` / `cancel` actions；配送和取消异常不在 store 层吞掉，交给页面处理。
+- 2026-06-11：Phase 5 Step 5.4 完成：新增 `src/stores/expense.ts`，提供支出列表、默认分类、当前日期和 `loading` 状态，以及 `refreshForDate` / `refreshCategories` / `create` / `remove` actions；支出写入后自动刷新当前日期列表。
+- 2026-06-11：Phase 5 Step 5.5 完成：新增 `src/stores/stats.ts`，提供 Dashboard summary、日趋势、支出分类占比、当前 range 和 `loading` 状态；`src/api/stats.ts` 导出已有的 `getRangeSummary` 供统计页区间汇总复用。`pnpm type-check` / `pnpm lint` 通过；按用户要求不手动安装 Pinia 后，CLI `pnpm build:h5` 会因找不到 `pinia/dist/pinia.mjs` 失败，需走 HBuilderX 内置 Pinia 验证。Phase 5 里程碑完成，等待用户验证后再进入 Phase 6。
