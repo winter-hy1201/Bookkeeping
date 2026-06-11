@@ -25,6 +25,14 @@ type OrderRow = Order & PlusSqliteRow
 type ExpenseCategoryRow = ExpenseCategory & PlusSqliteRow
 type ExpenseRow = Expense & PlusSqliteRow
 
+/** 5+ `readEntries` 实际返回的条目视图，仅用到本场景下的字段 */
+interface PlusIoEntryView {
+  isFile?: boolean
+  isDirectory?: boolean
+  name?: string
+  fullPath?: string
+}
+
 function nowStamp(): string {
   const d = new Date()
   const pad = (value: number) => String(value).padStart(2, '0')
@@ -105,39 +113,84 @@ async function writeDocFile(fileName: string, content: string): Promise<string> 
   })
 }
 
-async function shareFile(path: string): Promise<void> {
-  if (!plus.share) {
-    throw new Error('当前环境不支持系统分享')
-  }
+function ensureDownloadDir(): Promise<PlusIoDirectoryEntry> {
   return new Promise((resolve, reject) => {
-    plus.share.getServices(
-      (services) => {
-        const service = services[0]
-        if (!service) {
-          reject(new Error('没有可用的分享服务'))
-          return
-        }
-        const message = {
-            type: 'file',
-            files: [path],
-          } as unknown as PlusShareShareMessage
-        service.send(
-          message,
-          () => resolve(),
-          () => reject(new Error('分享备份文件失败')),
-        )
-      },
-      () => reject(new Error('获取分享服务失败')),
+    plus.io.resolveLocalFileSystemURL(
+      '_downloads/',
+      (entry) => resolve(entry as PlusIoDirectoryEntry),
+      () => reject(new Error('下载目录不可用')),
     )
   })
 }
 
-export async function exportBackup(): Promise<string> {
+async function copyToDownloads(srcPath: string, fileName: string): Promise<string> {
+  const dir = await ensureDownloadDir()
+  return new Promise((resolve, reject) => {
+    plus.io.resolveLocalFileSystemURL(
+      srcPath,
+      (srcEntry) => {
+        const src = srcEntry as unknown as PlusIoFileEntry
+        src.copyTo(
+          dir,
+          fileName,
+          (fileEntry) => {
+            const dest = fileEntry as unknown as PlusIoFileEntry
+            resolve(dest.fullPath ?? fileName)
+          },
+          () => reject(new Error('复制到下载目录失败')),
+        )
+      },
+      () => reject(new Error('打开备份文件失败')),
+    )
+  })
+}
+
+async function readFileText(path: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    plus.io.resolveLocalFileSystemURL(
+      path,
+      (entry) => {
+        const file = entry as unknown as PlusIoFileEntry
+        file.file(
+          (blob) => {
+            const reader = new plus.io.FileReader()
+            reader.onloadend = () => {
+              const result = reader.result
+              if (result == null) {
+                reject(new Error('读取备份文件失败'))
+                return
+              }
+              resolve(result)
+            }
+            reader.onerror = () => reject(new Error('读取备份文件失败'))
+            reader.readAsText(blob, 'utf-8')
+          },
+          () => reject(new Error('读取备份文件失败')),
+        )
+      },
+      () => reject(new Error('打开备份文件失败')),
+    )
+  })
+}
+
+export interface ExportResult {
+  /** 沙盒文档目录路径，永久存在 */
+  internalPath: string
+  /** 5+ 应用私有下载目录，文件管理可见；复制失败时为 null */
+  downloadPath: string | null
+}
+
+export async function exportBackup(): Promise<ExportResult> {
   const payload = await buildBackupPayload()
   const fileName = `backup_${nowStamp()}.json`
-  const path = await writeDocFile(fileName, JSON.stringify(payload, null, 2))
-  await shareFile(path)
-  return path
+  const internalPath = await writeDocFile(fileName, JSON.stringify(payload, null, 2))
+  let downloadPath: string | null = null
+  try {
+    downloadPath = await copyToDownloads(internalPath, fileName)
+  } catch {
+    downloadPath = null
+  }
+  return { internalPath, downloadPath }
 }
 
 export function parseBackupText(text: string): BackupPayload {
@@ -145,6 +198,42 @@ export function parseBackupText(text: string): BackupPayload {
     throw new Error('文件无效')
   }
   return ensureBackupPayload(JSON.parse(text) as unknown)
+}
+
+export interface BackupFileEntry {
+  name: string
+  fullPath: string
+}
+
+/** 列出 `_doc/` 下所有 `backup_*.json`，按文件名倒序（最新在前） */
+export async function listBackupFiles(): Promise<BackupFileEntry[]> {
+  if (typeof plus === 'undefined' || !plus.io) return []
+  return new Promise((resolve) => {
+    plus.io.resolveLocalFileSystemURL(
+      '_doc/',
+      (entry) => {
+        const reader = (entry as PlusIoDirectoryEntry).createReader()
+        reader.readEntries(
+          (raw) => {
+            const entries = raw as unknown as PlusIoEntryView[]
+            const files = entries
+              .filter((e) => Boolean(e.isFile) && /^backup_.*\.json$/.test(e.name ?? ''))
+              .map((e) => ({ name: e.name as string, fullPath: (e.fullPath ?? '') as string }))
+              .sort((a, b) => b.name.localeCompare(a.name))
+            resolve(files)
+          },
+          () => resolve([]),
+        )
+      },
+      () => resolve([]),
+    )
+  })
+}
+
+/** 从应用沙盒内绝对路径读取并解析备份 payload；用于"从已下载的备份恢复" */
+export async function readBackupFile(path: string): Promise<BackupPayload> {
+  const text = await readFileText(path)
+  return parseBackupText(text)
 }
 
 export async function importBackup(payload: BackupPayload): Promise<void> {

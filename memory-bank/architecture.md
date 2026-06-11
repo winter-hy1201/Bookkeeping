@@ -103,7 +103,7 @@
 | `src/pages/me/customers/open-card.vue` | 开次卡页：总次数用 `uni-number-box`、金额用 AmountInput，默认 20 次，金额允许为 0；若已有 active 次卡先确认，确认文案按所有 active 卡汇总剩余 / 总次数，确认后仍可新开，旧卡保留。 |
 | `src/pages/me/expenses/list.vue` | 支出列表：用 `uni-datetime-picker` 按日期读取 expense store，展示分类 emoji/名称、金额和备注；长按可删除。 |
 | `src/pages/me/expenses/new.vue` | 新建支出页：日期用 `uni-datetime-picker`、分类用 `uni-data-select`、金额用 AmountInput、备注用 `uni-easyinput`；金额 > 0 且分类已选才可保存。 |
-| `src/pages/me/settings/backup.vue` | 备份恢复页：导出 JSON 到 `_doc/backup_YYYYMMDD_HHmmss.json` 并调用系统分享；用 `uni-easyinput` 粘贴 JSON 后全量覆盖导入；危险区三次确认清空客户、订单、次卡和支出，并恢复 5 个默认支出分类。 |
+| `src/pages/me/settings/backup.vue` | 备份恢复页：导出 JSON 到 `_doc/backup_YYYYMMDD_HHmmss.json` 并复制到 `_downloads/`，toast 展示可见路径，不再调用系统分享；恢复保留 `uni-easyinput` 粘贴 JSON，同时支持从已保存备份列表或本地 JSON 文件读取后全量覆盖导入；危险区三次确认清空客户、订单、次卡和支出，并恢复 5 个默认支出分类。 |
 
 ### components/ — 跨页组件
 
@@ -151,7 +151,7 @@
 | `src/utils/date.ts` | dayjs 本地时区日期工具：`today()` 返回 `YYYY-MM-DD`；`weekRange(d)` 返回自然周周一到周日；`monthRange(d)` 返回自然月 1 号到月底；`formatDate(d)` 按当前年份显示 `MM-DD` 或 `YYYY-MM-DD`；`daysBetween(a, b)` 返回自然日整数差。 |
 | `src/utils/format.ts` | 金额/百分比格式化工具：`formatMoney(n)` 输出 `¥1,234.50`（空值/非法值为 `¥—`）；`parseMoney(s)` 接受普通数字、`¥`、`￥`、千分位并解析为 number（非法为 0）；`formatPercent(n)` 四舍五入输出整数百分比。 |
 | `src/utils/ui.ts` | 页面层小工具：toast、confirm/actionSheet Promise 化、数值转换、餐次/支付/状态文案、客户默认价 × 折扣价提示、订单金额展示。 |
-| `src/utils/backup.ts` | JSON 备份恢复工具：全表导出 payload、写 `_doc/backup_*.json`、系统分享、解析校验备份 JSON 与 `schema_version`、事务内全量覆盖导入；危险清空会删除业务数据后调用 `seedIfEmpty()` 恢复默认支出分类，避免支出录入页无分类可选。 |
+| `src/utils/backup.ts` | JSON 备份恢复工具：全表导出 payload、写 `_doc/backup_*.json` 并复制到 `_downloads/`、列出 / 读取沙盒内备份文件、解析校验备份 JSON 与 `schema_version`、事务内全量覆盖导入；危险清空会删除业务数据后调用 `seedIfEmpty()` 恢复默认支出分类，避免支出录入页无分类可选。 |
 
 ### types/ — TS 类型
 
@@ -255,3 +255,5 @@
 - 2026-06-11：Phase 9.2 错误处理兜底 — `src/App.vue` 新增 `onError` 全局钩子，DB 损坏时识别 `integrity_check` 关键字并提示"数据库损坏，请用备份恢复"；`src/db/index.ts` `init()` 末尾跑 `PRAGMA integrity_check(1)`，失败抛 `[db] integrity_check failed: ...` 错误让 `onError` 捕获。`pnpm type-check` / `pnpm lint` 通过。
 - 2026-06-11：Phase 9.5 CHANGELOG 落地 — 新增 `memory-bank/CHANGELOG.md` 写 v1.0 节：已实现 F1-F6 功能 + 关键行为决策（A1/A3/A4/A5/A6/A7）+ 收尾质量门 + 已知限制（含"未做 50 单压测"和"未打 Release APK"两条）+ v1.1 TBD 候选。
 - 2026-06-11：**v1.0 发布**（按用户决策）— Step 9.3 真机性能 smoke test 和 Step 9.4 Release APK 打包侧载**跳过**（个人内用 v1.0 用 HBuilderX 标准基座的 debug APK 侧载，省掉自签名 keystore / 云打包）；`memory-bank/CHANGELOG.md` 已知限制节同步标注这两条；`progress.md` Phase 9 标记为 3/5 完成、里程碑 9.5 勾选。
+- 2026-06-11：订单列表折叠面板样式微调 — `src/pages/order/index.vue` 的午餐 / 晚餐面板标题使用 `$uni-color-primary` 并加粗，面板内订单列表项之间增加分割线。
+- 2026-06-11：备份恢复 v1.1 小修 — `src/utils/backup.ts` 移除系统分享路径，导出后复制到 `_downloads/` 并返回 `ExportResult`；新增 `listBackupFiles()` / `readBackupFile()`；`src/pages/me/settings/backup.vue` 保留粘贴 JSON 导入，并新增从已保存备份选择、本地 JSON 文件选择两个入口。`pnpm type-check` / `pnpm lint` 通过；真机文件路径待 HBuilderX 验证。

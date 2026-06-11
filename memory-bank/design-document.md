@@ -326,15 +326,19 @@ INSERT INTO expense_categories (name, icon, sort_order, is_default) VALUES
         "expense_categories": [...],
         "expenses": [...]
       }
-   2. plus.io 写入沙盒：`backup_YYYYMMDD_HHmmss.json`
-   3. 弹出系统分享面板（让用户选"微信文件传输助手"传到电脑）
+   2. plus.io 写入应用沙盒：`_doc/backup_YYYYMMDD_HHmmss.json`
+   3. 复制一份到 `_downloads/backup_YYYYMMDD_HHmmss.json`
+   4. toast 提示保存路径，用户可在文件管理里直接找到备份文件
 ```
 
 **导入**（A3：全量覆盖）：
 ```
 设置 → 备份 → 导入
    ↓
-   1. 文件选择器（plus.io）
+   1. 三种入口任选其一：
+      - 粘贴 JSON 文本
+      - 从 `_doc/backup_*.json` 已保存备份列表选择
+      - 从本地 JSON 文件选择器读取
    2. 解析 JSON + 校验 schema_version（不匹配则报错"备份文件版本不兼容"）
    3. 二次确认："导入将覆盖所有现有数据，无法恢复。是否继续？"
    4. 事务：
@@ -560,7 +564,7 @@ INSERT INTO expense_categories (name, icon, sort_order, is_default) VALUES
 |---|---|
 | plus.sqlite 在低端 Android 设备不稳定 | 关键写入加事务 + 异常重试提示 |
 | 大量订单时统计慢 | 复合索引 (order_date, status) + 量 >10K 时切离线缓存 |
-| 备份 JSON 被微信压缩损坏 | 提示用邮件附件而非文件传输助手 |
+| 备份 JSON 文件不可见 | 导出同时写 `_doc/` 和 `_downloads/`，toast 展示保存路径；不走系统分享 |
 | App 卸载后数据丢失 | 建议每周导出，v1.1 加定时提醒 |
 | 配送时次卡次数不足 | 弹窗让用户改支付方式，事务回滚已扣次（若部分成功） |
 

@@ -192,3 +192,5 @@
 - 2026-06-11：开次卡金额校验调整：`src/pages/me/customers/open-card.vue` 放开 0 元次卡保存，保留总次数大于 0 与金额非负有效数字校验；Phase 8 手测状态不变。
 - 2026-06-11：危险清空修复：`src/utils/backup.ts` 的 `clearAllData()` 清空后在同一事务内重新 seed 5 个默认支出分类，`backup.vue` 与 design/architecture 文档同步说明，修复清空所有数据后新增支出页分类无选项的问题；Phase 8 手测状态不变。
 - 2026-06-11：首页状态色展示：`src/pages/index/index.vue` 将今日订餐的待配送 / 已配送 / 已取消计数卡片和列表分组改为主题色展示，颜色分别取 `$uni-color-primary` / `$uni-color-success` / `$uni-color-warning`；Phase 8 手测状态不变。
+- 2026-06-11：订单列表折叠面板样式微调：`src/pages/order/index.vue` 的午餐 / 晚餐面板标题使用 `$uni-color-primary` 并加粗，面板内订单列表项之间增加分割线。
+- 2026-06-11：备份恢复 v1.1 小修：导出备份不再走系统分享，改为写 `_doc/backup_*.json` 后复制到 `_downloads/` 并提示路径；恢复保留粘贴 JSON，同时新增从已保存备份列表选择和从本地 JSON 文件选择。`pnpm type-check` / `pnpm lint` 通过，真机文件路径待 HBuilderX 验证。

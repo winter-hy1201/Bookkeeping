@@ -107,30 +107,34 @@ onShow(() => {
           v-for="section in orderSections"
           :key="section.type"
           :name="section.type"
-          :title="sectionTitle(section)"
-          :border="false"
-          title-border="none"
         >
+          <template v-slot:title>
+            <view class="section-title">
+              <text class="section-title-text">{{ sectionTitle(section) }}</text>
+            </view>
+          </template>
           <view v-if="section.orders.length === 0" class="section-empty">
             暂无{{ section.title }}订单
           </view>
           <template v-else>
-            <view
-              v-for="order in section.orders"
-              :key="order.id"
-              class="order-item"
-              @click="goDetail(order.id)"
-            >
-              <view class="order-main">
-                <view class="order-title-row">
-                  <text class="order-name">{{ customerName(order.customer_id) }}</text>
-                  <text :class="statusClass(order.status)">{{ statusText(order.status) }}</text>
+            <view class="order-list">
+              <view
+                v-for="order in section.orders"
+                :key="order.id"
+                class="order-item"
+                @click="goDetail(order.id)"
+              >
+                <view class="order-main">
+                  <view class="order-title-row">
+                    <text class="order-name">{{ customerName(order.customer_id) }}</text>
+                    <text :class="statusClass(order.status)">{{ statusText(order.status) }}</text>
+                  </view>
+                  <text class="order-meta">
+                    {{ orderMetaText(order) }}
+                  </text>
                 </view>
-                <text class="order-meta">
-                  {{ orderMetaText(order) }}
-                </text>
+                <text class="order-amount">{{ orderDisplayAmount(order) }}</text>
               </view>
-              <text class="order-amount">{{ orderDisplayAmount(order) }}</text>
             </view>
           </template>
         </uni-collapse-item>
@@ -180,14 +184,46 @@ onShow(() => {
 
 .order-item,
 .section-empty {
-  margin: 0 0 16rpx;
   padding: 22rpx 24rpx;
-  border-radius: 12rpx;
   background: #ffffff;
 }
 
 .order-item {
   min-height: 120rpx;
+}
+
+.order-item + .order-item {
+  border-top: 1px solid #f0f0f0;
+}
+
+.order-list {
+  margin: 0 0 16rpx;
+  border-radius: 12rpx;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.section-empty {
+  margin: 0 0 16rpx;
+  border-radius: 12rpx;
+}
+
+.section-title {
+  padding: 0 15px;
+  height: 48px;
+  line-height: 48px;
+  box-sizing: border-box;
+  color: #1677ff;
+  font-weight: 700;
+}
+
+.section-title-text {
+  font-size: 14px;
+  font-weight: inherit;
+  color: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .order-main {

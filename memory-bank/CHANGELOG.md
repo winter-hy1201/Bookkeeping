@@ -70,4 +70,38 @@
 
 ---
 
-> 后续版本将在本文件追加新章节，**不修改**已发布版本的内容。
+## v1.1（2026-06-11）
+
+v1.0 范围内对备份恢复页的两点小修，主要为"导出 = 直接下载到本地"和"恢复 = 多种文件入口"。
+
+### 行为变更
+
+- **导出备份**：写入 `_doc/backup_YYYYMMDD_HHmmss.json` 后再复制一份到 `_downloads/`（5+ 应用私有下载目录，文件管理可见），toast 提示下载路径。**不再弹系统分享面板**（v1.0 是写完文件后调用 `plus.share`，用户要二次选 App 才算"完成"）。
+- **恢复备份**：保留粘贴 JSON 文本，新增两个入口：
+  - **从已保存备份选择**：`listBackupFiles()` 列 `_doc/backup_*.json` 倒序，弹 `actionSheet` 选完直接覆盖导入。
+  - **从本地文件选择**：`<input type="file" accept=".json">` 触发系统文件选择器（5+ App 与 H5 通用），选完内容填到粘贴框，再点"导入覆盖"完成。
+
+### 实现位置
+
+- `src/utils/backup.ts` — `exportBackup()` 返回 `ExportResult { internalPath, downloadPath }`；新增 `listBackupFiles()` / `readBackupFile(path)`；删除 `shareFile()`。
+- `src/pages/me/settings/backup.vue` — 三个恢复入口按钮 + 隐藏 `<input type="file">`。
+
+### 关闭的 v1.0 已知限制
+
+- 导入仅支持粘贴 JSON、无 plus.io 文件选择 → v1.1 起通过 `<input type="file">` + `listBackupFiles()` 同时覆盖"系统文件选择"和"应用沙盒内已下载备份选择"两种场景。
+
+### 已知限制（v1.1 仍保留）
+
+| 限制 | 位置 / 表现 | 何时回头评估 |
+| --- | --- | --- |
+| 导出文件落在应用私有目录（`_downloads/`） | 标准基座下用户路径是 `Android/data/io.dcloud.HBuilder/files/Download/...`，文件管理可看但不是系统下载根目录；不申请 `WRITE_EXTERNAL_STORAGE` 权限以免引入权限流程 | 后续若需在系统下载根目录出现，再加权限申请 |
+| `<input type="file">` 在部分 5+ 客户端可能需要点选两次 | 系统选择器回调偶尔被 webview 拦截 | 真实使用中遇到再优化 |
+| 无支出分类自定义增删 / 无"关于"页 / 备份导出不主动定时 | v1.0 候选未变 | v1.1 后续小版本 |
+
+### 验证门禁
+
+- 静态质量门禁 `pnpm type-check` / `pnpm lint` 通过
+- 真机行为：待用户在 HBuilderX 真机验证（导出路径正确、三个恢复入口可走通）
+- 工具链：HBuilderX 编译验证（CLI 不再支持真机 SQLite，故跳过 H5 build 验证）
+
+---
