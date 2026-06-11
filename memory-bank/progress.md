@@ -9,8 +9,8 @@
 ## 当前总览
 
 - **开始日期**：2026-06-10
-- **当前阶段**：Phase 5 Pinia Stores 已完成，等待用户验证
-- **下一步**：用户验证通过后再进入 Phase 6 Step 6.1 — StatCard.vue
+- **当前阶段**：Phase 6 通用 UI 组件已完成，等待用户验证
+- **下一步**：用户验证通过后再进入 Phase 7 Step 7.1 — Tab 1 Dashboard 骨架（mock 数据）
 
 ---
 
@@ -80,13 +80,13 @@
 
 ---
 
-## Phase 6 — 通用 UI 组件（0/3）
+## Phase 6 — 通用 UI 组件（3/3）
 
-- [ ] Step 6.1 — StatCard.vue
-- [ ] Step 6.2 — AmountInput.vue
-- [ ] Step 6.3 — CustomerPicker.vue
+- [x] Step 6.1 — StatCard.vue
+- [x] Step 6.2 — AmountInput.vue
+- [x] Step 6.3 — CustomerPicker.vue
 
-**里程碑 6.3 — 通用组件就绪**：[ ]
+**里程碑 6.3 — 通用组件就绪**：[x]（2026-06-11）
 
 ---
 
@@ -149,11 +149,11 @@
 | Phase 3 类型/工具 | 4 | 4 | 100% |
 | Phase 4 API 层 | 8 | 8 | 100% |
 | Phase 5 Stores | 5 | 5 | 100% |
-| Phase 6 通用组件 | 3 | 0 | 0% |
+| Phase 6 通用组件 | 3 | 3 | 100% |
 | Phase 7 页面 | 18 | 0 | 0% |
 | Phase 8 流程串联 | 6 | 0 | 0% |
 | Phase 9 收尾 | 5 | 0 | 0% |
-| **合计** | **63** | **31** | **49%** |
+| **合计** | **63** | **34** | **54%** |
 
 > 步骤编号与 `implementation-plan.md` v2 一致
 
@@ -182,3 +182,4 @@
 - 2026-06-11：Phase 5 Step 5.3 完成：新增 `src/stores/order.ts`，提供订单日期筛选、列表缓存、`loading`，以及 `setDate` / `refreshForDate` / `create` / `markDelivered` / `cancel` actions；配送和取消异常不在 store 层吞掉，交给页面处理。
 - 2026-06-11：Phase 5 Step 5.4 完成：新增 `src/stores/expense.ts`，提供支出列表、默认分类、当前日期和 `loading` 状态，以及 `refreshForDate` / `refreshCategories` / `create` / `remove` actions；支出写入后自动刷新当前日期列表。
 - 2026-06-11：Phase 5 Step 5.5 完成：新增 `src/stores/stats.ts`，提供 Dashboard summary、日趋势、支出分类占比、当前 range 和 `loading` 状态；`src/api/stats.ts` 导出已有的 `getRangeSummary` 供统计页区间汇总复用。`pnpm type-check` / `pnpm lint` 通过；按用户要求不手动安装 Pinia 后，CLI `pnpm build:h5` 会因找不到 `pinia/dist/pinia.mjs` 失败，需走 HBuilderX 内置 Pinia 验证。Phase 5 里程碑完成，等待用户验证后再进入 Phase 6。
+- 2026-06-11：Phase 6 Step 6.1-6.3 完成：新增 `src/components/StatCard.vue` / `src/components/AmountInput.vue` / `src/components/CustomerPicker.vue`；分别提供通用数字卡片、金额输入和客户选择弹层。组件可被后续 Dashboard、统计页、订单录入和客户管理页复用；本阶段不进入 Phase 7 页面实现。

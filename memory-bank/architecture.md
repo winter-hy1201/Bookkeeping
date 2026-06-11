@@ -7,8 +7,8 @@
 
 ## 当前状态
 
-- **项目阶段**：Phase 5 Pinia Stores 完成，等待用户验证；验证通过后再进入 Phase 6 通用 UI 组件
-- **已建文件**：`docs/PRD.md`、`CLAUDE.md`、`AGENTS.md`、`memory-bank/` 活文档、uni-app Vue 3 + Vite + TS 模板、5 张表 DDL + 迁移 + seed + tx() 工具、domain/api 类型、日期/金额工具、完整 API 层、4 个 Pinia store
+- **项目阶段**：Phase 6 通用 UI 组件完成，等待用户验证；验证通过后再进入 Phase 7 页面实现
+- **已建文件**：`docs/PRD.md`、`CLAUDE.md`、`AGENTS.md`、`memory-bank/` 活文档、uni-app Vue 3 + Vite + TS 模板、5 张表 DDL + 迁移 + seed + tx() 工具、domain/api 类型、日期/金额工具、完整 API 层、4 个 Pinia store、3 个通用 UI 组件
 - **DB 状态**：v0 基线已存（`memory-bank/bookkeeping-v0.db`，CLI sqlite smoke-test 生成）；真机 DB 已拉取到 `memory-bank/bookkeeping-real.db`，业务表齐全、默认分类 5 行、`user_version=1`
 - **最后更新**：2026-06-11
 
@@ -99,7 +99,9 @@
 | 文件 | 作用 |
 |---|---|
 | `src/components/.gitkeep` | 占位文件，让空目录被 git 跟踪 |
-| _（待 Phase 6 填写）_ | _Phase 6 计划：`AmountInput.vue` / `CustomerPicker.vue` / `StatCard.vue`_ |
+| `src/components/StatCard.vue` | 通用数字卡片；props 为 `label` / `value` / `color?: 'normal' \| 'positive' \| 'negative'` / `hint?`；上方展示 label，下方展示大号 value，可选 hint；利润 label 在未显式传 color 时按数值正负自动映射绿色/红色。 |
+| `src/components/AmountInput.vue` | 金额输入组件；props 为 `modelValue: number` / `label` / `placeholder?`；事件 `update:modelValue`；内部保留字符串输入态，使用 `parseMoney()` 将输入解析为 number 回传，模板提供 `¥` 前缀。 |
+| `src/components/CustomerPicker.vue` | 客户选择组件；props 为 `modelValue: Customer \| null` / `showCreate?`；事件 `update:modelValue` / `create`；点击输入区打开底部选择弹层，支持按姓名、微信、手机号前端搜索，列表展示客户名和折扣角标。 |
 
 ### stores/ — Pinia 状态
 
@@ -222,3 +224,4 @@
 - 2026-06-11：Phase 4 Step 4.1 customers API 完成 — 新增 `src/api/customers.ts`，实现客户 CRUD；删除客户时检查次卡和订单依赖，命中则返回 `false`；本地 `pnpm type-check` / `pnpm lint` / `pnpm build:h5` 通过，临时 SQLite mock smoke test 通过
 - 2026-06-11：Phase 4 Step 4.2-4.8 API 层完成 — 新增 `src/api/meal-cards.ts` / `src/api/orders.ts` / `src/api/errors.ts` / `src/api/expense-categories.ts` / `src/api/expenses.ts` / `src/api/stats.ts`；实现次卡、订单配送扣次、订单取消、支出分类读取、支出 CRUD 和统计聚合；本地 `pnpm type-check` / `pnpm lint` / `pnpm build:h5` 通过，临时 SQLite mock 端到端 smoke test 通过；等待用户验证后再进入 Phase 5
 - 2026-06-11：Phase 5 Pinia Stores 完成 — 按 uni-app 官方文档使用内置 Pinia，清除手动安装的 `pinia` / `@vue/devtools-*` 依赖；`src/main.ts` 使用 `Pinia.createPinia()` 并返回 `Pinia`；新增 `src/types/pinia.d.ts` 供本地 TS 检查；新增 `src/stores/customer.ts` / `src/stores/order.ts` / `src/stores/expense.ts` / `src/stores/stats.ts`，store 只做视图缓存和 action 编排，写入仍走 API 层；`src/api/stats.ts` 导出 `getRangeSummary` 供 stats store 复用。`pnpm type-check` / `pnpm lint` 通过；零手动 Pinia 依赖下 CLI H5 构建失败，需用 HBuilderX 内置 Pinia 验证。
+- 2026-06-11：Phase 6 通用 UI 组件完成 — 新增 `src/components/StatCard.vue` / `src/components/AmountInput.vue` / `src/components/CustomerPicker.vue`；组件只提供跨页 UI 能力和事件上抛，不承接 Phase 7 页面业务实现。
