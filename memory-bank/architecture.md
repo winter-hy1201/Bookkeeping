@@ -66,7 +66,7 @@
 | `memory-bank/progress.md` | 实施进度（按 implementation-plan.md 步骤打勾） | 每完成一步 |
 | `memory-bank/architecture.md` | **本文件**：每个代码文件的作用说明 | 每个文件新建/删除/职责变化时 |
 | `memory-bank/CHANGELOG.md` | 版本变更日志：每版记录新增功能 / 行为变更 / 修复 / 已知限制 / TBD；v1.0 起每个里程碑追加新章节，不修改已发布版本 | 每个里程碑完成时 |
-| `memory-bank/DEBUG-HANDOFF.md` | 调试交接文档（sqlite 在 HBuilderX 标准版基座下不工作） | 阶段性快照 / 跨 AI 交接时 |
+| `debug-docs/DEBUG-HANDOFF.md` | 调试交接文档（sqlite 在 HBuilderX 标准版基座下不工作） | 阶段性快照 / 跨 AI 交接时 |
 | `memory-bank/*.db` | DB 备份（v0 基线、v1 发布版等） | 阶段性快照 |
 
 ---
