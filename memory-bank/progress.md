@@ -194,3 +194,4 @@
 - 2026-06-11：首页状态色展示：`src/pages/index/index.vue` 将今日订餐的待配送 / 已配送 / 已取消计数卡片和列表分组改为主题色展示，颜色分别取 `$uni-color-primary` / `$uni-color-success` / `$uni-color-warning`；Phase 8 手测状态不变。
 - 2026-06-11：订单列表折叠面板样式微调：`src/pages/order/index.vue` 的午餐 / 晚餐面板标题使用 `$uni-color-primary` 并加粗，面板内订单列表项之间增加分割线。
 - 2026-06-11：备份恢复 v1.1 小修：导出备份不再走系统分享，改为写 `_doc/backup_*.json` 后复制到 `_downloads/` 并提示路径；恢复保留粘贴 JSON，同时新增从已保存备份列表选择和从本地 JSON 文件选择。`pnpm type-check` / `pnpm lint` 通过，真机文件路径待 HBuilderX 验证。
+- 2026-06-12：新建订单日期字段补齐：`src/pages/order/new.vue` 新增可编辑日期，默认取设备本地日期的明天；保存写入 `orders.order_date`；`src/stores/order.ts` 新建后刷新到订单日期，返回订单列表时直接展示对应日期。

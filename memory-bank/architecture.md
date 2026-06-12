@@ -93,7 +93,7 @@
 |---|---|
 | `src/pages/index/index.vue` | Tab 1「今日」Dashboard：`onShow` 刷新 stats/order/customer store，展示订单数、收入、支出、利润，以及待配送 / 已配送 / 已取消三组今日订单；三类状态计数卡片和列表分组用主题色展示。 |
 | `src/pages/order/index.vue` | Tab 2「订单」列表：用 `uni-datetime-picker` 按日期筛选 `orderStore.list`，再用 uni-ui `uni-collapse` 分成午餐 / 晚餐两个折叠面板；面板标题展示该餐次有效订单数、份数、金额，列表项展示客户名、餐次、份数、单价、备注、金额和状态；支持跳转新建订单与订单详情。 |
-| `src/pages/order/new.vue` | 新建订单表单：CustomerPicker 选客户；餐次/支付用 `uni-data-checkbox`，份数/备注用 `uni-easyinput`；普通订单按客户默认价 × 折扣率预填，次卡支付时通过 `listCards(customerId)` 汇总所有 active 卡的剩余 / 总次数用于展示，订单仍绑定最新 active 卡，amount=0 且 unit_price=该卡金额/总次数，创建时不扣次。 |
+| `src/pages/order/new.vue` | 新建订单表单：CustomerPicker 选客户；日期用 `uni-datetime-picker` 且默认明天，可手动修改；餐次/支付用 `uni-data-checkbox`，份数/备注用 `uni-easyinput`；普通订单按客户默认价 × 折扣率预填，次卡支付时通过 `listCards(customerId)` 汇总所有 active 卡的剩余 / 总次数用于展示，订单仍绑定最新 active 卡，amount=0 且 unit_price=该卡金额/总次数，创建时不扣次。 |
 | `src/pages/order/detail.vue` | 订单详情：按 id 读取单条订单与客户信息；pending 订单可在详情页进入编辑态，修改客户、日期、餐次、份数、价格、支付方式与备注；pending 仍可取消或标记已配送；捕获 `InsufficientCardError` 后按客户默认价 × 折扣率整单改微信/现金再配送，客户无默认价时回退订单原单价。已配送 / 已取消订单保持只读，避免回写次卡扣次或退款状态。 |
 | `src/pages/stats/index.vue` | Tab 3「统计」：今日/本周/本月/自定义区间切换，自定义日期用 `uni-datetime-picker`；展示收入、支出、利润、订单数、客单价、日趋势 CSS 进度条和支出分类占比。 |
 | `src/pages/me/index.vue` | Tab 4「我的」入口：跳转客户管理、支出管理、备份恢复。 |
@@ -119,7 +119,7 @@
 | 文件 | 作用 |
 |---|---|
 | `src/stores/customer.ts` | 客户 store：state 为 `list: Customer[]` / `loading`；getter `byId(id)`；actions `refresh()` / `create(input)` / `update(id, input)` / `remove(id)`。写操作走 `api/customers.ts` 后自动刷新列表，Pinia 只缓存当前视图数据。 |
-| `src/stores/order.ts` | 订单 store：state 为 `list: Order[]` / `currentDate`（默认 `today()`）/ `loading`；actions `setDate(date)` / `refreshForDate(date)` / `create(input)` / `update(id, input)` / `markDelivered(id)` / `cancel(id)`。写操作走 `api/orders.ts` 后刷新当前日期；`InsufficientCardError` / `AlreadyDeliveredError` 不在 store 层吞掉。 |
+| `src/stores/order.ts` | 订单 store：state 为 `list: Order[]` / `currentDate`（默认 `today()`）/ `loading`；actions `setDate(date)` / `refreshForDate(date)` / `create(input)` / `update(id, input)` / `markDelivered(id)` / `cancel(id)`。写操作走 `api/orders.ts`；新建后刷新到订单日期，其他写操作刷新当前日期；`InsufficientCardError` / `AlreadyDeliveredError` 不在 store 层吞掉。 |
 | `src/stores/expense.ts` | 支出 store：state 为 `list: Expense[]` / `categories: ExpenseCategory[]` / `currentDate` / `loading`；actions `refreshForDate(date)` / `refreshCategories()` / `create(input)` / `remove(id)`。分类只读，支出写操作后刷新当前日期列表。 |
 | `src/stores/stats.ts` | 统计 store：state 为 `summary: StatsSummary \| null` / `trend` / `breakdown` / `range` / `loading`；actions `refreshSummary(date)` / `refreshRange({ start, end })`。区间刷新同时调用 `getRangeSummary`、`getDailyTrend`、`getCategoryBreakdown`。 |
 
@@ -148,7 +148,7 @@
 
 | 文件 | 作用 |
 |---|---|
-| `src/utils/date.ts` | dayjs 本地时区日期工具：`today()` 返回 `YYYY-MM-DD`；`weekRange(d)` 返回自然周周一到周日；`monthRange(d)` 返回自然月 1 号到月底；`formatDate(d)` 按当前年份显示 `MM-DD` 或 `YYYY-MM-DD`；`daysBetween(a, b)` 返回自然日整数差。 |
+| `src/utils/date.ts` | dayjs 本地时区日期工具：`today()` / `tomorrow()` 返回 `YYYY-MM-DD`；`weekRange(d)` 返回自然周周一到周日；`monthRange(d)` 返回自然月 1 号到月底；`formatDate(d)` 按当前年份显示 `MM-DD` 或 `YYYY-MM-DD`；`daysBetween(a, b)` 返回自然日整数差。 |
 | `src/utils/format.ts` | 金额/百分比格式化工具：`formatMoney(n)` 输出 `¥1,234.50`（空值/非法值为 `¥—`）；`parseMoney(s)` 接受普通数字、`¥`、`￥`、千分位并解析为 number（非法为 0）；`formatPercent(n)` 四舍五入输出整数百分比。 |
 | `src/utils/ui.ts` | 页面层小工具：toast、confirm/actionSheet Promise 化、数值转换、餐次/支付/状态文案、客户默认价 × 折扣价提示、订单金额展示。 |
 | `src/utils/backup.ts` | JSON 备份恢复工具：全表导出 payload、写 `_doc/backup_*.json` 并复制到 `_downloads/`、列出 / 读取沙盒内备份文件、解析校验备份 JSON 与 `schema_version`、事务内全量覆盖导入；危险清空会删除业务数据后调用 `seedIfEmpty()` 恢复默认支出分类，避免支出录入页无分类可选。 |
@@ -257,3 +257,4 @@
 - 2026-06-11：**v1.0 发布**（按用户决策）— Step 9.3 真机性能 smoke test 和 Step 9.4 Release APK 打包侧载**跳过**（个人内用 v1.0 用 HBuilderX 标准基座的 debug APK 侧载，省掉自签名 keystore / 云打包）；`memory-bank/CHANGELOG.md` 已知限制节同步标注这两条；`progress.md` Phase 9 标记为 3/5 完成、里程碑 9.5 勾选。
 - 2026-06-11：订单列表折叠面板样式微调 — `src/pages/order/index.vue` 的午餐 / 晚餐面板标题使用 `$uni-color-primary` 并加粗，面板内订单列表项之间增加分割线。
 - 2026-06-11：备份恢复 v1.1 小修 — `src/utils/backup.ts` 移除系统分享路径，导出后复制到 `_downloads/` 并返回 `ExportResult`；新增 `listBackupFiles()` / `readBackupFile()`；`src/pages/me/settings/backup.vue` 保留粘贴 JSON 导入，并新增从已保存备份选择、本地 JSON 文件选择两个入口。`pnpm type-check` / `pnpm lint` 通过；真机文件路径待 HBuilderX 验证。
+- 2026-06-12：新建订单日期可选 — `src/pages/order/new.vue` 新增日期字段，默认 `tomorrow()` 且可手动修改；`src/stores/order.ts` 新建订单后刷新到该订单日期，避免返回列表仍停在旧日期；`src/utils/date.ts` 新增 `tomorrow()`。

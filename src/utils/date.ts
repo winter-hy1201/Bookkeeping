@@ -20,6 +20,10 @@ export function today(): string {
   return dayjs().format(DATE_FORMAT)
 }
 
+export function tomorrow(): string {
+  return dayjs().add(1, 'day').format(DATE_FORMAT)
+}
+
 export function weekRange(d: string): DateRange {
   const current = asDay(d)
   const daysFromMonday = (current.day() + 6) % 7

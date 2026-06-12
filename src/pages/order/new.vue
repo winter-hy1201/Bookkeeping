@@ -5,13 +5,14 @@ import AmountInput from '../../components/AmountInput.vue'
 import { listCards } from '../../api/meal-cards'
 import { useOrderStore } from '../../stores/order'
 import type { Customer, MealCard, MealType, PaymentMethod } from '../../types/domain'
-import { today } from '../../utils/date'
+import { tomorrow } from '../../utils/date'
 import { formatMoney } from '../../utils/format'
 import { customerPrice, priceHint, showToast, toNumber } from '../../utils/ui'
 
 const orderStore = useOrderStore()
 
 const selectedCustomer = ref<Customer | null>(null)
+const orderDate = ref(tomorrow())
 const mealType = ref<MealType>('lunch')
 const quantity = ref(1)
 const actualPrice = ref(0)
@@ -44,7 +45,13 @@ const activeCardSummary = computed(() => {
   }
 })
 const canSave = computed(() => {
-  if (!selectedCustomer.value || !mealType.value || quantity.value <= 0 || saving.value)
+  if (
+    !selectedCustomer.value ||
+    !orderDate.value ||
+    !mealType.value ||
+    quantity.value <= 0 ||
+    saving.value
+  )
     return false
   if (isMealCard.value) return selectedMealCard.value !== null
   return actualPrice.value >= 0
@@ -110,7 +117,7 @@ async function save(): Promise<void> {
     const mealCardUnitPrice = card ? card.amount / card.total_meals : undefined
     await orderStore.create({
       customer_id: selectedCustomer.value.id,
-      order_date: today(),
+      order_date: orderDate.value,
       meal_type: mealType.value,
       quantity: quantity.value,
       payment_method: paymentMethod.value,
@@ -133,6 +140,11 @@ async function save(): Promise<void> {
   <scroll-view class="page" scroll-y>
     <view class="form">
       <CustomerPicker v-model="selectedCustomer" show-create @create="goCreateCustomer" />
+
+      <view class="field">
+        <text class="label">日期</text>
+        <uni-datetime-picker v-model="orderDate" class="date-picker" type="date" />
+      </view>
 
       <view class="field">
         <text class="label">餐次</text>
@@ -270,6 +282,7 @@ async function save(): Promise<void> {
   font-size: 28rpx;
 }
 
+.date-picker,
 .number-box,
 .textarea {
   flex: 1;

@@ -34,7 +34,7 @@ export const useOrderStore = defineStore('order', {
 
     async create(input: CreateOrderInput): Promise<Order> {
       const order = await createOrder(input)
-      await this.refreshForDate(this.currentDate)
+      await this.refreshForDate(input.order_date)
       return order
     },
 
