@@ -23,12 +23,13 @@
 | 我要做 | 改哪些文件 | 关键约束 |
 |---|---|---|
 | 加一张表 / 一个字段 | `memory-bank/design-document.md §2.1` → `src/db/schema.ts` → `src/db/migrations.ts`（**追加**一段）→ `src/types/domain.ts` → `src/types/api.ts` → `src/api/*.ts` → `src/stores/*.ts` → 用到该表的页面 | schema 是单一事实源；MIGRATIONS 只追加不修改 |
-| 加一个页面 | `src/pages.json` 注册路由 → 新建 `src/pages/xxx/index.vue` | 用 `<script setup lang="ts">`；表单控件用 uni-ui |
+| 加一个页面 | `src/pages.json` 注册路由 → 新建 `src/pages/xxx/index.vue` | 用 `<script setup lang="ts">`；**业务表单必须 `<uni-forms>` + `<uni-forms-item>` 包裹**（详见 §6.10） |
+| 加业务表单字段 | 业务页面 `.vue` | 走 `<uni-forms-item name="xxx" label="xxx">`；校验写 `rules` 数组提交走 `formRef.validate()`，不要散挂 `@input`；详见 §6.10 |
 | 加一个跨页组件 | `src/components/Xxx.vue` → `architecture.md` 登记 | 不承接业务逻辑；事件上抛 |
 | 改客户/订单/次卡/支出的写入逻辑 | `src/api/*.ts`（包在 `db.tx()` 里） | 写多表必走 `tx()`；单表也要在 catch 给用户可读提示 |
 | 改统计口径 | `src/api/stats.ts` | 自然周 = 周一到周日，自然月 = 1 号到月底，本地时区 |
 | 加新流程 | `memory-bank/design-document.md §4` 画流程 → 实现 → `architecture.md` §更新日志登记 | 同步更新 `progress.md` 勾选 |
-| 改 UI 控件样式 | 直接改组件 | 业务表单**禁止**用原生 `input` / `textarea` / `picker` / `radio-group` / `slider` |
+| 改 UI 控件样式 | 直接改组件 | 业务表单**禁止**用原生 `input` / `textarea` / `picker` / `radio-group` / `slider`；**禁止**散用 uni-ui 单组件而不套 forms（详见 §6.10） |
 | 改日期/金额格式 | `src/utils/date.ts` / `src/utils/format.ts` | 展示用 helper；存储用 `REAL` 不要存字符串 |
 | 改备份格式 | `src/utils/backup.ts` + `src/api/orders.ts` 等（依赖 listOrders） | 导出前/导入后必须校验 `schema_version` |
 
@@ -121,7 +122,26 @@
 7. **次卡订单 `amount = 0`**（开卡时已收款），`unit_price` 仍按客户默认价填入（用于 UI 显示和统计参考）。
 8. **统计口径**：自然周（周一-周日）+ 自然月（1 号-月底），按本地时区。`dayjs` 工具在 `src/utils/date.ts`。
 9. **开次卡无续卡概念**：depleted 后只能买新卡；允许同客户并存多张 active 卡（旧卡保留）。
-10. **表单控件统一用 uni-ui**：业务页面**禁止**直接使用原生 `input` / `textarea` / `picker` / `radio-group` / `slider`；统一通过 easycom 使用 `uni-easyinput` / `uni-data-checkbox` / `uni-data-select` / `uni-datetime-picker` / `uni-number-box`。
+10. **业务表单统一用 `<uni-forms>` + `<uni-forms-item>`**（v1.1 起新增 / 重构表单页面强制）。业务页面**禁止**直接使用原生 `input` / `textarea` / `picker` / `radio-group` / `slider`；**也禁止**散用 `uni-easyinput` / `uni-datetime-picker` / `uni-number-box` / `uni-data-select` 等单个 uni-ui 组件而不套 forms。统一写法：
+
+    ```vue
+    <uni-forms ref="formRef" :modelValue="form" :rules="rules" label-width="100">
+      <uni-forms-item name="customerId" label="客户" required>
+        <uni-data-select v-model="form.customerId" :localdata="customerOptions" />
+      </uni-forms-item>
+      <uni-forms-item name="amount" label="金额" required>
+        <uni-easyinput v-model="form.amount" type="digit" placeholder="请输入金额" />
+      </uni-forms-item>
+      <uni-forms-item name="mealTime" label="配送时间" required>
+        <uni-datetime-picker v-model="form.mealTime" />
+      </uni-forms-item>
+      <uni-forms-item name="payment" label="支付方式">
+        <uni-data-checkbox v-model="form.payment" :localdata="paymentOptions" />
+      </uni-forms-item>
+    </uni-forms>
+    ```
+
+    提交统一 `formRef.value?.validate(..., (valid, errors) => { ... })`，**禁止**逐个 input 挂 `@input` 收集值。**好处**：统一校验 / 统一错误提示 / 后续维护只改 forms 配置；字段改名只动 `form` 对象的 key + `rules` 数组，不再散落多处。`rules` 写法与 uni-forms 官方一致（`{ validateTrigger: 'blur', rules: [{ required: true, errorMessage: '...' }] }`）。参考：https://uniapp.dcloud.net.cn/component/uniui/uni-forms.html
 11. **Pinia 只缓存视图数据**。**不**引 `pinia-plugin-persistedstate`。SQLite 是唯一持久层。
 12. **不做软删除**，v1.0 一律硬删除。
 13. **`PRAGMA foreign_keys = ON`** 已在 `db.init()` 开启；维护外键完整性。
@@ -183,7 +203,8 @@ sqlite3 memory-bank/bookkeeping-real.db "PRAGMA user_version;"
 | 用 Vuex | 已废弃 |
 | 引入 `pinia-plugin-persistedstate` | SQLite 本身就是持久层 |
 | 用 HBuilderX 做 IDE | 写代码用 VSCode；HBuilderX **只**用于编译 |
-| 业务表单用原生 `input` / `textarea` / `picker` / `radio-group` / `slider` | 必须用 uni-ui |
+| 业务表单用原生 `input` / `textarea` / `picker` / `radio-group` / `slider` | 必须用 uni-ui（且必须套在 `<uni-forms>` + `<uni-forms-item>` 内，详见 §6.10） |
+| 业务表单散用 `uni-easyinput` / `uni-datetime-picker` / `uni-number-box` / `uni-data-select` 单组件，不套 `<uni-forms>` | 必须由 `<uni-forms ref="formRef">` 统一承载校验；提交走 `formRef.value.validate()`，不要逐个挂 `@input`（详见 §6.10） |
 | 软删除 | v1.0 一律硬删除 |
 | `meal_cards` 加 `end_date` / `expired` 状态 | 次卡按"次"无有效期（设计已精简） |
 | 改 `MIGRATIONS` 已有段 | 字段变更只追加新段 |
@@ -209,6 +230,8 @@ sqlite3 memory-bank/bookkeeping-real.db "PRAGMA user_version;"
 | 备份导入后 ID 错乱 | 没校验 `schema_version` 直接 INSERT | `utils/backup.ts` 已加 `schema_version` 校验，**不要**删除 |
 | 次卡配送报 `InsufficientCardError` 没处理 | UI 层没捕获 | `pages/order/detail.vue` 已捕获并弹改支付；**不要**在 store 层静默吞 |
 | 利润 = 负数且数字对不上 | 忘了 cancelled 不计入；或开次卡的金额被算重了 | `api/stats.ts` 的口径：非 cancelled 订单金额 + 开次卡金额；检查 `getDashboardSummary` 没被改 |
+| `<uni-forms>` 提交时 `validate` 不触发 / `errors` 为空但表单提交不出去 | `<uni-forms-item name="x">` 与 `form` 对象的字段名对不上；或 `ref` 名引用错 | 1) 确认 `form` 对象的 key 与所有 `<uni-forms-item name="...">` 一一对应；2) `ref="formRef"`，提交时 `formRef.value?.validate(...)`；3) 校验失败时 `console.log('validate err', errors)` 对照 `rules` 数组 |
+| `<uni-forms-item required>` 不显示红星 / 不报"必填" | 用了 `label` 属性却没设 `name`；或 `rules` 数组没声明对应字段 | 1) 每个 `<uni-forms-item>` 必带 `name`；2) 同步在 `<uni-forms :rules="rules">` 里的对应 key 下加 `{ required: true, errorMessage: '...' }` |
 
 ---
 
