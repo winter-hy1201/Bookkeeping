@@ -80,56 +80,13 @@
 
 > 详细复盘见 `debug-docs/DEBUG-HANDOFF.md §0`。
 
-### 4.1 不要把方法从对象上拆下来裸调
-
-```ts
-// ❌ 错：丢失 this
-const fn = plus.sqlite[method]
-fn(options)
-
-// ✅ 对：保留 this（5+ API 内部用 this.getCallbackIDByFunction 注册回调）
-const fn = plus.sqlite[method]
-fn.call(plus.sqlite, options)
-```
-
-`src/db/index.ts` 的 `pify()` 封装用 `fn.call(sqlite, options)` 是修复后状态，**不要**改回去。
-
-### 4.2 openDatabase 的 callback 是 options 内嵌
-
-```ts
-// ❌ 错：当成函数
-plus.sqlite.openDatabase(name, path, () => {}, () => {})
-
-// ✅ 对：options 形式，success/fail 嵌进去
-plus.sqlite.openDatabase({
-  name: 'bookkeeping.db',
-  path: '_doc/bookkeeping.db',  // 用相对路径 _doc/xxx，不要用绝对路径
-  success: () => resolve(),
-  fail: (e) => reject(e),
-})
-```
-
-### 4.3 executeSql 不支持 args 数组
-
-5+ `executeSql` 的 `sql` 字段只接受字符串或字符串数组，**不接受** `[sql, args]` 二元组。参数化 SQL 需要在 `src/db/index.ts` 的 `exec()` / `select()` helper 内自己转义 `?` 占位符。**不要**往 `executeSql` 直接传 `args`。
-
-### 4.4 事务 operation 是字符串
-
-```ts
-// ❌ 错：当函数用
-plus.sqlite.transaction({ name, operation: () => { ... }, success, fail })
-
-// ✅ 对：operation 是 'begin' | 'commit' | 'rollback'
-plus.sqlite.transaction({ name, operation: 'begin', success, fail })
-// ...执行 SQL...
-plus.sqlite.transaction({ name, operation: 'commit', success, fail })
-```
-
-`src/db/index.ts` 的 `tx<T>(fn)` 已经按这个写了，**不要**在外部另写事务。
-
-### 4.5 callback 静默不触发 = 8 秒超时
-
-`pify()` 已加 8 秒超时报错。如果以后又看到 SQLite 失败，**先看是 8 秒超时（native 没装）还是立刻报错（this 丢失之类）**，不要先归因到基座没装 SQLite。
+| # | 现象 | 一句话修复 |
+|---|---|---|
+| 1 | `this.getCallbackIDByFunction is not a function` | 动态调用 5+ SQLite API 时用 `fn.call(plus.sqlite, options)` 保留 `this` |
+| 2 | `openDatabase` 静默不触发 | callback 嵌在 options 内（`{ name, path, success, fail }`），不要拆成位置参数 |
+| 3 | `executeSql` 不接受 args 数组 | 在 `src/db/index.ts` 的 `exec()` / `select()` helper 内手工转义 `?` 占位符 |
+| 4 | `transaction({ operation: fn })` 不工作 | `operation` 必须是 `'begin' \| 'commit' \| 'rollback'` 字符串；事务统一走 `tx<T>()` |
+| 5 | callback 静默 8 秒后超时 = native 桥没装 | `pify()` 已加 8 秒超时报错；先区分是超时还是立刻报错，不要先归因到基座没装 SQLite |
 
 ---
 
@@ -174,65 +131,6 @@ plus.sqlite.transaction({ name, operation: 'commit', success, fail })
 
 ## 7. 当前目录结构（与代码同步）
 
-```
-bookkeeping/
-├── docs/PRD.md                          # 已定稿（不修改）
-├── memory-bank/                         # 活文档
-│   ├── design-document.md               # 数据模型 / 状态机 / 流程 / TBD
-│   ├── tech-stack.md                    # 选型 + §3 反选清单
-│   ├── implementation-plan.md           # 9 阶段 63 步
-│   ├── progress.md                      # 步骤勾选
-│   ├── architecture.md                  # ★ 文件级作用；登记 + 更新日志
-│   ├── CHANGELOG.md                     # ★ v1.0 已发布功能 + 已知限制 + v1.1 候选
-│   ├── bookkeeping-v0.db                # CLI sqlite smoke-test 基线
-│   ├── bookkeeping-real.db              # 真机拉取基线（user_version=1）
-│   └── bookkeeping-v1.db                # v1.0 阶段基线（Phase 8 E2E 通过归档）
-├── debug-docs/DEBUG-HANDOFF.md          # SQLite 5+ API 根因复盘
-├── src/
-│   ├── main.ts                          # createApp + Pinia.createPinia()
-│   ├── App.vue                          # onLaunch → db.init()
-│   ├── env.d.ts / shime-uni.d.ts        # 类型补丁
-│   ├── pages.json                       # 4 Tab + 9 子页路由
-│   ├── manifest.json                    # appid=com.bookkeeping.app + SQLite 模块
-│   ├── uni.scss / static/               # 全局样式 + 静态资源
-│   ├── uni_modules/                     # uni-ui easycom 源码（TS/lint 排除）
-│   ├── pages/
-│   │   ├── index/index.vue              # Tab 1 今日 Dashboard
-│   │   ├── order/{index,new,detail}.vue # Tab 2 订单
-│   │   ├── stats/index.vue              # Tab 3 统计
-│   │   └── me/
-│   │       ├── index.vue                # Tab 4 我的
-│   │       ├── customers/{list,new,detail,open-card}.vue
-│   │       ├── expenses/{list,new}.vue
-│   │       └── settings/backup.vue
-│   ├── components/
-│   │   ├── StatCard.vue                 # 数字卡片（label / value / color / hint）
-│   │   ├── AmountInput.vue              # 金额（基于 uni-easyinput + parseMoney）
-│   │   └── CustomerPicker.vue           # 客户选择（基于 uni-easyinput 搜索）
-│   ├── stores/                          # 4 个 store
-│   │   ├── customer.ts / order.ts / expense.ts / stats.ts
-│   ├── db/
-│   │   ├── schema.ts                    # 5 DDL + CURRENT_SCHEMA_VERSION = 1
-│   │   ├── migrations.ts                # MIGRATIONS[] + runMigrations
-│   │   ├── seed.ts                      # 5 个默认支出分类
-│   │   └── index.ts                     # init() / tx() / exec() / select()
-│   ├── api/
-│   │   ├── customers.ts / meal-cards.ts / orders.ts
-│   │   ├── expense-categories.ts / expenses.ts / stats.ts
-│   │   └── errors.ts                    # InsufficientCardError / AlreadyDeliveredError
-│   ├── utils/
-│   │   ├── date.ts                      # dayjs 自然日/周/月
-│   │   ├── format.ts                    # formatMoney / parseMoney / formatPercent
-│   │   ├── ui.ts                        # toast/confirm/actionSheet Promise 化 + 文案
-│   │   └── backup.ts                    # JSON 导出/导入 + schema_version 校验
-│   └── types/
-│       ├── domain.ts                    # 核心领域类型（与 schema snake_case 对齐）
-│       ├── api.ts                       # API 入参/出参
-│       └── pinia.d.ts                   # 内置 Pinia 的本地类型
-├── index.html / package.json / pnpm-lock.yaml
-├── tsconfig.json / vite.config.ts
-├── .eslintrc.cjs / .prettierrc / .gitignore
-```
 
 完整文件级说明见 `memory-bank/architecture.md`（**改文件时必同步更新它**）。
 
