@@ -8,7 +8,7 @@
 ## 当前状态
 
 - **项目阶段**：**v1.0 已发布**（Phase 1-9 全部完成；9.3 / 9.4 按用户决策跳过，用 HBuilderX 标准基座 debug APK 侧载；CHANGELOG.md v1.0 节已写好）
-- **已建文件**：`docs/PRD.md`、`CLAUDE.md`、`AGENTS.md`、`memory-bank/` 活文档、uni-app Vue 3 + Vite + TS 模板、5 张表 DDL + 迁移 + seed + integrity_check + tx() 工具、domain/api 类型、日期/金额/页面/备份工具、完整 API 层、4 个 Pinia store、3 个通用 UI 组件、uni-ui 表单组件、4 个 Tab 与关键子页、App.vue 全局 onError 兜底
+- **已建文件**：`docs/archive/PRD-v1.0.md`、`CLAUDE.md`、`AGENTS.md`、`memory-bank/` 活文档、uni-app Vue 3 + Vite + TS 模板、5 张表 DDL + 迁移 + seed + integrity_check + tx() 工具、domain/api 类型、日期/金额/页面/备份工具、完整 API 层、4 个 Pinia store、3 个通用 UI 组件、uni-ui 表单组件、4 个 Tab 与关键子页、App.vue 全局 onError 兜底
 - **DB 状态**：v0 基线（`memory-bank/bookkeeping-v0.db`，CLI sqlite smoke-test 生成）；v1 阶段基线（`memory-bank/bookkeeping-v1.db`，Phase 8 真机 E2E 通过后归档）；业务表齐全、默认分类 5 行、`user_version=1`
 - **最后更新**：2026-06-11
 
@@ -42,8 +42,8 @@
 | 文件 | 作用 | 何时更新 |
 |---|---|---|
 | `CLAUDE.md` | Claude Code 入口；项目概述 + 关键设计约束 + 写代码约定 | 极少更新（约束类） |
-| `docs/PRD.md` | 已定稿的产品需求基线（不改动） | 永不更新 |
-| `docs/` | 仅存 PRD.md（已定稿文档目录） | — |
+| `docs/archive/PRD-v1.0.md` | v1.0 产品需求基线（已定稿，不修改；存于 archive/ 留作历史参考） | 永不更新 |
+| `docs/` | 仅存 `archive/` 子目录（v1.0 PRD 已归档；v1.1+ 正式发布文档放这里） | — |
 | `.gitignore` | git 忽略规则（node_modules、dist、IDE 文件等） | 加新忽略项时 |
 | `index.html` | Vite H5 入口 HTML；`<script type="module" src="/src/main.ts">` | 几乎不改 |
 | `package.json` | 项目元数据 + scripts（dev / build / lint / format / type-check） | 加新脚本/依赖时 |
