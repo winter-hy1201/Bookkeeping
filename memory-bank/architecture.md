@@ -151,7 +151,7 @@
 | `src/utils/date.ts` | dayjs 本地时区日期工具：`today()` / `tomorrow()` 返回 `YYYY-MM-DD`；`weekRange(d)` 返回自然周周一到周日；`monthRange(d)` 返回自然月 1 号到月底；`formatDate(d)` 按当前年份显示 `MM-DD` 或 `YYYY-MM-DD`；`daysBetween(a, b)` 返回自然日整数差。 |
 | `src/utils/format.ts` | 金额/百分比格式化工具：`formatMoney(n)` 输出 `¥1,234.50`（空值/非法值为 `¥—`）；`parseMoney(s)` 接受普通数字、`¥`、`￥`、千分位并解析为 number（非法为 0）；`formatPercent(n)` 四舍五入输出整数百分比。 |
 | `src/utils/ui.ts` | 页面层小工具：toast、confirm/actionSheet Promise 化、数值转换、餐次/支付/状态文案、客户默认价 × 折扣价提示、订单金额展示。 |
-| `src/utils/backup.ts` | JSON 备份恢复工具：全表导出 payload、写 `_doc/backup_*.json` 并复制到 `_downloads/`、列出 / 读取沙盒内备份文件、解析校验备份 JSON 与 `schema_version`、事务内全量覆盖导入；危险清空会删除业务数据后调用 `seedIfEmpty()` 恢复默认支出分类，避免支出录入页无分类可选。 |
+| `src/utils/backup.ts` | JSON 备份恢复工具：全表导出 payload、写 `_doc/backup_*.json` 并复制到 `_downloads/`、列出 / 读取沙盒内备份文件、通过 Android 系统文件选择器读取本地 JSON（其他端 fallback 到 `uni.chooseFile`）、解析校验备份 JSON 与 `schema_version`、事务内全量覆盖导入；危险清空会删除业务数据后调用 `seedIfEmpty()` 恢复默认支出分类，避免支出录入页无分类可选。 |
 
 ### types/ — TS 类型
 
@@ -256,5 +256,6 @@
 - 2026-06-11：Phase 9.5 CHANGELOG 落地 — 新增 `memory-bank/CHANGELOG.md` 写 v1.0 节：已实现 F1-F6 功能 + 关键行为决策（A1/A3/A4/A5/A6/A7）+ 收尾质量门 + 已知限制（含"未做 50 单压测"和"未打 Release APK"两条）+ v1.1 TBD 候选。
 - 2026-06-11：**v1.0 发布**（按用户决策）— Step 9.3 真机性能 smoke test 和 Step 9.4 Release APK 打包侧载**跳过**（个人内用 v1.0 用 HBuilderX 标准基座的 debug APK 侧载，省掉自签名 keystore / 云打包）；`memory-bank/CHANGELOG.md` 已知限制节同步标注这两条；`progress.md` Phase 9 标记为 3/5 完成、里程碑 9.5 勾选。
 - 2026-06-11：订单列表折叠面板样式微调 — `src/pages/order/index.vue` 的午餐 / 晚餐面板标题使用 `$uni-color-primary` 并加粗，面板内订单列表项之间增加分割线。
-- 2026-06-11：备份恢复 v1.1 小修 — `src/utils/backup.ts` 移除系统分享路径，导出后复制到 `_downloads/` 并返回 `ExportResult`；新增 `listBackupFiles()` / `readBackupFile()`；`src/pages/me/settings/backup.vue` 保留粘贴 JSON 导入，并新增从已保存备份选择、本地 JSON 文件选择两个入口。`pnpm type-check` / `pnpm lint` 通过；真机文件路径待 HBuilderX 验证。
+- 2026-06-11：备份恢复 v1.1 小修 — `src/utils/backup.ts` 移除系统分享路径，导出后复制到 `_downloads/` 并返回 `ExportResult`；新增 `listBackupFiles()` / `readBackupFile()` / `pickLocalBackupText()`；`src/pages/me/settings/backup.vue` 保留粘贴 JSON 导入，并新增从已保存备份选择、本地 JSON 文件选择两个入口；本地文件选择在 Android App 端使用系统 Intent，不再依赖 WebView `<input type="file">`。`pnpm type-check` / `pnpm lint` 通过；真机文件路径待 HBuilderX 验证。
 - 2026-06-12：新建订单日期可选 — `src/pages/order/new.vue` 新增日期字段，默认 `tomorrow()` 且可手动修改；`src/stores/order.ts` 新建订单后刷新到该订单日期，避免返回列表仍停在旧日期；`src/utils/date.ts` 新增 `tomorrow()`。
+- 2026-06-13：备份恢复本地文件选择修正 — Android 客户端不支持 WebView `<input type="file">`，`src/pages/me/settings/backup.vue` 移除隐藏 input；`src/utils/backup.ts` 新增 `pickLocalBackupText()`，Android App 端通过系统 Intent 选择 JSON 并用 `ContentResolver.openInputStream()` 读取，其他端 fallback 到 `uni.chooseFile`。

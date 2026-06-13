@@ -6,6 +6,7 @@ import {
   importBackup,
   listBackupFiles,
   parseBackupText,
+  pickLocalBackupText,
   readBackupFile,
   type BackupFileEntry,
 } from '../../../utils/backup'
@@ -13,7 +14,6 @@ import { actionSheet, confirmDialog, showToast } from '../../../utils/ui'
 
 const importText = ref('')
 const busy = ref(false)
-const fileInputRef = ref<HTMLInputElement | null>(null)
 
 function describePath(result: { internalPath: string; downloadPath: string | null }): string {
   return result.downloadPath ?? result.internalPath
@@ -66,19 +66,10 @@ async function pickFromSavedBackups(): Promise<void> {
   }
 }
 
-function openFilePicker(): void {
-  fileInputRef.value?.click()
-}
-
-async function onFilePicked(event: Event): Promise<void> {
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-  target.value = ''
-  if (!file) return
+async function pickFromLocalFile(): Promise<void> {
   busy.value = true
   try {
-    const text = await file.text()
-    importText.value = text
+    importText.value = await pickLocalBackupText()
     showToast('已读取文件，点击「导入覆盖」完成恢复')
   } catch (error) {
     showToast(error instanceof Error ? error.message : '读取文件失败')
@@ -119,17 +110,10 @@ async function doClear(): Promise<void> {
 
     <view class="panel">
       <text class="title">恢复</text>
-      <text class="desc">v1.0 使用全量覆盖。支持粘贴 JSON、从已下载的备份选择、或从本地文件选择。</text>
+      <text class="desc">v1.0 使用全量覆盖。支持粘贴 JSON、从已保存备份选择、或从本地文件选择。</text>
       <view class="actions">
         <button class="secondary" :disabled="busy" @click="pickFromSavedBackups">从已保存备份选择</button>
-        <button class="secondary" :disabled="busy" @click="openFilePicker">从本地文件选择</button>
-        <input
-          ref="fileInputRef"
-          class="file-input"
-          type="file"
-          accept=".json,application/json"
-          @change="onFilePicked"
-        />
+        <button class="secondary" :disabled="busy" @click="pickFromLocalFile">从本地文件选择</button>
       </view>
       <uni-easyinput
         v-model="importText"
@@ -187,10 +171,6 @@ async function doClear(): Promise<void> {
   flex-wrap: wrap;
   gap: 16rpx;
   margin-bottom: 18rpx;
-}
-
-.file-input {
-  display: none;
 }
 
 .textarea {

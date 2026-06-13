@@ -338,7 +338,7 @@ INSERT INTO expense_categories (name, icon, sort_order, is_default) VALUES
    1. 三种入口任选其一：
       - 粘贴 JSON 文本
       - 从 `_doc/backup_*.json` 已保存备份列表选择
-      - 从本地 JSON 文件选择器读取
+      - 从本地 JSON 文件选择器读取（Android App 端用系统 Intent；其他端 fallback 到 `uni.chooseFile`）
    2. 解析 JSON + 校验 schema_version（不匹配则报错"备份文件版本不兼容"）
    3. 二次确认："导入将覆盖所有现有数据，无法恢复。是否继续？"
    4. 事务：

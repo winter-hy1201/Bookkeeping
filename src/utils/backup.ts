@@ -33,6 +33,38 @@ interface PlusIoEntryView {
   fullPath?: string
 }
 
+type AndroidActivityResultHandler = (request: number, result: number, data: unknown) => void
+
+type AndroidActivity = PlusAndroidInstanceObject & {
+  getContentResolver: () => { openInputStream: (uri: unknown) => PlusAndroidInstanceObject | null }
+  onActivityResult?: AndroidActivityResultHandler
+  startActivityForResult: (intent: PlusAndroidInstanceObject, requestCode: number) => void
+}
+
+type AndroidIntentClass = PlusAndroidClassObject & {
+  ACTION_GET_CONTENT: string
+  CATEGORY_OPENABLE: string
+  createChooser: (intent: PlusAndroidInstanceObject, title: string) => PlusAndroidInstanceObject
+}
+
+type AndroidIntent = PlusAndroidInstanceObject & {
+  addCategory: (category: string) => void
+  setType: (type: string) => void
+}
+
+type AndroidTextReader = PlusAndroidInstanceObject & {
+  readLine: () => string | null
+  close: () => void
+}
+
+type AndroidInputStream = PlusAndroidInstanceObject & {
+  close: () => void
+}
+
+type AndroidIntentResult = PlusAndroidInstanceObject & {
+  getData: () => unknown
+}
+
 function nowStamp(): string {
   const d = new Date()
   const pad = (value: number) => String(value).padStart(2, '0')
@@ -173,6 +205,133 @@ async function readFileText(path: string): Promise<string> {
   })
 }
 
+function readAndroidUriText(uri: unknown): string {
+  const activity = plus.android.runtimeMainActivity() as AndroidActivity
+  const resolver = activity.getContentResolver()
+  const inputStream = resolver.openInputStream(uri) as AndroidInputStream | null
+  if (!inputStream) {
+    throw new Error('读取备份文件失败')
+  }
+
+  const inputStreamReader = plus.android.newObject('java.io.InputStreamReader', [
+    inputStream,
+    'UTF-8',
+  ])
+  const reader = plus.android.newObject('java.io.BufferedReader', [
+    inputStreamReader,
+  ]) as AndroidTextReader
+  plus.android.importClass(reader)
+  plus.android.importClass(inputStream)
+
+  const lines: string[] = []
+  try {
+    let line = reader.readLine()
+    while (line !== null) {
+      lines.push(String(line))
+      line = reader.readLine()
+    }
+  } finally {
+    reader.close()
+    inputStream.close()
+  }
+  return lines.join('\n')
+}
+
+function pickAndroidFileText(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (typeof plus === 'undefined' || !plus.android) {
+      reject(new Error('当前环境不支持安卓文件选择'))
+      return
+    }
+
+    const Intent = plus.android.importClass('android.content.Intent') as AndroidIntentClass
+    const activity = plus.android.runtimeMainActivity() as AndroidActivity
+    const requestCode = Date.now() % 65535
+    const previousHandler = activity.onActivityResult
+
+    const restoreHandler = () => {
+      activity.onActivityResult = previousHandler
+    }
+
+    activity.onActivityResult = (request: number, result: number, data: unknown) => {
+      if (request !== requestCode) {
+        previousHandler?.(request, result, data)
+        return
+      }
+      restoreHandler()
+      if (result !== -1 || !data) {
+        reject(new Error('未选择文件'))
+        return
+      }
+      try {
+        const intentData = data as AndroidIntentResult
+        plus.android.importClass(intentData)
+        const uri = intentData.getData()
+        resolve(readAndroidUriText(uri))
+      } catch (error) {
+        reject(error instanceof Error ? error : new Error('读取备份文件失败'))
+      }
+    }
+
+    try {
+      const intent = plus.android.newObject(
+        'android.content.Intent',
+        Intent.ACTION_GET_CONTENT,
+      ) as AndroidIntent
+      intent.addCategory(Intent.CATEGORY_OPENABLE)
+      intent.setType('*/*')
+      activity.startActivityForResult(Intent.createChooser(intent, '选择备份 JSON 文件'), requestCode)
+    } catch {
+      restoreHandler()
+      reject(new Error('打开文件选择器失败'))
+    }
+  })
+}
+
+interface UniChooseFileResult {
+  tempFiles?: Array<{ path?: string; name?: string }>
+  tempFilePaths?: string[]
+}
+
+function pickUniFileText(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const chooseFile = uni.chooseFile as
+      | ((options: {
+          type?: string
+          count?: number
+          extension?: string[]
+          success: (result: UniChooseFileResult) => void
+          fail: (error: { errMsg?: string }) => void
+        }) => void)
+      | undefined
+    if (typeof chooseFile !== 'function') {
+      reject(new Error('当前环境不支持文件选择'))
+      return
+    }
+    chooseFile({
+      type: 'all',
+      count: 1,
+      extension: ['.json', 'json'],
+      success: (result) => {
+        const path = result.tempFiles?.[0]?.path ?? result.tempFilePaths?.[0]
+        if (!path) {
+          reject(new Error('读取备份文件失败'))
+          return
+        }
+        readFileText(path).then(resolve).catch(reject)
+      },
+      fail: () => reject(new Error('未选择文件')),
+    })
+  })
+}
+
+export async function pickLocalBackupText(): Promise<string> {
+  if (typeof plus !== 'undefined' && plus.android) {
+    return pickAndroidFileText()
+  }
+  return pickUniFileText()
+}
+
 export interface ExportResult {
   /** 沙盒文档目录路径，永久存在 */
   internalPath: string
@@ -230,7 +389,7 @@ export async function listBackupFiles(): Promise<BackupFileEntry[]> {
   })
 }
 
-/** 从应用沙盒内绝对路径读取并解析备份 payload；用于"从已下载的备份恢复" */
+/** 从应用沙盒内绝对路径读取并解析备份 payload；用于"从已保存备份恢复" */
 export async function readBackupFile(path: string): Promise<BackupPayload> {
   const text = await readFileText(path)
   return parseBackupText(text)

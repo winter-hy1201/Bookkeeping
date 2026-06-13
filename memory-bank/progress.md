@@ -54,3 +54,4 @@
 - 2026-06-11：首页状态色展示（待配送/已配送/已取消 → primary/success/warning）；订单折叠面板标题加粗 + 列表项加分割线。
 - 2026-06-11：备份恢复 v1.1 小修：导出写 `_doc/backup_*.json` + 复制 `_downloads/`，恢复新增从已保存备份列表 / 本地 JSON 文件选择；真机文件路径待 HBuilderX 验证。
 - 2026-06-12：新建订单日期字段补齐：`pages/order/new.vue` 新增可编辑日期，默认明天；`stores/order.ts` 新建后刷新到订单日期。
+- 2026-06-13：备份恢复本地文件选择修正：安卓客户端不支持 WebView `<input type="file">`，`src/pages/me/settings/backup.vue` 移除隐藏 input；`src/utils/backup.ts` 新增 `pickLocalBackupText()`，Android App 端通过系统 Intent 选择 JSON 并用 `ContentResolver.openInputStream()` 读取，其他端 fallback 到 `uni.chooseFile`。
