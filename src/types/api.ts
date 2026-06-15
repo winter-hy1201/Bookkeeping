@@ -85,6 +85,7 @@ export interface DateRangeInput {
 
 export interface StatsSummary {
   orderCount: number
+  orderQuantity: number
   income: number
   expense: number
   profit: number

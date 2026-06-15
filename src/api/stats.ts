@@ -4,6 +4,7 @@ import type { CategoryBreakdown, DailyTrendPoint, DateRangeInput, StatsSummary }
 
 interface SummaryRow extends PlusSqliteRow {
   orderCount: number | null
+  orderQuantity: number | null
   orderIncome: number | null
   cardIncome: number | null
   expense: number | null
@@ -64,6 +65,13 @@ export async function getRangeSummary(input: DateRangeInput): Promise<StatsSumma
           AND order_date <= ?
       ) AS orderCount,
       (
+        SELECT SUM(quantity)
+        FROM orders
+        WHERE status != 'cancelled'
+          AND order_date >= ?
+          AND order_date <= ?
+      ) AS orderQuantity,
+      (
         SELECT SUM(amount)
         FROM orders
         WHERE status != 'cancelled'
@@ -91,6 +99,8 @@ export async function getRangeSummary(input: DateRangeInput): Promise<StatsSumma
       input.endDate,
       input.startDate,
       input.endDate,
+      input.startDate,
+      input.endDate,
     ],
   )
 
@@ -99,6 +109,7 @@ export async function getRangeSummary(input: DateRangeInput): Promise<StatsSumma
   const expense = num(row?.expense)
   return {
     orderCount: num(row?.orderCount),
+    orderQuantity: num(row?.orderQuantity),
     income,
     expense,
     profit: income - expense,

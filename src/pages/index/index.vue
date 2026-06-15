@@ -15,7 +15,7 @@ const orderStore = useOrderStore()
 const customerStore = useCustomerStore()
 
 const todayText = today()
-const summary = computed(() => statsStore.summary ?? { orderCount: 0, income: 0, expense: 0, profit: 0 })
+const summary = computed(() => statsStore.summary ?? { orderCount: 0, orderQuantity: 0, income: 0, expense: 0, profit: 0 })
 
 const pendingOrders = computed(() => filterOrders('pending'))
 const deliveredOrders = computed(() => filterOrders('delivered'))
@@ -24,6 +24,14 @@ const cancelledOrders = computed(() => filterOrders('cancelled'))
 function filterOrders(status: OrderStatus): Order[] {
   return orderStore.list.filter((order) => order.status === status)
 }
+
+function totalQuantity(orders: Order[]): number {
+  return orders.reduce((sum, order) => sum + (order.quantity ?? 0), 0)
+}
+
+const pendingQuantity = computed(() => totalQuantity(pendingOrders.value))
+const deliveredQuantity = computed(() => totalQuantity(deliveredOrders.value))
+const cancelledQuantity = computed(() => totalQuantity(cancelledOrders.value))
 
 function customerName(id: number): string {
   return customerStore.list.find((customer) => customer.id === id)?.name ?? `客户 #${id}`
@@ -54,7 +62,7 @@ onShow(() => {
     </view>
 
     <view class="stats-grid">
-      <StatCard label="订单" :value="summary.orderCount" hint="非取消订单" />
+      <StatCard label="订单" :value="summary.orderCount" unit="单" :qty="summary.orderQuantity" qty-unit="份" hint="非取消订单" />
       <StatCard label="收入" :value="formatMoney(summary.income)" />
       <StatCard label="支出" :value="formatMoney(summary.expense)" />
       <StatCard label="利润" :value="formatMoney(summary.profit)" />
@@ -69,15 +77,33 @@ onShow(() => {
       <view class="status-cards">
         <view class="status-card status-card--pending">
           <text class="status-label">待配送</text>
-          <text class="status-value">{{ pendingOrders.length }}</text>
+          <view class="status-value-row">
+            <text class="status-value">{{ pendingOrders.length }}</text>
+            <text class="status-unit">单</text>
+            <text class="status-sep">/</text>
+            <text class="status-value">{{ pendingQuantity }}</text>
+            <text class="status-unit">份</text>
+          </view>
         </view>
         <view class="status-card status-card--delivered">
           <text class="status-label">已配送</text>
-          <text class="status-value">{{ deliveredOrders.length }}</text>
+          <view class="status-value-row">
+            <text class="status-value">{{ deliveredOrders.length }}</text>
+            <text class="status-unit">单</text>
+            <text class="status-sep">/</text>
+            <text class="status-value">{{ deliveredQuantity }}</text>
+            <text class="status-unit">份</text>
+          </view>
         </view>
         <view class="status-card status-card--cancelled">
           <text class="status-label">已取消</text>
-          <text class="status-value">{{ cancelledOrders.length }}</text>
+          <view class="status-value-row">
+            <text class="status-value">{{ cancelledOrders.length }}</text>
+            <text class="status-unit">单</text>
+            <text class="status-sep">/</text>
+            <text class="status-value">{{ cancelledQuantity }}</text>
+            <text class="status-unit">份</text>
+          </view>
         </view>
       </view>
 
@@ -217,12 +243,34 @@ onShow(() => {
   line-height: 1.3;
 }
 
-.status-value {
-  display: block;
+.status-value-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  row-gap: 2rpx;
   margin-top: 6rpx;
+}
+
+.status-value {
   font-size: 36rpx;
   font-weight: 700;
   line-height: 1.2;
+}
+
+.status-unit {
+  font-size: 22rpx;
+  font-weight: 500;
+  color: inherit;
+  opacity: 0.75;
+  margin-left: 2rpx;
+}
+
+.status-sep {
+  font-size: 26rpx;
+  font-weight: 500;
+  opacity: 0.55;
+  margin: 0 6rpx;
 }
 
 .group {

@@ -9,10 +9,16 @@ const props = withDefaults(
     value: string | number
     color?: StatColor
     hint?: string
+    unit?: string
+    qty?: number | string | null
+    qtyUnit?: string
   }>(),
   {
     color: 'normal',
     hint: '',
+    unit: '',
+    qty: null,
+    qtyUnit: '份',
   },
 )
 
@@ -24,6 +30,8 @@ const numericValue = computed(() => {
   return Number.isFinite(value) ? value : null
 })
 
+const hasQty = computed(() => props.qty !== null && props.qty !== undefined && props.qty !== '')
+
 const resolvedColor = computed<StatColor>(() => {
   if (props.color !== 'normal') return props.color
   if (props.label !== '利润' || numericValue.value === null) return 'normal'
@@ -34,7 +42,17 @@ const resolvedColor = computed<StatColor>(() => {
 <template>
   <view class="stat-card">
     <text class="stat-label">{{ label }}</text>
-    <text class="stat-value" :class="`stat-value--${resolvedColor}`">{{ value }}</text>
+    <view class="stat-value-row">
+      <text class="stat-value" :class="`stat-value--${resolvedColor}`">
+        {{ value }}<text v-if="unit" class="stat-unit">{{ unit }}</text>
+      </text>
+      <template v-if="hasQty">
+        <text class="stat-sep">/</text>
+        <text class="stat-value" :class="`stat-value--${resolvedColor}`">
+          {{ qty }}<text class="stat-unit">{{ qtyUnit }}</text>
+        </text>
+      </template>
+    </view>
     <text v-if="hint" class="stat-hint">{{ hint }}</text>
   </view>
 </template>
@@ -55,10 +73,15 @@ const resolvedColor = computed<StatColor>(() => {
   line-height: 1.4;
 }
 
-.stat-value {
-  display: block;
+.stat-value-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  row-gap: 4rpx;
   margin-top: 10rpx;
-  color: #333333;
+}
+
+.stat-value {
   font-size: 56rpx;
   font-weight: 700;
   line-height: 1.15;
@@ -75,6 +98,20 @@ const resolvedColor = computed<StatColor>(() => {
 
 .stat-value--normal {
   color: #333333;
+}
+
+.stat-unit {
+  font-size: 24rpx;
+  font-weight: 500;
+  color: #8f8f94;
+  margin-left: 2rpx;
+}
+
+.stat-sep {
+  font-size: 36rpx;
+  font-weight: 500;
+  color: #cccccc;
+  margin: 0 8rpx;
 }
 
 .stat-hint {
