@@ -59,3 +59,4 @@
 - 2026-06-15：客户姓名判重：`src/api/customers.ts` 创建/改名时按 trim 后姓名查重并抛业务错误；`src/pages/me/customers/new.vue` 捕获后提示重复姓名不可保存；`design-document.md` 记录客户姓名应用层唯一规则。
 - 2026-06-15：支出退差金额上线：schema 升级到 v2，`expenses` 新增 `refund_amount` 字段；新建 / 修改支出页补退差金额输入与实际支出预览；统计页支出口径、日趋势和分类占比统一按 `amount - refund_amount` 计算；备份恢复允许 v1 备份导入到 v2 时为旧支出补 0。
 - 2026-06-15：订单列表拖拽排序：schema 升级到 v3，`orders` 新增 `sort_order` 字段；订单列表支持长按左侧 `uni-icons bars` 把手后在当天同餐次内拖拽排序，松手后通过 `reorderOrders()` 写回；新订单默认追加到同日同餐次末尾；备份恢复允许 v1/v2 备份导入到 v3 时为旧订单补 0。
+- 2026-06-15：客户列表拼音索引：新增纯 JS 依赖 `pinyin-pro` 与 `src/utils/pinyin.ts`；`src/pages/me/customers/list.vue` 按中文客户名拼音首字母分组排序，支持右侧字母索引跳转，并把搜索扩展到姓名拼音和拼音首字母。

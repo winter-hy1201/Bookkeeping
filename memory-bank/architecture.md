@@ -97,7 +97,7 @@
 | `src/pages/order/detail.vue` | 订单详情：按 id 读取单条订单与客户信息；pending 订单可在详情页进入编辑态，修改客户、日期、餐次、份数、价格、支付方式与备注；pending 仍可取消或标记已配送；捕获 `InsufficientCardError` 后按客户默认价 × 折扣率整单改微信/现金再配送，客户无默认价时回退订单原单价。已配送 / 已取消订单保持只读，避免回写次卡扣次或退款状态；所有状态均可删除订单，已配送次卡订单删除时由 API 回滚已扣次数。 |
 | `src/pages/stats/index.vue` | Tab 3「统计」：今日/本周/本月/自定义区间切换，自定义日期用 `uni-datetime-picker`；展示收入、支出、利润、订单数、客单价、日趋势 CSS 进度条和支出分类占比。 |
 | `src/pages/me/index.vue` | Tab 4「我的」入口：跳转客户管理、支出管理、备份恢复。 |
-| `src/pages/me/customers/list.vue` | 客户列表：`onShow` 刷新 customer store，前端用 `uni-easyinput` 按姓名/微信/手机号搜索，展示折扣角标，支持新建和详情跳转。 |
+| `src/pages/me/customers/list.vue` | 客户列表：`onShow` 刷新 customer store，前端用 `uni-easyinput` 按姓名/微信/手机号/姓名拼音/拼音首字母搜索；按 `src/utils/pinyin.ts` 转换中文客户名后生成拼音首字母分组、右侧索引和滚动定位；展示折扣角标，支持新建和详情跳转。 |
 | `src/pages/me/customers/new.vue` | 客户新建/编辑共用页：用 uni-ui 表单组件维护姓名、手机、微信、午餐/晚餐默认价、折扣率、备注；默认价未触碰时保存为 null；保存时捕获客户姓名重复错误并提示不可重复。 |
 | `src/pages/me/customers/detail.vue` | 客户详情：展示基础信息、active 次卡汇总进度、历史订单；支持编辑、删除和跳转开次卡。删除走 `customerStore.remove()`，客户存在订单或次卡依赖时保持数据并提示不可删除。次卡区通过 `listCards(customerId)` 汇总所有 active 卡的剩余 / 总次数，避免新开卡后只显示最新一张而像是覆盖旧卡。历史订单通过 `listOrders({ customerId })` 查询。 |
 | `src/pages/me/customers/open-card.vue` | 开次卡页：总次数用 `uni-number-box`、金额用 AmountInput，默认 20 次，金额允许为 0；若已有 active 次卡先确认，确认文案按所有 active 卡汇总剩余 / 总次数，确认后仍可新开，旧卡保留。 |
@@ -153,6 +153,7 @@
 | `src/utils/format.ts` | 金额/百分比格式化工具：`formatMoney(n)` 输出 `¥1,234.50`（空值/非法值为 `¥—`）；`parseMoney(s)` 接受普通数字、`¥`、`￥`、千分位并解析为 number（非法为 0）；`formatPercent(n)` 四舍五入输出整数百分比。 |
 | `src/utils/ui.ts` | 页面层小工具：toast、confirm/actionSheet Promise 化、数值转换、餐次/支付/状态文案、客户默认价 × 折扣价提示、订单金额展示。 |
 | `src/utils/backup.ts` | JSON 备份恢复工具：全表导出 payload、写 `_doc/backup_*.json` 并复制到 `_downloads/`、列出 / 读取沙盒内备份文件、通过 Android 系统文件选择器读取本地 JSON（其他端 fallback 到 `uni.chooseFile`）、解析校验备份 JSON 与 `schema_version`、事务内全量覆盖导入；允许旧 v1/v2 备份导入到 v3 时补 `refund_amount=0` / `sort_order=0`；危险清空会删除业务数据后调用 `seedIfEmpty()` 恢复默认支出分类，避免支出录入页无分类可选。 |
+| `src/utils/pinyin.ts` | 客户姓名拼音工具：基于纯 JS `pinyin-pro`，使用姓氏优先模式把中文姓名转为无声调拼音 key、拼音首字母串和 A-Z / `#` 分组字母，并提供客户姓名排序函数；用于 Android App 端客户列表分组、索引和拼音搜索。 |
 
 ### types/ — TS 类型
 
@@ -200,6 +201,7 @@
 | `vue` | Vue 3 | `^3.4.21`（实际 3.5.x） |
 | `vue-i18n` | 模板自带；v1.0 不用 | `^9.1.9` |
 | `dayjs` | 日期工具；用于自然日/自然周/自然月计算 | `^1.11.21` |
+| `pinyin-pro` | 纯 JS 拼音转换；用于 Android App 端客户姓名拼音排序、分组索引和拼音搜索 | `^3.28.1` |
 | `sass` | uni-ui 组件 `lang="scss"` 编译依赖 | `^1.100.0` |
 | `@dcloudio/vite-plugin-uni` | uni-app Vite 插件 | `3.0.0-4080420251103001` |
 | `vite` | 构建工具 | `5.2.8` |
@@ -266,3 +268,4 @@
 - 2026-06-15：客户姓名判重 — `src/api/customers.ts` 在创建/改名时按 trim 后姓名检查重复并抛 `DuplicateCustomerNameError`；`src/pages/me/customers/new.vue` 捕获后提示重复姓名不可保存。
 - 2026-06-15：支出退差金额上线 — schema 升级到 v2，`expenses` 新增 `refund_amount` 字段；新建 / 修改支出页补退差金额输入与实际支出预览；统计页支出口径、日趋势和分类占比统一按 `amount - refund_amount` 计算；备份恢复允许 v1 备份导入到 v2 时为旧支出补 0。
 - 2026-06-15：订单列表拖拽排序 — schema 升级到 v3，`orders` 新增 `sort_order` 字段与同日同餐次排序索引；`src/api/orders.ts` 新增 `reorderOrders()`，新订单自动追加到同日同餐次末尾；`src/pages/order/index.vue` 支持长按左侧 `uni-icons bars` 把手在午餐 / 晚餐分组内拖拽排序；备份恢复允许 v1/v2 备份导入到 v3 时为旧订单补 `sort_order=0`。
+- 2026-06-15：客户列表拼音索引 — 新增纯 JS 依赖 `pinyin-pro` 与 `src/utils/pinyin.ts`；`src/pages/me/customers/list.vue` 按中文客户名拼音首字母分组排序，支持右侧字母索引跳转，并把搜索扩展到姓名拼音和拼音首字母。
