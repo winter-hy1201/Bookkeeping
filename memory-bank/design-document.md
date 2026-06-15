@@ -439,6 +439,12 @@ INSERT INTO expense_categories (name, icon, sort_order, is_default) VALUES
 | **次卡使用率** | meal_cards.used_meals / meal_cards.total_meals（按卡） |
 | **某客户消费** | Σ(orders.amount) WHERE customer_id=X AND status != 'cancelled' AND order_date IN range |
 
+### 5.3 金额精度保证
+
+- 上述所有 Σ / 减法 / 乘除运算**禁止 JS 原生 `+ - * /`**；必须走 `src/utils/format.ts` 的 `addMoney / subtractMoney / multiplyMoney / divideMoney / roundMoney`（内部基于 big.js，输出强制 `toFixed(2)`，避免 IEEE 754 浮点尾数污染对账）。
+- SQLite 字段类型仍为 `REAL`（存浮点），但所有 JS 侧读出后立即过 helper，落到 UI / 写入前都已是干净的 2 位小数 number。
+- 该规则由 `AGENTS.md §10 禁止清单` 强约束；具体精度自测与背景见 `memory-bank/CHANGELOG.md v1.5`。
+
 ### 5.3 取消订单处理
 
 - 不计入收入、订单数、份数

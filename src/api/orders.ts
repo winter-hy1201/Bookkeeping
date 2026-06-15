@@ -8,6 +8,7 @@ import type {
   UpdateOrderPaymentInput,
 } from '../types/api'
 import type { Customer, MealCard, MealType, Order, OrderStatus } from '../types/domain'
+import { divideMoney, multiplyMoney } from '../utils/format'
 import { AlreadyDeliveredError, InsufficientCardError } from './errors'
 
 type OrderRow = Order & PlusSqliteRow
@@ -116,7 +117,7 @@ async function resolveOrderPrice(input: CreateOrderInput): Promise<{
       throw new Error('[orders] meal card total_meals is invalid')
     }
     return {
-      unitPrice: input.unit_price ?? card.amount / card.total_meals,
+      unitPrice: input.unit_price ?? divideMoney(card.amount, card.total_meals),
       amount: 0,
       mealCardId: input.meal_card_id,
     }
@@ -130,13 +131,14 @@ async function resolveOrderPrice(input: CreateOrderInput): Promise<{
   const defaultPrice =
     input.meal_type === 'lunch' ? customer.default_lunch_price : customer.default_dinner_price
   const unitPrice =
-    input.unit_price ?? (defaultPrice == null ? null : defaultPrice * customer.discount_rate)
+    input.unit_price ??
+    (defaultPrice == null ? null : multiplyMoney(defaultPrice, customer.discount_rate))
   if (unitPrice == null) {
     throw new Error('[orders] unit_price is required when customer default price is empty')
   }
   assertNonNegativeAmount(unitPrice, 'unit_price')
 
-  const amount = input.amount ?? unitPrice * input.quantity
+  const amount = input.amount ?? multiplyMoney(unitPrice, input.quantity)
   assertNonNegativeAmount(amount, 'amount')
 
   return {

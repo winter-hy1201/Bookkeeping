@@ -12,8 +12,9 @@
 
 业务闭环：晚上微信接单 → 次日 11:30/17:30 配送 → 当晚对账看利润。
 
-**当前状态（2026-06-11）**：**v1.0 已发布**（Phase 1-9 全部完成；9.3 真机性能压测 / 9.4 Release APK 按用户决策跳过，用 HBuilderX 标准基座 debug APK 直接侧载）。
-13 个页面、5 张表、4 个 Pinia store、3 个通用组件、5+ SQLite 已真机验证；Phase 8 6 条 E2E 流程全部通过；`memory-bank/CHANGELOG.md` v1.0 节 + `bookkeeping-v1.db` 阶段基线已落地。
+**当前状态（2026-06-15）**：**v1.0 已发布**，后续 v1.1-v1.5 hotfix 已落地（备份恢复 v1.1 / 删除能力 v1.2 / 客户姓名判重 v1.3 / 支出退差 v1.4 / big.js 金额精度 v1.5）。
+Phase 1-9 全部完成；9.3 真机性能压测 / 9.4 Release APK 按用户决策跳过，用 HBuilderX 标准基座 debug APK 直接侧载。
+13 个页面、5 张表、4 个 Pinia store、3 个通用组件、5+ SQLite 已真机验证；Phase 8 6 条 E2E 流程全部通过；`memory-bank/CHANGELOG.md` 已加 v1.0-v1.5 节，`bookkeeping-v1.db` 阶段基线已落地。
 **下一步**：v1.0 内使用 + 收集真实数据后再规划 v1.1（CSV 导出 / 自定义分类图标 / 备注模板 等）。改动前先看 `memory-bank/CHANGELOG.md` 已知限制节，避免重复实现 v1.1 候选。
 
 ---
@@ -30,7 +31,7 @@
 | 改统计口径 | `src/api/stats.ts` | 自然周 = 周一到周日，自然月 = 1 号到月底，本地时区 |
 | 加新流程 | `memory-bank/design-document.md §4` 画流程 → 实现 → `architecture.md` §更新日志登记 | 同步更新 `progress.md` 勾选 |
 | 改 UI 控件样式 | 直接改组件 | 业务表单**禁止**用原生 `input` / `textarea` / `picker` / `radio-group` / `slider`；**禁止**散用 uni-ui 单组件而不套 forms（详见 §6.10） |
-| 改日期/金额格式 | `src/utils/date.ts` / `src/utils/format.ts` | 展示用 helper；存储用 `REAL` 不要存字符串 |
+| 改日期/金额格式 | `src/utils/date.ts` / `src/utils/format.ts` | 展示用 `formatMoney`；**金额计算必须走** `roundMoney / addMoney / subtractMoney / multiplyMoney / divideMoney`（基于 big.js，禁止原生 `+ - * /`，见 §10）；存储用 `REAL` 不要存字符串 |
 | 改备份格式 | `src/utils/backup.ts` + `src/api/orders.ts` 等（依赖 listOrders） | 导出前/导入后必须校验 `schema_version` |
 
 ---
@@ -40,7 +41,7 @@
 1. `CLAUDE.md` — 入口（自动引用本文件 `@AGENTS.md`，所有内容在此）
 2. `memory-bank/architecture.md` — **每个文件的作用**（新建/删除/改职责必登记到对应表 + §更新日志）
 3. `memory-bank/design-document.md` — 数据模型（§2.1 DDL）、状态机（§3）、关键流程（§4）、TBD（§8）
-4. `memory-bank/CHANGELOG.md` — **v1.0 已实现 F1-F6 + 行为决策 A1/A3-A7 + 已知限制 + v1.1 候选**（看一眼就知道哪些不要重做）
+4. `memory-bank/CHANGELOG.md` — **v1.0-v1.5 已实现功能 + 行为决策 A1-A8 + 已知限制 + v1.1+ 候选**（看一眼就知道哪些不要重做；金额精度问题在 v1.5 修复，所有金额运算走 `src/utils/format.ts` 的 5 个 helper）
 5. `memory-bank/tech-stack.md` — 选型 + 反选清单（§3）
 6. `memory-bank/implementation-plan.md` — 9 阶段 63 步（v1.0 已完成 61/63；9.3 / 9.4 跳过）
 7. `debug-docs/DEBUG-HANDOFF.md` — Phase 2 SQLite 调试的根因复盘（**必读**：能帮你避开 `this.getCallbackIDByFunction` 那个坑）
@@ -212,6 +213,7 @@ sqlite3 memory-bank/bookkeeping-real.db "PRAGMA user_version;"
 | 给 5+ `executeSql` 传 `args` 数组 | 不支持；参数在 `db/index.ts` 的 helper 内转义 |
 | `plus.sqlite.transaction` 的 `operation` 用函数 | 必须是 `'begin' \| 'commit' \| 'rollback'` 字符串 |
 | 跳过 `tx()` 直接在外部拼多表写入 | 失去事务回滚保护 |
+| 业务金额用原生 `+ - * /` 算（含 `Math.round(n*100)/100`、`toFixed(2)` 等 ad-hoc 截位） | JS IEEE 754 浮点精度问题；典型表现：利润字段出现 `0.0000000004`、`0.1+0.2+0.3=0.6000000000000001`、`Math.round(1.005*100)/100=1` | 必须走 `src/utils/format.ts` 的 `roundMoney / addMoney / subtractMoney / multiplyMoney / divideMoney`；helper 内部走 big.js + 强制 `toFixed(2)` 输出 |
 | 在 `package.json` 加 `dev:app-android` / `build:app-android` scripts | CLI 跑不出可用的 SQLite，徒增误导 |
 
 ---
@@ -230,8 +232,10 @@ sqlite3 memory-bank/bookkeeping-real.db "PRAGMA user_version;"
 | 备份导入后 ID 错乱 | 没校验 `schema_version` 直接 INSERT | `utils/backup.ts` 已加 `schema_version` 校验，**不要**删除 |
 | 次卡配送报 `InsufficientCardError` 没处理 | UI 层没捕获 | `pages/order/detail.vue` 已捕获并弹改支付；**不要**在 store 层静默吞 |
 | 利润 = 负数且数字对不上 | 忘了 cancelled 不计入；或开次卡的金额被算重了 | `api/stats.ts` 的口径：非 cancelled 订单金额 + 开次卡金额；检查 `getDashboardSummary` 没被改 |
+| 利润 / 金额出现 `0.0000000004` / `0.6000000000000001` 等尾数 | 有原生 `+ - * /` 直接算金额；或用了 `Math.round(n*100)/100`、`toFixed(2)` 等 ad-hoc 截位 | 改走 `src/utils/format.ts` 的 `roundMoney / addMoney / subtractMoney / multiplyMoney / divideMoney`；禁止清单 §10 已加规则 |
 | `<uni-forms>` 提交时 `validate` 不触发 / `errors` 为空但表单提交不出去 | `<uni-forms-item name="x">` 与 `form` 对象的字段名对不上；或 `ref` 名引用错 | 1) 确认 `form` 对象的 key 与所有 `<uni-forms-item name="...">` 一一对应；2) `ref="formRef"`，提交时 `formRef.value?.validate(...)`；3) 校验失败时 `console.log('validate err', errors)` 对照 `rules` 数组 |
 | `<uni-forms-item required>` 不显示红星 / 不报"必填" | 用了 `label` 属性却没设 `name`；或 `rules` 数组没声明对应字段 | 1) 每个 `<uni-forms-item>` 必带 `name`；2) 同步在 `<uni-forms :rules="rules">` 里的对应 key 下加 `{ required: true, errorMessage: '...' }` |
+| `<scroll-view scroll-y>` 子节点拖拽手势与外层滚动冲突,拖不到指定位置 | scroll-view 在 touchstart 阶段已进入滚动跟踪态,后续子节点 touchmove 的 `event.preventDefault()` 在 Android HBuilderX 标准基座下不生效;长按 500ms 触发后才处理已经太晚 | 把触摸事件挪到专门的子节点(拖拽把手) + `@touchstart.stop` 阻止 scroll-view 看到 touchstart;激活后 `event.preventDefault() + stopPropagation()` 双保险;用阈值(如 10px)触发而非 longpress,阈值前允许滚动。参考 v1.6 `pages/order/index.vue` |
 
 ---
 

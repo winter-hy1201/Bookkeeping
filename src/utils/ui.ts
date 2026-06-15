@@ -1,5 +1,5 @@
 import type { Customer, MealType, Order, OrderStatus, PaymentMethod } from '../types/domain'
-import { formatMoney } from './format'
+import { formatMoney, multiplyMoney } from './format'
 
 export function showToast(title: string): void {
   uni.showToast({ title, icon: 'none' })
@@ -51,7 +51,7 @@ export function customerPrice(customer: Customer | null, mealType: MealType): nu
   if (!customer) return null
   const base = mealType === 'lunch' ? customer.default_lunch_price : customer.default_dinner_price
   if (base == null) return null
-  return base * customer.discount_rate
+  return multiplyMoney(base, customer.discount_rate)
 }
 
 export function priceHint(customer: Customer | null, mealType: MealType): string {
@@ -59,7 +59,7 @@ export function priceHint(customer: Customer | null, mealType: MealType): string
   const base = mealType === 'lunch' ? customer.default_lunch_price : customer.default_dinner_price
   if (base == null) return '请手动填入单价'
   return `默认价 ${formatMoney(base)} × ${customer.discount_rate} = ${formatMoney(
-    base * customer.discount_rate,
+    multiplyMoney(base, customer.discount_rate),
   )}`
 }
 

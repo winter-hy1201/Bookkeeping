@@ -1,6 +1,7 @@
 import dayjs from 'dayjs'
 import { select, type PlusSqliteRow } from '../db'
 import type { CategoryBreakdown, DailyTrendPoint, DateRangeInput, StatsSummary } from '../types/api'
+import { addMoney, subtractMoney } from '../utils/format'
 
 interface SummaryRow extends PlusSqliteRow {
   orderCount: number | null
@@ -105,14 +106,14 @@ export async function getRangeSummary(input: DateRangeInput): Promise<StatsSumma
   )
 
   const row = rows[0]
-  const income = num(row?.orderIncome) + num(row?.cardIncome)
+  const income = addMoney(num(row?.orderIncome), num(row?.cardIncome))
   const expense = num(row?.expense)
   return {
     orderCount: num(row?.orderCount),
     orderQuantity: num(row?.orderQuantity),
     income,
     expense,
-    profit: income - expense,
+    profit: subtractMoney(income, expense),
   }
 }
 
@@ -158,22 +159,22 @@ export async function getDailyTrend(input: DateRangeInput): Promise<DailyTrendPo
   for (const row of orderRows) {
     const point = byDate.get(row.date)
     if (!point) continue
-    point.income += num(row.income)
+    point.income = addMoney(point.income, num(row.income))
   }
   for (const row of cardRows) {
     const point = byDate.get(row.date)
     if (!point) continue
-    point.income += num(row.income)
+    point.income = addMoney(point.income, num(row.income))
   }
   for (const row of expenseRows) {
     const point = byDate.get(row.date)
     if (!point) continue
-    point.expense += num(row.expense)
+    point.expense = addMoney(point.expense, num(row.expense))
   }
 
   return [...byDate.values()].map((point) => ({
     ...point,
-    profit: point.income - point.expense,
+    profit: subtractMoney(point.income, point.expense),
   }))
 }
 
@@ -191,7 +192,7 @@ export async function getCategoryBreakdown(input: DateRangeInput): Promise<Categ
     ORDER BY amount DESC, c.sort_order ASC, c.id ASC`,
     [input.startDate, input.endDate],
   )
-  const total = rows.reduce((sum, row) => sum + num(row.amount), 0)
+  const total = rows.reduce((sum, row) => addMoney(sum, num(row.amount)), 0)
 
   return rows.map((row) => ({
     categoryId: row.categoryId,

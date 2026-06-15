@@ -25,6 +25,7 @@
 | **UI 组件** | **uni-ui**（官方轻量） | latest | 比 uView Plus 轻 ~60%；5 个核心页够用；后期可补 |
 | **本地数据库** | **plus.sqlite** | 内置 | uni-app 原生 SQLite API，无第三方依赖；性能与稳定性最好 |
 | **日期** | **dayjs** | 1.11.x | 7KB，tree-shakable；处理"日/周/月"分组够用 |
+| **金额精确运算** | **big.js** | 7.0.x | 10KB 任意精度十进制运算；所有金额 `+ - * /` 走 `src/utils/format.ts` 的 5 个 helper（big.js 只在 helper 内部 import，业务侧不直接用）|
 | **图标** | **emoji** | — | 零依赖；支出分类、状态指示用 emoji 即可，v1.1 再换图标库 |
 | **图表** | **纯 CSS 进度条** | — | v1.0 不引图表库；统计页用文字 + CSS 简单条形图，v1.1 再加 uCharts |
 | **构建** | **@dcloudio/vite-plugin-uni** | latest | uni-app 官方 Vite 插件 |
