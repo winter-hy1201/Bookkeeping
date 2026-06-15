@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useExpenseStore } from '../../../stores/expense'
+import type { Expense } from '../../../types/domain'
 import { formatMoney } from '../../../utils/format'
 import { actionSheet, confirmDialog, showToast } from '../../../utils/ui'
 
@@ -32,6 +33,14 @@ function onDateChange(value: string): void {
 
 function goNew(): void {
   uni.navigateTo({ url: '/pages/me/expenses/new' })
+}
+
+function goDetail(id: number): void {
+  uni.navigateTo({ url: `/pages/me/expenses/detail?id=${id}` })
+}
+
+function netExpenseAmount(expense: Expense): number {
+  return Math.max(0, expense.amount - (expense.refund_amount ?? 0))
 }
 
 async function onLongPress(id: number): Promise<void> {
@@ -73,13 +82,17 @@ onShow(() => {
         v-for="expense in expenseStore.list"
         :key="expense.id"
         class="item"
+        @click="goDetail(expense.id)"
         @longpress="onLongPress(expense.id)"
       >
         <view>
           <text class="title">{{ categoryById.get(expense.category_id) ?? `分类 #${expense.category_id}` }}</text>
           <text class="meta">{{ expense.note || '无备注' }}</text>
+          <text v-if="expense.refund_amount > 0" class="meta">
+            支出 {{ formatMoney(expense.amount) }} · 退差 {{ formatMoney(expense.refund_amount) }}
+          </text>
         </view>
-        <text class="amount">{{ formatMoney(expense.amount) }}</text>
+        <text class="amount">{{ formatMoney(netExpenseAmount(expense)) }}</text>
       </view>
     </view>
   </view>

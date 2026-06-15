@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useCustomerStore } from '../../stores/customer'
 import { useOrderStore } from '../../stores/order'
 import type { MealType, Order, OrderStatus } from '../../types/domain'
 import { today } from '../../utils/date'
 import { formatMoney } from '../../utils/format'
-import { mealTypeText, orderDisplayAmount, statusText } from '../../utils/ui'
+import { mealTypeText, orderDisplayAmount, showToast, statusText } from '../../utils/ui'
 
 const orderStore = useOrderStore()
 const customerStore = useCustomerStore()
@@ -20,11 +20,34 @@ interface OrderSection {
   amount: number
 }
 
+interface DragState {
+  mealType: MealType
+  startY: number
+  currentIndex: number
+  originalIndex: number
+  orderId: number
+  changed: boolean
+}
+
 const mealTypes: MealType[] = ['lunch', 'dinner']
+const dragOrders = ref<Order[] | null>(null)
+const dragState = ref<DragState | null>(null)
+const dragSaving = ref(false)
+const dragClickBlockedUntil = ref(0)
+
+const dragItemHeightPx = computed(() => {
+  try {
+    return (uni.getSystemInfoSync().windowWidth / 750) * 132
+  } catch {
+    return 66
+  }
+})
+
+const displayedOrders = computed(() => dragOrders.value ?? orderStore.list)
 
 const orderSections = computed<OrderSection[]>(() =>
   mealTypes.map((type) => {
-    const orders = orderStore.list.filter((order) => order.meal_type === type)
+    const orders = displayedOrders.value.filter((order) => order.meal_type === type)
     const activeOrders = orders.filter((order) => order.status !== 'cancelled')
 
     return {
@@ -35,11 +58,11 @@ const orderSections = computed<OrderSection[]>(() =>
       quantity: activeOrders.reduce((total, order) => total + order.quantity, 0),
       amount: activeOrders.reduce((total, order) => total + order.amount, 0),
     }
-  })
+  }),
 )
 
 const defaultOpenSections = computed(() =>
-  orderSections.value.filter((section) => section.orders.length > 0).map((section) => section.type)
+  orderSections.value.filter((section) => section.orders.length > 0).map((section) => section.type),
 )
 
 function sectionTitle(section: OrderSection): string {
@@ -60,6 +83,105 @@ function orderMetaText(order: Order): string {
   return note ? `${base} · ${note}` : base
 }
 
+function touchY(event: TouchEvent): number | null {
+  return event.touches?.[0]?.clientY ?? event.changedTouches?.[0]?.clientY ?? null
+}
+
+function clampIndex(value: number, length: number): number {
+  return Math.min(Math.max(value, 0), Math.max(length - 1, 0))
+}
+
+function moveOrder(items: Order[], from: number, to: number): Order[] {
+  const next = [...items]
+  const [item] = next.splice(from, 1)
+  if (!item) return items
+  next.splice(to, 0, item)
+  return next
+}
+
+function sectionOrders(type: MealType): Order[] {
+  return displayedOrders.value.filter((order) => order.meal_type === type)
+}
+
+function replaceSectionOrders(type: MealType, orders: Order[]): void {
+  let index = 0
+  const base = dragOrders.value ?? orderStore.list
+  dragOrders.value = base.map((order) => {
+    if (order.meal_type !== type) return order
+    const next = orders[index]
+    index += 1
+    return next ?? order
+  })
+}
+
+function startDrag(event: TouchEvent, mealType: MealType, index: number, orderId: number): void {
+  const orders = sectionOrders(mealType)
+  const startY = touchY(event)
+  if (orders.length <= 1 || startY == null || dragSaving.value) return
+
+  dragOrders.value = [...orderStore.list]
+  dragState.value = {
+    mealType,
+    startY,
+    currentIndex: index,
+    originalIndex: index,
+    orderId,
+    changed: false,
+  }
+}
+
+function handleTouchMove(event: TouchEvent): void {
+  const state = dragState.value
+  if (!state) return
+  const y = touchY(event)
+  if (y == null) return
+
+  const orders = sectionOrders(state.mealType)
+  const targetIndex = clampIndex(
+    state.originalIndex + Math.round((y - state.startY) / dragItemHeightPx.value),
+    orders.length,
+  )
+  if (targetIndex === state.currentIndex) return
+
+  const moved = moveOrder(orders, state.currentIndex, targetIndex)
+  replaceSectionOrders(state.mealType, moved)
+  dragState.value = {
+    ...state,
+    currentIndex: targetIndex,
+    changed: true,
+  }
+}
+
+async function finishDrag(): Promise<void> {
+  const state = dragState.value
+  if (!state || dragSaving.value) return
+
+  dragClickBlockedUntil.value = Date.now() + 350
+  if (!state.changed) {
+    dragState.value = null
+    dragOrders.value = null
+    return
+  }
+
+  const orderedIds = sectionOrders(state.mealType).map((order) => order.id)
+  dragSaving.value = true
+  try {
+    await orderStore.reorder(orderStore.currentDate, state.mealType, orderedIds)
+    showToast('排序已保存')
+  } catch {
+    showToast('排序保存失败')
+    await refresh()
+  } finally {
+    dragSaving.value = false
+    dragState.value = null
+    dragOrders.value = null
+  }
+}
+
+function isDragging(orderId: number): boolean {
+  return dragState.value?.orderId === orderId
+}
+
 async function refresh(): Promise<void> {
   try {
     await Promise.all([orderStore.refreshForDate(orderStore.currentDate), customerStore.refresh()])
@@ -78,6 +200,7 @@ function goNew(): void {
 }
 
 function goDetail(id: number): void {
+  if (dragState.value || Date.now() < dragClickBlockedUntil.value) return
   uni.navigateTo({ url: `/pages/order/detail?id=${id}` })
 }
 
@@ -101,14 +224,14 @@ onShow(() => {
 
     <view v-if="orderStore.loading" class="empty">订单加载中...</view>
     <view v-else-if="orderStore.list.length === 0" class="empty">该日期暂无订单</view>
-    <scroll-view v-else class="list" scroll-y>
+    <scroll-view v-else class="list" scroll-y :bounces="false" :show-scrollbar="false">
       <uni-collapse :value="defaultOpenSections">
         <uni-collapse-item
           v-for="section in orderSections"
           :key="section.type"
           :name="section.type"
         >
-          <template v-slot:title>
+          <template #title>
             <view class="section-title">
               <text class="section-title-text">{{ sectionTitle(section) }}</text>
             </view>
@@ -119,11 +242,25 @@ onShow(() => {
           <template v-else>
             <view class="order-list">
               <view
-                v-for="order in section.orders"
+                v-for="(order, index) in section.orders"
                 :key="order.id"
                 class="order-item"
+                :class="{
+                  'order-item--dragging': isDragging(order.id),
+                  'order-item--saving': dragSaving,
+                }"
+                @touchmove="handleTouchMove"
+                @touchend="finishDrag"
+                @touchcancel="finishDrag"
                 @click="goDetail(order.id)"
               >
+                <view
+                  class="drag-handle"
+                  @click.stop
+                  @longpress.stop="startDrag($event, section.type, index, order.id)"
+                >
+                  <uni-icons type="bars" size="30" color="#8f8f94"></uni-icons>
+                </view>
                 <view class="order-main">
                   <view class="order-title-row">
                     <text class="order-name">{{ customerName(order.customer_id) }}</text>
@@ -133,7 +270,9 @@ onShow(() => {
                     {{ orderMetaText(order) }}
                   </text>
                 </view>
-                <text class="order-amount">{{ orderDisplayAmount(order) }}</text>
+                <view class="order-side">
+                  <text class="order-amount">{{ orderDisplayAmount(order) }}</text>
+                </view>
               </view>
             </view>
           </template>
@@ -145,10 +284,13 @@ onShow(() => {
 
 <style scoped>
 .page {
-  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
   padding: 24rpx;
   background: #f6f7f9;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .toolbar,
@@ -179,7 +321,10 @@ onShow(() => {
 }
 
 .list {
-  height: calc(100vh - 132rpx);
+  flex: 1;
+  height: 0;
+  min-height: 0;
+  overscroll-behavior: contain;
 }
 
 .order-item,
@@ -190,6 +335,16 @@ onShow(() => {
 
 .order-item {
   min-height: 120rpx;
+  gap: 18rpx;
+}
+
+.order-item--dragging {
+  background: #eaf4ff;
+  box-shadow: 0 8rpx 24rpx rgba(0, 122, 255, 0.16);
+}
+
+.order-item--saving {
+  opacity: 0.72;
 }
 
 .order-item + .order-item {
@@ -231,6 +386,21 @@ onShow(() => {
   min-width: 0;
 }
 
+.drag-handle {
+  flex: 0 0 66rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 76rpx;
+}
+
+.order-side {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
 .order-name {
   overflow: hidden;
   color: #222222;
@@ -252,7 +422,6 @@ onShow(() => {
 }
 
 .order-amount {
-  margin-left: 20rpx;
   color: #222222;
   font-size: 30rpx;
   font-weight: 700;

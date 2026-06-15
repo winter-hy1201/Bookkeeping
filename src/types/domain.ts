@@ -37,6 +37,7 @@ export interface Order {
   order_date: string
   meal_type: MealType
   quantity: number
+  sort_order: number
   unit_price: number
   amount: number
   payment_method: PaymentMethod
@@ -61,6 +62,7 @@ export interface Expense {
   expense_date: string
   category_id: number
   amount: number
+  refund_amount: number
   note: string | null
   created_at: string
 }

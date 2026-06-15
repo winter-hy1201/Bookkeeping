@@ -26,6 +26,7 @@
 | A5 | 客户身份 | 1 客户 = 1 微信身份（不支持家庭复合账户） |
 | A6 | 客户默认单价 + 折扣 | ✅ 客户表维护 `default_lunch_price` / `default_dinner_price` 和 `discount_rate`；订单录入时自动填入 `默认价 × 折扣率`，用户可手动覆盖 |
 | A7 | 期初投资 | 不做（假设从今天开始记账） |
+| A8 | 删除策略 | ✅ **硬删除 + 回滚已产生副作用**；例如已配送次卡订单删除时同步扣回次卡 `used_meals`，客户有订单 / 次卡依赖时拒绝删除 |
 
 ---
 
@@ -40,7 +41,7 @@
    └─ 即将用完的次卡提醒（remaining <= 3）
 
 [Tab 2] 订单
-   ├─ 订单列表（默认筛选"今天"，可切日期）
+   ├─ 订单列表（默认筛选"今天"，可切日期；午餐/晚餐内可长按拖拽排序）
    ├─ [+] 新建订单 → 订单录入表单
    └─ 点击订单 → 订单详情（编辑 / 标记已配送 / 取消）
 
@@ -115,6 +116,7 @@ CREATE TABLE orders (
   order_date TEXT NOT NULL,               -- 'YYYY-MM-DD'
   meal_type TEXT NOT NULL,                -- 'lunch' | 'dinner'
   quantity INTEGER NOT NULL DEFAULT 1,    -- 份数
+  sort_order INTEGER NOT NULL DEFAULT 0,  -- 当天同餐次内拖拽排序号，0=未手动排序
   unit_price REAL NOT NULL,               -- 单价（按订单记，避免菜单变价影响历史）
   amount REAL NOT NULL,                   -- 总价 = quantity × unit_price
   payment_method TEXT NOT NULL,           -- 'wechat' | 'cash' | 'meal_card'
@@ -132,6 +134,7 @@ CREATE INDEX idx_orders_customer ON orders(customer_id);
 CREATE INDEX idx_orders_status ON orders(status);
 CREATE INDEX idx_orders_card ON orders(meal_card_id);
 CREATE INDEX idx_orders_date_status ON orders(order_date, status);
+CREATE INDEX idx_orders_date_meal_sort ON orders(order_date, meal_type, sort_order);
 
 -- 支出分类
 CREATE TABLE expense_categories (
@@ -147,7 +150,8 @@ CREATE TABLE expenses (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   expense_date TEXT NOT NULL,
   category_id INTEGER NOT NULL,
-  amount REAL NOT NULL,
+  amount REAL NOT NULL,                    -- 原始支出金额
+  refund_amount REAL NOT NULL DEFAULT 0,   -- 退差金额，统计时冲减支出
   note TEXT,
   created_at TEXT NOT NULL,
   FOREIGN KEY (category_id) REFERENCES expense_categories(id)
@@ -161,10 +165,12 @@ CREATE INDEX idx_expenses_category ON expenses(category_id);
 **orders 表**：
 - `quantity × unit_price = amount` 存冗余（查询时不用每次计算）
 - `unit_price` 记在订单上 → 菜单调价不影响历史订单
+- `sort_order` 只用于订单列表拖拽排序；按 `order_date + meal_type` 分组生效，不参与金额、统计或状态流转
 - `meal_card_id` + `payment_method='meal_card'` 配对 → 次卡订单可追溯
 - `cancelled_at` 独立字段 → 用于审计 / 排查（不再用于次卡返还，因 A1 后次卡扣次移到配送节点）
 
 **customers 表**（A6 调整后）：
+- `name`：应用层按 `trim()` 后精确判重，重复姓名不可新增；编辑时允许保持当前客户原姓名。
 - `default_lunch_price` / `default_dinner_price`：分别记录客户的午餐/晚餐默认单价（可空，空则录入时手动填）
 - `discount_rate`：折扣率，1.0=无折扣，0.9=9 折，0=免单（用于给指定客户折扣价）
 - 订单录入时的单价优先级：**用户手动输入** > 客户默认价 × 折扣率 > 留空让用户填
@@ -184,6 +190,11 @@ CREATE INDEX idx_expenses_category ON expenses(category_id);
 **expense_categories 表**：
 - `is_default=1` 的分类初始化时插入，运行时不可删（防误操作）
 - `icon` 字段 v1 用 emoji（🥬 菜品 / 🔧 工具 / 📦 耗材 / 🛵 配送 / 💰 其他），v1.1 换图标库
+
+**expenses 表**：
+- `amount` 记录原始支出金额，必须大于 0。
+- `refund_amount` 记录退差 / 退款金额，默认 0，允许等于 `amount`，但不可大于 `amount`。
+- 统计口径统一使用 `amount - refund_amount` 作为实际支出；列表和详情页也展示实际支出，避免与统计页对不上。
 
 ### 2.3 初始化数据（首次启动 seed）
 
@@ -379,6 +390,29 @@ INSERT INTO expense_categories (name, icon, sort_order, is_default) VALUES
 
 > 注：次卡收入在开卡时一次性记入，"当日利润"中的"收入" = 当日 orders 金额 + 当日新开次卡金额。
 
+### 4.6 删除与副作用回滚
+
+```
+详情页 → [删除]
+   ↓
+确认弹窗："删除后无法恢复"
+   ↓
+事务：
+  1. 读取当前记录
+  2. 若记录已产生业务副作用，先回滚副作用
+     - 已配送次卡订单：meal_cards.used_meals -= orders.quantity，并按剩余次数恢复 active/depleted
+     - 微信 / 现金订单：删除订单本身即可，统计通过查询自然少算该笔收入
+     - 支出：删除支出本身即可，统计通过查询自然少算该笔支出
+  3. DELETE 当前记录
+  4. COMMIT
+```
+
+**客户删除保护**：
+- 客户被 `orders` 或 `meal_cards` 引用时拒绝删除，避免破坏历史订单、次卡与外键完整性。
+- 无依赖客户才允许硬删除。
+
+**统一原则**：后续所有删除功能默认采用"硬删除 + 回滚已产生副作用"；如果某类数据无法安全回滚，删除入口必须拒绝并给出可读提示。
+
 ---
 
 ## 5. 统计与计算口径
@@ -400,7 +434,7 @@ INSERT INTO expense_categories (name, icon, sort_order, is_default) VALUES
 | **订单数** | COUNT(orders) WHERE status != 'cancelled' AND order_date IN range |
 | **客单价** | 收入 / 订单数 |
 | **份数** | Σ(orders.quantity) WHERE status != 'cancelled' AND order_date IN range |
-| **支出** | Σ(expenses.amount) WHERE expense_date IN range |
+| **支出** | Σ(expenses.amount - expenses.refund_amount) WHERE expense_date IN range |
 | **利润** | 收入 - 支出 |
 | **次卡使用率** | meal_cards.used_meals / meal_cards.total_meals（按卡） |
 | **某客户消费** | Σ(orders.amount) WHERE customer_id=X AND status != 'cancelled' AND order_date IN range |
@@ -546,6 +580,7 @@ INSERT INTO expense_categories (name, icon, sort_order, is_default) VALUES
 | **A5** | 1 客户 = 1 微信身份 | 待确认 |
 | **A6** | 客户默认单价 + 折扣率 | ✅ 已确认 |
 | **A7** | 无期初投资功能 | 待确认 |
+| **A8** | 删除策略 = **硬删除 + 回滚已产生副作用** | ✅ 已确认 |
 
 ### 8.2 产品决策待确认
 

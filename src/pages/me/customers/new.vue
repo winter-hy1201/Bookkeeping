@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AmountInput from '../../../components/AmountInput.vue'
 import { getCustomer } from '../../../api/customers'
+import { DuplicateCustomerNameError } from '../../../api/errors'
 import { useCustomerStore } from '../../../stores/customer'
 import { showToast, toNumber } from '../../../utils/ui'
 
@@ -55,7 +56,7 @@ async function save(): Promise<void> {
   saving.value = true
   try {
     const input = {
-      name: name.value,
+      name: name.value.trim(),
       phone: phone.value.trim() || null,
       wechat: wechat.value.trim() || null,
       default_lunch_price: nullablePrice(lunchPrice.value, lunchTouched.value),
@@ -70,8 +71,12 @@ async function save(): Promise<void> {
     }
     showToast('保存成功')
     uni.navigateBack()
-  } catch {
-    showToast('客户保存失败')
+  } catch (error) {
+    if (error instanceof DuplicateCustomerNameError) {
+      showToast(error.message)
+    } else {
+      showToast('客户保存失败')
+    }
   } finally {
     saving.value = false
   }

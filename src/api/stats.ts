@@ -77,7 +77,7 @@ export async function getRangeSummary(input: DateRangeInput): Promise<StatsSumma
           AND substr(created_at, 1, 10) <= ?
       ) AS cardIncome,
       (
-        SELECT SUM(amount)
+        SELECT SUM(amount - refund_amount)
         FROM expenses
         WHERE expense_date >= ?
           AND expense_date <= ?
@@ -131,7 +131,7 @@ export async function getDailyTrend(input: DateRangeInput): Promise<DailyTrendPo
   const expenseRows = await select<DailyExpenseRow>(
     `SELECT
       expense_date AS date,
-      SUM(amount) AS expense
+      SUM(amount - refund_amount) AS expense
     FROM expenses
     WHERE expense_date >= ?
       AND expense_date <= ?
@@ -171,7 +171,7 @@ export async function getCategoryBreakdown(input: DateRangeInput): Promise<Categ
     `SELECT
       c.id AS categoryId,
       c.name AS categoryName,
-      SUM(e.amount) AS amount
+      SUM(e.amount - e.refund_amount) AS amount
     FROM expenses e
     INNER JOIN expense_categories c ON c.id = e.category_id
     WHERE e.expense_date >= ?

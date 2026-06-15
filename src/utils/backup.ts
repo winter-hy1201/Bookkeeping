@@ -397,7 +397,10 @@ export async function readBackupFile(path: string): Promise<BackupPayload> {
 
 export async function importBackup(payload: BackupPayload): Promise<void> {
   const currentSchemaVersion = await schemaVersion()
-  if (payload.schema_version !== currentSchemaVersion) {
+  const canUpgradeOlderBackup =
+    (payload.schema_version === 1 && currentSchemaVersion === 2) ||
+    ([1, 2].includes(payload.schema_version) && currentSchemaVersion === 3)
+  if (payload.schema_version !== currentSchemaVersion && !canUpgradeOlderBackup) {
     throw new Error('备份文件版本不兼容')
   }
 
@@ -455,17 +458,19 @@ export async function importBackup(payload: BackupPayload): Promise<void> {
     }
 
     for (const item of payload.orders) {
+      const sortOrder = item.sort_order ?? 0
       await exec(
         `INSERT INTO orders (
-          id, customer_id, order_date, meal_type, quantity, unit_price, amount,
+          id, customer_id, order_date, meal_type, quantity, sort_order, unit_price, amount,
           payment_method, meal_card_id, status, note, created_at, updated_at, cancelled_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           item.id,
           item.customer_id,
           item.order_date,
           item.meal_type,
           item.quantity,
+          sortOrder,
           item.unit_price,
           item.amount,
           item.payment_method,
@@ -480,10 +485,20 @@ export async function importBackup(payload: BackupPayload): Promise<void> {
     }
 
     for (const item of payload.expenses) {
+      const refundAmount = item.refund_amount ?? 0
       await exec(
-        `INSERT INTO expenses (id, expense_date, category_id, amount, note, created_at)
-        VALUES (?, ?, ?, ?, ?, ?)`,
-        [item.id, item.expense_date, item.category_id, item.amount, item.note, item.created_at],
+        `INSERT INTO expenses (
+          id, expense_date, category_id, amount, refund_amount, note, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          item.id,
+          item.expense_date,
+          item.category_id,
+          item.amount,
+          refundAmount,
+          item.note,
+          item.created_at,
+        ],
       )
     }
   })

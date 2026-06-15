@@ -9,8 +9,8 @@
 
 - **项目阶段**：**v1.0 已发布**（Phase 1-9 全部完成；9.3 / 9.4 按用户决策跳过，用 HBuilderX 标准基座 debug APK 侧载；CHANGELOG.md v1.0 节已写好）
 - **已建文件**：`docs/archive/PRD-v1.0.md`、`CLAUDE.md`、`AGENTS.md`、`memory-bank/` 活文档、uni-app Vue 3 + Vite + TS 模板、5 张表 DDL + 迁移 + seed + integrity_check + tx() 工具、domain/api 类型、日期/金额/页面/备份工具、完整 API 层、4 个 Pinia store、3 个通用 UI 组件、uni-ui 表单组件、4 个 Tab 与关键子页、App.vue 全局 onError 兜底
-- **DB 状态**：v0 基线（`memory-bank/bookkeeping-v0.db`，CLI sqlite smoke-test 生成）；v1 阶段基线（`memory-bank/bookkeeping-v1.db`，Phase 8 真机 E2E 通过后归档）；业务表齐全、默认分类 5 行、`user_version=1`
-- **最后更新**：2026-06-11
+- **DB 状态**：v0 基线（`memory-bank/bookkeeping-v0.db`，CLI sqlite smoke-test 生成）；v1 阶段基线（`memory-bank/bookkeeping-v1.db`，Phase 8 真机 E2E 通过后归档，`user_version=1`）；当前 schema 版本为 3，新增 `expenses.refund_amount` 退差金额字段与 `orders.sort_order` 同餐次拖拽排序字段，真机下次启动会自动迁移
+- **最后更新**：2026-06-15
 
 ---
 
@@ -92,17 +92,18 @@
 | 文件 | 作用 |
 |---|---|
 | `src/pages/index/index.vue` | Tab 1「今日」Dashboard：`onShow` 刷新 stats/order/customer store，展示订单数、收入、支出、利润，以及待配送 / 已配送 / 已取消三组今日订单；三类状态计数卡片和列表分组用主题色展示。 |
-| `src/pages/order/index.vue` | Tab 2「订单」列表：用 `uni-datetime-picker` 按日期筛选 `orderStore.list`，再用 uni-ui `uni-collapse` 分成午餐 / 晚餐两个折叠面板；面板标题展示该餐次有效订单数、份数、金额，列表项展示客户名、餐次、份数、单价、备注、金额和状态；支持跳转新建订单与订单详情。 |
+| `src/pages/order/index.vue` | Tab 2「订单」列表：用 `uni-datetime-picker` 按日期筛选 `orderStore.list`，再用 uni-ui `uni-collapse` 分成午餐 / 晚餐两个折叠面板；面板标题展示该餐次有效订单数、份数、金额，列表项展示左侧 `uni-icons bars` 拖拽把手、客户名、餐次、份数、单价、备注、金额和状态；支持跳转新建订单与订单详情；长按左侧把手可在当天同餐次内拖拽排序，松手后写回 `orders.sort_order`。 |
 | `src/pages/order/new.vue` | 新建订单表单：CustomerPicker 选客户；日期用 `uni-datetime-picker` 且默认明天，可手动修改；餐次/支付用 `uni-data-checkbox`，份数/备注用 `uni-easyinput`；普通订单按客户默认价 × 折扣率预填，次卡支付时通过 `listCards(customerId)` 汇总所有 active 卡的剩余 / 总次数用于展示，订单仍绑定最新 active 卡，amount=0 且 unit_price=该卡金额/总次数，创建时不扣次。 |
-| `src/pages/order/detail.vue` | 订单详情：按 id 读取单条订单与客户信息；pending 订单可在详情页进入编辑态，修改客户、日期、餐次、份数、价格、支付方式与备注；pending 仍可取消或标记已配送；捕获 `InsufficientCardError` 后按客户默认价 × 折扣率整单改微信/现金再配送，客户无默认价时回退订单原单价。已配送 / 已取消订单保持只读，避免回写次卡扣次或退款状态。 |
+| `src/pages/order/detail.vue` | 订单详情：按 id 读取单条订单与客户信息；pending 订单可在详情页进入编辑态，修改客户、日期、餐次、份数、价格、支付方式与备注；pending 仍可取消或标记已配送；捕获 `InsufficientCardError` 后按客户默认价 × 折扣率整单改微信/现金再配送，客户无默认价时回退订单原单价。已配送 / 已取消订单保持只读，避免回写次卡扣次或退款状态；所有状态均可删除订单，已配送次卡订单删除时由 API 回滚已扣次数。 |
 | `src/pages/stats/index.vue` | Tab 3「统计」：今日/本周/本月/自定义区间切换，自定义日期用 `uni-datetime-picker`；展示收入、支出、利润、订单数、客单价、日趋势 CSS 进度条和支出分类占比。 |
 | `src/pages/me/index.vue` | Tab 4「我的」入口：跳转客户管理、支出管理、备份恢复。 |
 | `src/pages/me/customers/list.vue` | 客户列表：`onShow` 刷新 customer store，前端用 `uni-easyinput` 按姓名/微信/手机号搜索，展示折扣角标，支持新建和详情跳转。 |
-| `src/pages/me/customers/new.vue` | 客户新建/编辑共用页：用 uni-ui 表单组件维护姓名、手机、微信、午餐/晚餐默认价、折扣率、备注；默认价未触碰时保存为 null。 |
-| `src/pages/me/customers/detail.vue` | 客户详情：展示基础信息、active 次卡汇总进度、历史订单；支持编辑和跳转开次卡。次卡区通过 `listCards(customerId)` 汇总所有 active 卡的剩余 / 总次数，避免新开卡后只显示最新一张而像是覆盖旧卡。历史订单通过 `listOrders({ customerId })` 查询。 |
+| `src/pages/me/customers/new.vue` | 客户新建/编辑共用页：用 uni-ui 表单组件维护姓名、手机、微信、午餐/晚餐默认价、折扣率、备注；默认价未触碰时保存为 null；保存时捕获客户姓名重复错误并提示不可重复。 |
+| `src/pages/me/customers/detail.vue` | 客户详情：展示基础信息、active 次卡汇总进度、历史订单；支持编辑、删除和跳转开次卡。删除走 `customerStore.remove()`，客户存在订单或次卡依赖时保持数据并提示不可删除。次卡区通过 `listCards(customerId)` 汇总所有 active 卡的剩余 / 总次数，避免新开卡后只显示最新一张而像是覆盖旧卡。历史订单通过 `listOrders({ customerId })` 查询。 |
 | `src/pages/me/customers/open-card.vue` | 开次卡页：总次数用 `uni-number-box`、金额用 AmountInput，默认 20 次，金额允许为 0；若已有 active 次卡先确认，确认文案按所有 active 卡汇总剩余 / 总次数，确认后仍可新开，旧卡保留。 |
-| `src/pages/me/expenses/list.vue` | 支出列表：用 `uni-datetime-picker` 按日期读取 expense store，展示分类 emoji/名称、金额和备注；长按可删除。 |
-| `src/pages/me/expenses/new.vue` | 新建支出页：日期用 `uni-datetime-picker`、分类用 `uni-data-select`、金额用 AmountInput、备注用 `uni-easyinput`；金额 > 0 且分类已选才可保存。 |
+| `src/pages/me/expenses/list.vue` | 支出列表：用 `uni-datetime-picker` 按日期读取 expense store，展示分类 emoji/名称、实际支出金额和备注；有退差时补充展示原支出金额与退差金额；点击卡片进入支出详情，长按仍可快捷删除。 |
+| `src/pages/me/expenses/new.vue` | 新建支出页：使用 `<uni-forms>` + `<uni-forms-item>` 承载日期、分类、支出金额、退差金额、备注；金额 > 0、分类已选、退差金额不超过支出金额才可保存，实际支出按 `amount - refund_amount` 预览。 |
+| `src/pages/me/expenses/detail.vue` | 支出详情：按 id 读取单条支出与分类；使用 `<uni-forms>` + `<uni-forms-item>` 承载日期、分类、支出金额、退差金额、备注，展示实际支出，支持修改和硬删除；删除后返回列表，保存后按列表当前日期刷新。 |
 | `src/pages/me/settings/backup.vue` | 备份恢复页：导出 JSON 到 `_doc/backup_YYYYMMDD_HHmmss.json` 并复制到 `_downloads/`，toast 展示可见路径，不再调用系统分享；恢复保留 `uni-easyinput` 粘贴 JSON，同时支持从已保存备份列表或本地 JSON 文件读取后全量覆盖导入；危险区三次确认清空客户、订单、次卡和支出，并恢复 5 个默认支出分类。 |
 
 ### components/ — 跨页组件
@@ -119,16 +120,16 @@
 | 文件 | 作用 |
 |---|---|
 | `src/stores/customer.ts` | 客户 store：state 为 `list: Customer[]` / `loading`；getter `byId(id)`；actions `refresh()` / `create(input)` / `update(id, input)` / `remove(id)`。写操作走 `api/customers.ts` 后自动刷新列表，Pinia 只缓存当前视图数据。 |
-| `src/stores/order.ts` | 订单 store：state 为 `list: Order[]` / `currentDate`（默认 `today()`）/ `loading`；actions `setDate(date)` / `refreshForDate(date)` / `create(input)` / `update(id, input)` / `markDelivered(id)` / `cancel(id)`。写操作走 `api/orders.ts`；新建后刷新到订单日期，其他写操作刷新当前日期；`InsufficientCardError` / `AlreadyDeliveredError` 不在 store 层吞掉。 |
-| `src/stores/expense.ts` | 支出 store：state 为 `list: Expense[]` / `categories: ExpenseCategory[]` / `currentDate` / `loading`；actions `refreshForDate(date)` / `refreshCategories()` / `create(input)` / `remove(id)`。分类只读，支出写操作后刷新当前日期列表。 |
+| `src/stores/order.ts` | 订单 store：state 为 `list: Order[]` / `currentDate`（默认 `today()`）/ `loading`；actions `setDate(date)` / `refreshForDate(date)` / `create(input)` / `update(id, input)` / `markDelivered(id)` / `cancel(id)` / `remove(id)` / `reorder(date, mealType, orderedIds)`。写操作走 `api/orders.ts`；新建后刷新到订单日期，其他写操作刷新当前日期；`InsufficientCardError` / `AlreadyDeliveredError` 不在 store 层吞掉。 |
+| `src/stores/expense.ts` | 支出 store：state 为 `list: Expense[]` / `categories: ExpenseCategory[]` / `currentDate` / `loading`；actions `refreshForDate(date)` / `refreshCategories()` / `create(input)` / `update(id, input)` / `remove(id)`。分类只读，支出写操作后刷新当前日期列表。 |
 | `src/stores/stats.ts` | 统计 store：state 为 `summary: StatsSummary \| null` / `trend` / `breakdown` / `range` / `loading`；actions `refreshSummary(date)` / `refreshRange({ start, end })`。区间刷新同时调用 `getRangeSummary`、`getDailyTrend`、`getCategoryBreakdown`。 |
 
 ### db/ — SQLite 数据层
 
 | 文件 | 作用 |
 |---|---|
-| `src/db/schema.ts` | 5 张表 DDL 字符串（`SCHEMA_CUSTOMERS` / `SCHEMA_MEAL_CARDS` / `SCHEMA_ORDERS` / `SCHEMA_EXPENSE_CATEGORIES` / `SCHEMA_EXPENSES`）+ `CURRENT_SCHEMA_VERSION`。字段 / 索引 / CHECK 约束严格对齐 `design-document.md §2.1`，**`meal_cards` 表无 end_date**。 |
-| `src/db/migrations.ts` | 迁移引擎：`MIGRATIONS` 数组（每项一段可独立 SQL）/ `getCurrentVersion()`（读 PRAGMA user_version）/ `setVersion(v)` / `runMigrations()`（从 current 到 MIGRATIONS.length 顺序执行）。**改字段必须新加一段**，不在原段改。 |
+| `src/db/schema.ts` | 5 张表 DDL 字符串（`SCHEMA_CUSTOMERS` / `SCHEMA_MEAL_CARDS` / `SCHEMA_ORDERS` / `SCHEMA_EXPENSE_CATEGORIES` / `SCHEMA_EXPENSES`）+ `CURRENT_SCHEMA_VERSION=3`。字段 / 索引 / CHECK 约束严格对齐 `design-document.md §2.1`；`expenses.refund_amount` 默认 0 并用于冲减统计支出，`orders.sort_order` 用于当天同餐次内拖拽排序；**`meal_cards` 表无 end_date**。 |
+| `src/db/migrations.ts` | 迁移引擎：`MIGRATIONS` 数组（每项一段可独立 SQL）/ `getCurrentVersion()`（读 PRAGMA user_version）/ `setVersion(v)` / `runMigrations()`（从 current 到 MIGRATIONS.length 顺序执行）。当前 v2 迁移追加 `expenses.refund_amount`，v3 迁移追加 `orders.sort_order` 和排序索引；新库建表已包含新字段时，重复 `ADD COLUMN` 会按列存在检查跳过；**改字段必须新加一段**，不在原段改。 |
 | `src/db/seed.ts` | 首次启动 seed：`seedIfEmpty()` 写入 5 个默认支出分类（菜品 🥬 / 工具 🔧 / 耗材 📦 / 配送 🛵 / 其他 💰），is_default=1。仅在 `expense_categories` 行数为 0 时插入，不强制覆盖用户数据。 |
 | `src/db/index.ts` | 数据层入口：`init()` 启动序列（openDatabase → PRAGMA foreign_keys=ON → runMigrations → seedIfEmpty → PRAGMA integrity_check(1)，逐步 await；integrity_check 失败抛错让 `App.vue` 提示用备份恢复）/ `close()` / `tx<T>(fn)`（用 5+ `transaction` 的 begin/commit/rollback 包裹 + 嵌套防护）/ `exec()` / `select()`。5+ 官方 `executeSql` 不支持 args 数组，参数在本文件统一转义；`pify()` 动态调用 SQLite 方法时必须用 `fn.call(sqlite, options)` 保留 `this`；callback 静默不返回时 8 秒超时报错，便于识别 native bridge 缺失。**所有多表写入**（建单 / 取消 / 配送 / 开次卡）必须走 `tx()`。 |
 
@@ -136,13 +137,13 @@
 
 | 文件 | 作用 |
 |---|---|
-| `src/api/customers.ts` | customers 表 CRUD：`listCustomers()` / `getCustomer(id)` / `createCustomer(input)` / `updateCustomer(id, input)` / `deleteCustomer(id)`。`createCustomer` 与 `updateCustomer` 返回最新客户记录；`deleteCustomer` 在客户存在次卡或订单依赖时返回 `false` 并保留数据，避免外键失败。 |
+| `src/api/customers.ts` | customers 表 CRUD：`listCustomers()` / `getCustomer(id)` / `createCustomer(input)` / `updateCustomer(id, input)` / `deleteCustomer(id)`。`createCustomer` 与 `updateCustomer` 返回最新客户记录；创建/改名时按 trim 后姓名判重；`deleteCustomer` 在客户存在次卡或订单依赖时返回 `false` 并保留数据，避免外键失败。 |
 | `src/api/meal-cards.ts` | meal_cards 表基础 API：`getActiveCard(customerId): Promise<MealCardResult \| null>` / `listCards(customerId): Promise<MealCardResult[]>` / `openCard(input: OpenMealCardInput): Promise<MealCardResult>` / `getCard(id): Promise<MealCardResult \| null>`。`openCard` 用 `tx()` 包裹，写入 `used_meals=0`、`status='active'`。 |
-| `src/api/orders.ts` | orders 表与订单流程 API：`listOrders(input: ListOrdersInput): Promise<OrderResult[]>` / `getOrder(id): Promise<OrderResult \| null>` / `createOrder(input: CreateOrderInput): Promise<OrderResult>` / `updateOrder(id, input): Promise<OrderResult>` / `updateOrderStatus(id, status): Promise<OrderResult \| null>` / `updateOrderPayment(id, input): Promise<OrderResult \| null>` / `markDelivered(orderId): Promise<OrderResult>` / `cancelOrder(orderId): Promise<OrderResult \| null>`。`listOrders` 的 `startDate/endDate` 可选，页面可用 `customerId` 查询客户历史订单；`createOrder` 不扣次卡；`updateOrder` 仅允许 pending 订单修改订单字段，次卡仍不在编辑时扣次；`markDelivered` 在配送完成时扣次并在不足时回滚；`cancelOrder` 不返还次卡次。 |
-| `src/api/errors.ts` | API 层业务异常：`InsufficientCardError`（次卡次数不足，供配送异常分支捕获）/ `AlreadyDeliveredError`（已配送订单禁止取消）。 |
+| `src/api/orders.ts` | orders 表与订单流程 API：`listOrders(input: ListOrdersInput): Promise<OrderResult[]>` / `getOrder(id): Promise<OrderResult \| null>` / `createOrder(input: CreateOrderInput): Promise<OrderResult>` / `updateOrder(id, input): Promise<OrderResult>` / `updateOrderStatus(id, status): Promise<OrderResult \| null>` / `updateOrderPayment(id, input): Promise<OrderResult \| null>` / `reorderOrders(input): Promise<void>` / `markDelivered(orderId): Promise<OrderResult>` / `cancelOrder(orderId): Promise<OrderResult \| null>` / `deleteOrder(orderId): Promise<boolean>`。`listOrders` 的 `startDate/endDate` 可选，页面可用 `customerId` 查询客户历史订单，并按 `sort_order` 展示当天同餐次拖拽顺序；`createOrder` 不扣次卡且自动排到同日同餐次末尾；`updateOrder` 仅允许 pending 订单修改订单字段，次卡仍不在编辑时扣次；`reorderOrders` 只更新同日同餐次订单排序号；`markDelivered` 在配送完成时扣次并在不足时回滚；`cancelOrder` 不返还次卡次；`deleteOrder` 硬删除订单，若已配送次卡订单则先回滚 `meal_cards.used_meals` 与状态。 |
+| `src/api/errors.ts` | API 层业务异常：`InsufficientCardError`（次卡次数不足，供配送异常分支捕获）/ `AlreadyDeliveredError`（已配送订单禁止取消）/ `DuplicateCustomerNameError`（客户姓名重复）。 |
 | `src/api/expense-categories.ts` | expense_categories 只读 API：`listCategories(): Promise<ExpenseCategoryResult[]>` / `getCategory(id): Promise<ExpenseCategoryResult \| null>`。v1.0 不暴露分类增删改。 |
-| `src/api/expenses.ts` | expenses 表 CRUD：`listExpenses(input: ListExpensesInput): Promise<ExpenseResult[]>` / `getExpense(id): Promise<ExpenseResult \| null>` / `createExpense(input: CreateExpenseInput): Promise<ExpenseResult>` / `deleteExpense(id): Promise<boolean>`。`createExpense` 用 `tx()` 包裹，`amount <= 0` 按 v1.0 约定拒绝。 |
-| `src/api/stats.ts` | 统计聚合 API：`getDashboardSummary(date): Promise<StatsSummary>` / `getRangeSummary(input: DateRangeInput): Promise<StatsSummary>` / `getDailyTrend(input: DateRangeInput): Promise<DailyTrendPoint[]>` / `getCategoryBreakdown(input: DateRangeInput): Promise<CategoryBreakdown[]>`。收入口径 = 非 cancelled 订单金额 + 开次卡金额；支出口径 = expenses 金额；利润 = 收入 - 支出。 |
+| `src/api/expenses.ts` | expenses 表 CRUD：`listExpenses(input: ListExpensesInput): Promise<ExpenseResult[]>` / `getExpense(id): Promise<ExpenseResult \| null>` / `createExpense(input: CreateExpenseInput): Promise<ExpenseResult>` / `updateExpense(id, input): Promise<ExpenseResult \| null>` / `deleteExpense(id): Promise<boolean>`。`createExpense` / `updateExpense` 用 `tx()` 包裹，`amount <= 0` 拒绝，`refund_amount` 默认为 0 且不可为负或超过 `amount`；`deleteExpense` 硬删除支出。 |
+| `src/api/stats.ts` | 统计聚合 API：`getDashboardSummary(date): Promise<StatsSummary>` / `getRangeSummary(input: DateRangeInput): Promise<StatsSummary>` / `getDailyTrend(input: DateRangeInput): Promise<DailyTrendPoint[]>` / `getCategoryBreakdown(input: DateRangeInput): Promise<CategoryBreakdown[]>`。收入口径 = 非 cancelled 订单金额 + 开次卡金额；支出口径 = `expenses.amount - expenses.refund_amount`；利润 = 收入 - 支出。 |
 
 ### utils/ — 工具函数
 
@@ -151,7 +152,7 @@
 | `src/utils/date.ts` | dayjs 本地时区日期工具：`today()` / `tomorrow()` 返回 `YYYY-MM-DD`；`weekRange(d)` 返回自然周周一到周日；`monthRange(d)` 返回自然月 1 号到月底；`formatDate(d)` 按当前年份显示 `MM-DD` 或 `YYYY-MM-DD`；`daysBetween(a, b)` 返回自然日整数差。 |
 | `src/utils/format.ts` | 金额/百分比格式化工具：`formatMoney(n)` 输出 `¥1,234.50`（空值/非法值为 `¥—`）；`parseMoney(s)` 接受普通数字、`¥`、`￥`、千分位并解析为 number（非法为 0）；`formatPercent(n)` 四舍五入输出整数百分比。 |
 | `src/utils/ui.ts` | 页面层小工具：toast、confirm/actionSheet Promise 化、数值转换、餐次/支付/状态文案、客户默认价 × 折扣价提示、订单金额展示。 |
-| `src/utils/backup.ts` | JSON 备份恢复工具：全表导出 payload、写 `_doc/backup_*.json` 并复制到 `_downloads/`、列出 / 读取沙盒内备份文件、通过 Android 系统文件选择器读取本地 JSON（其他端 fallback 到 `uni.chooseFile`）、解析校验备份 JSON 与 `schema_version`、事务内全量覆盖导入；危险清空会删除业务数据后调用 `seedIfEmpty()` 恢复默认支出分类，避免支出录入页无分类可选。 |
+| `src/utils/backup.ts` | JSON 备份恢复工具：全表导出 payload、写 `_doc/backup_*.json` 并复制到 `_downloads/`、列出 / 读取沙盒内备份文件、通过 Android 系统文件选择器读取本地 JSON（其他端 fallback 到 `uni.chooseFile`）、解析校验备份 JSON 与 `schema_version`、事务内全量覆盖导入；允许旧 v1/v2 备份导入到 v3 时补 `refund_amount=0` / `sort_order=0`；危险清空会删除业务数据后调用 `seedIfEmpty()` 恢复默认支出分类，避免支出录入页无分类可选。 |
 
 ### types/ — TS 类型
 
@@ -175,8 +176,10 @@
 | 次卡按"次"无有效期 | `memory-bank/design-document.md §2.1 §3.2` | meal_cards 无 end_date / expired 状态 |
 | SQLite 是唯一数据源 | `memory-bank/tech-stack.md §7` | 不引 pinia 持久化插件 |
 | 多表写入必走 tx() | `memory-bank/design-document.md §4` | db/index.ts 提供 tx() 工具 |
+| 删除 = 硬删除 + 回滚已产生副作用 | `memory-bank/design-document.md §4.6` | orders / expenses / customers API 与详情页删除入口 |
 | PRAGMA foreign_keys = ON | db/index.ts init() | 维护 customer_id / meal_card_id / category_id 外键完整性 |
 | `user_version` 驱动迁移 | db/migrations.ts | 首次建表=v1；未来加字段在 MIGRATIONS 末尾追加 |
+| 客户姓名应用层判重 | `src/api/customers.ts` / `src/pages/me/customers/new.vue` | 重复姓名不可新增；编辑时允许保持原姓名 |
 | 表单控件统一使用 uni-ui | `src/uni_modules` + 各表单页 | 业务页面不直接使用原生 `input` / `textarea` / `picker` / `radio-group` / `slider`，改用 easycom 的 uni-ui 表单组件 |
 
 ## DB 备份
@@ -259,3 +262,7 @@
 - 2026-06-11：备份恢复 v1.1 小修 — `src/utils/backup.ts` 移除系统分享路径，导出后复制到 `_downloads/` 并返回 `ExportResult`；新增 `listBackupFiles()` / `readBackupFile()` / `pickLocalBackupText()`；`src/pages/me/settings/backup.vue` 保留粘贴 JSON 导入，并新增从已保存备份选择、本地 JSON 文件选择两个入口；本地文件选择在 Android App 端使用系统 Intent，不再依赖 WebView `<input type="file">`。`pnpm type-check` / `pnpm lint` 通过；真机文件路径待 HBuilderX 验证。
 - 2026-06-12：新建订单日期可选 — `src/pages/order/new.vue` 新增日期字段，默认 `tomorrow()` 且可手动修改；`src/stores/order.ts` 新建订单后刷新到该订单日期，避免返回列表仍停在旧日期；`src/utils/date.ts` 新增 `tomorrow()`。
 - 2026-06-13：备份恢复本地文件选择修正 — Android 客户端不支持 WebView `<input type="file">`，`src/pages/me/settings/backup.vue` 移除隐藏 input；`src/utils/backup.ts` 新增 `pickLocalBackupText()`，Android App 端通过系统 Intent 选择 JSON 并用 `ContentResolver.openInputStream()` 读取，其他端 fallback 到 `uni.chooseFile`。
+- 2026-06-15：删除能力补齐 — 订单详情新增硬删除，已配送次卡订单删除时回滚已扣次数；支出列表点击进入新增的支出详情页，详情页支持修改和删除；客户详情新增删除入口，存在订单或次卡依赖时拒绝删除；`design-document.md` 明确后续删除统一采用"硬删除 + 回滚已产生副作用"。
+- 2026-06-15：客户姓名判重 — `src/api/customers.ts` 在创建/改名时按 trim 后姓名检查重复并抛 `DuplicateCustomerNameError`；`src/pages/me/customers/new.vue` 捕获后提示重复姓名不可保存。
+- 2026-06-15：支出退差金额上线 — schema 升级到 v2，`expenses` 新增 `refund_amount` 字段；新建 / 修改支出页补退差金额输入与实际支出预览；统计页支出口径、日趋势和分类占比统一按 `amount - refund_amount` 计算；备份恢复允许 v1 备份导入到 v2 时为旧支出补 0。
+- 2026-06-15：订单列表拖拽排序 — schema 升级到 v3，`orders` 新增 `sort_order` 字段与同日同餐次排序索引；`src/api/orders.ts` 新增 `reorderOrders()`，新订单自动追加到同日同餐次末尾；`src/pages/order/index.vue` 支持长按左侧 `uni-icons bars` 把手在午餐 / 晚餐分组内拖拽排序；备份恢复允许 v1/v2 备份导入到 v3 时为旧订单补 `sort_order=0`。

@@ -49,6 +49,12 @@ export interface UpdateOrderPaymentInput {
   meal_card_id?: null
 }
 
+export interface ReorderOrdersInput {
+  order_date: string
+  meal_type: MealType
+  orderedIds: number[]
+}
+
 export interface ListOrdersInput {
   startDate?: string
   endDate?: string
@@ -60,8 +66,11 @@ export interface CreateExpenseInput {
   expense_date: string
   category_id: number
   amount: number
+  refund_amount?: number
   note?: string | null
 }
+
+export type UpdateExpenseInput = CreateExpenseInput
 
 export interface ListExpensesInput {
   startDate: string

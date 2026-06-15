@@ -1,5 +1,10 @@
 import { exec, select, tx, type PlusSqliteRow } from '../db'
-import type { CreateExpenseInput, ExpenseResult, ListExpensesInput } from '../types/api'
+import type {
+  CreateExpenseInput,
+  ExpenseResult,
+  ListExpensesInput,
+  UpdateExpenseInput,
+} from '../types/api'
 import type { Expense } from '../types/domain'
 
 type ExpenseRow = Expense & PlusSqliteRow
@@ -21,12 +26,22 @@ async function getLastInsertId(): Promise<number> {
   return id
 }
 
-function validateCreateExpenseInput(input: CreateExpenseInput): void {
+function validateExpenseInput(input: CreateExpenseInput): void {
+  if (!input.expense_date) {
+    throw new Error('[expenses] expense_date is required')
+  }
   if (input.category_id <= 0) {
     throw new Error('[expenses] category_id is required')
   }
   if (!Number.isFinite(input.amount) || input.amount <= 0) {
     throw new Error('[expenses] amount must be greater than 0')
+  }
+  const refundAmount = input.refund_amount ?? 0
+  if (!Number.isFinite(refundAmount) || refundAmount < 0) {
+    throw new Error('[expenses] refund_amount must be a non-negative number')
+  }
+  if (refundAmount > input.amount) {
+    throw new Error('[expenses] refund_amount cannot exceed amount')
   }
 }
 
@@ -45,6 +60,7 @@ export async function listExpenses(input: ListExpensesInput): Promise<ExpenseRes
       expense_date,
       category_id,
       amount,
+      refund_amount,
       note,
       created_at
     FROM expenses
@@ -62,6 +78,7 @@ export async function getExpense(id: number): Promise<ExpenseResult | null> {
       expense_date,
       category_id,
       amount,
+      refund_amount,
       note,
       created_at
     FROM expenses
@@ -73,16 +90,24 @@ export async function getExpense(id: number): Promise<ExpenseResult | null> {
 
 export async function createExpense(input: CreateExpenseInput): Promise<ExpenseResult> {
   return tx(async () => {
-    validateCreateExpenseInput(input)
+    validateExpenseInput(input)
     await exec(
       `INSERT INTO expenses (
         expense_date,
         category_id,
         amount,
+        refund_amount,
         note,
         created_at
-      ) VALUES (?, ?, ?, ?, ?)`,
-      [input.expense_date, input.category_id, input.amount, input.note ?? null, nowText()],
+      ) VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        input.expense_date,
+        input.category_id,
+        input.amount,
+        input.refund_amount ?? 0,
+        input.note ?? null,
+        nowText(),
+      ],
     )
 
     const id = await getLastInsertId()
@@ -91,6 +116,37 @@ export async function createExpense(input: CreateExpenseInput): Promise<ExpenseR
       throw new Error('[expenses] inserted expense was not found')
     }
     return expense
+  })
+}
+
+export async function updateExpense(
+  id: number,
+  input: UpdateExpenseInput,
+): Promise<ExpenseResult | null> {
+  return tx(async () => {
+    const existing = await getExpense(id)
+    if (!existing) {
+      return null
+    }
+    validateExpenseInput(input)
+    await exec(
+      `UPDATE expenses
+      SET expense_date = ?,
+        category_id = ?,
+        amount = ?,
+        refund_amount = ?,
+        note = ?
+      WHERE id = ?`,
+      [
+        input.expense_date,
+        input.category_id,
+        input.amount,
+        input.refund_amount ?? 0,
+        input.note ?? null,
+        id,
+      ],
+    )
+    return getExpense(id)
   })
 }
 

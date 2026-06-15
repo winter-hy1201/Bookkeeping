@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS orders (
   order_date TEXT NOT NULL,
   meal_type TEXT NOT NULL CHECK (meal_type IN ('lunch', 'dinner')),
   quantity INTEGER NOT NULL DEFAULT 1,
+  sort_order INTEGER NOT NULL DEFAULT 0,
   unit_price REAL NOT NULL,
   amount REAL NOT NULL,
   payment_method TEXT NOT NULL CHECK (payment_method IN ('wechat', 'cash', 'meal_card')),
@@ -62,6 +63,7 @@ CREATE INDEX IF NOT EXISTS idx_orders_customer ON orders(customer_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_card ON orders(meal_card_id);
 CREATE INDEX IF NOT EXISTS idx_orders_date_status ON orders(order_date, status);
+CREATE INDEX IF NOT EXISTS idx_orders_date_meal_sort ON orders(order_date, meal_type, sort_order);
 `
 
 export const SCHEMA_EXPENSE_CATEGORIES = `
@@ -80,6 +82,7 @@ CREATE TABLE IF NOT EXISTS expenses (
   expense_date TEXT NOT NULL,
   category_id INTEGER NOT NULL,
   amount REAL NOT NULL,
+  refund_amount REAL NOT NULL DEFAULT 0,
   note TEXT,
   created_at TEXT NOT NULL,
   FOREIGN KEY (category_id) REFERENCES expense_categories(id)
@@ -94,4 +97,4 @@ CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category_id);
  *   1. 在 MIGRATIONS 数组末尾追加新的一段 SQL
  *   2. CURRENT_SCHEMA_VERSION += 1
  */
-export const CURRENT_SCHEMA_VERSION = 1
+export const CURRENT_SCHEMA_VERSION = 3

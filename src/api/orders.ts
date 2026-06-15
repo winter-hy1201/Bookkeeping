@@ -3,10 +3,11 @@ import type {
   CreateOrderInput,
   ListOrdersInput,
   OrderResult,
+  ReorderOrdersInput,
   UpdateOrderInput,
   UpdateOrderPaymentInput,
 } from '../types/api'
-import type { Customer, MealCard, Order, OrderStatus } from '../types/domain'
+import type { Customer, MealCard, MealType, Order, OrderStatus } from '../types/domain'
 import { AlreadyDeliveredError, InsufficientCardError } from './errors'
 
 type OrderRow = Order & PlusSqliteRow
@@ -15,6 +16,10 @@ type MealCardRow = MealCard & PlusSqliteRow
 
 interface LastInsertRow extends PlusSqliteRow {
   id: number
+}
+
+interface MaxSortOrderRow extends PlusSqliteRow {
+  max_sort_order: number | null
 }
 
 function nowText(): string {
@@ -28,6 +33,16 @@ async function getLastInsertId(): Promise<number> {
     throw new Error('[orders] failed to read inserted order id')
   }
   return id
+}
+
+async function getNextSortOrder(orderDate: string, mealType: MealType): Promise<number> {
+  const rows = await select<MaxSortOrderRow>(
+    `SELECT MAX(sort_order) AS max_sort_order
+    FROM orders
+    WHERE order_date = ? AND meal_type = ?`,
+    [orderDate, mealType],
+  )
+  return (rows[0]?.max_sort_order ?? 0) + 1
 }
 
 function assertPositiveQuantity(quantity: number): void {
@@ -160,6 +175,7 @@ export async function listOrders(input: ListOrdersInput): Promise<OrderResult[]>
       order_date,
       meal_type,
       quantity,
+      sort_order,
       unit_price,
       amount,
       payment_method,
@@ -171,7 +187,12 @@ export async function listOrders(input: ListOrdersInput): Promise<OrderResult[]>
       cancelled_at
     FROM orders
     ${where.length > 0 ? `WHERE ${where.join(' AND ')}` : ''}
-    ORDER BY order_date DESC, created_at DESC, id DESC`,
+    ORDER BY
+      order_date DESC,
+      meal_type ASC,
+      sort_order ASC,
+      created_at DESC,
+      id DESC`,
     args,
   )
   return rows as OrderResult[]
@@ -185,6 +206,7 @@ export async function getOrder(id: number): Promise<OrderResult | null> {
       order_date,
       meal_type,
       quantity,
+      sort_order,
       unit_price,
       amount,
       payment_method,
@@ -204,6 +226,7 @@ export async function getOrder(id: number): Promise<OrderResult | null> {
 export async function createOrder(input: CreateOrderInput): Promise<OrderResult> {
   return tx(async () => {
     const pricing = await resolveOrderPrice(input)
+    const sortOrder = await getNextSortOrder(input.order_date, input.meal_type)
     const now = nowText()
 
     await exec(
@@ -212,6 +235,7 @@ export async function createOrder(input: CreateOrderInput): Promise<OrderResult>
         order_date,
         meal_type,
         quantity,
+        sort_order,
         unit_price,
         amount,
         payment_method,
@@ -221,12 +245,13 @@ export async function createOrder(input: CreateOrderInput): Promise<OrderResult>
         created_at,
         updated_at,
         cancelled_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, NULL)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, NULL)`,
       [
         input.customer_id,
         input.order_date,
         input.meal_type,
         input.quantity,
+        sortOrder,
         pricing.unitPrice,
         pricing.amount,
         input.payment_method,
@@ -257,6 +282,10 @@ export async function updateOrder(id: number, input: UpdateOrderInput): Promise<
     }
 
     const pricing = await resolveOrderPrice(input)
+    const sortOrder =
+      current.order_date === input.order_date && current.meal_type === input.meal_type
+        ? current.sort_order
+        : await getNextSortOrder(input.order_date, input.meal_type)
 
     await exec(
       `UPDATE orders
@@ -264,6 +293,7 @@ export async function updateOrder(id: number, input: UpdateOrderInput): Promise<
         order_date = ?,
         meal_type = ?,
         quantity = ?,
+        sort_order = ?,
         unit_price = ?,
         amount = ?,
         payment_method = ?,
@@ -276,6 +306,7 @@ export async function updateOrder(id: number, input: UpdateOrderInput): Promise<
         input.order_date,
         input.meal_type,
         input.quantity,
+        sortOrder,
         pricing.unitPrice,
         pricing.amount,
         input.payment_method,
@@ -328,6 +359,21 @@ export async function updateOrderPayment(
       [input.payment_method, input.unit_price, input.amount, nowText(), id],
     )
     return getOrder(id)
+  })
+}
+
+export async function reorderOrders(input: ReorderOrdersInput): Promise<void> {
+  await tx(async () => {
+    for (let index = 0; index < input.orderedIds.length; index += 1) {
+      const orderId = input.orderedIds[index]
+      if (orderId == null) continue
+      await exec(
+        `UPDATE orders
+        SET sort_order = ?, updated_at = ?
+        WHERE id = ? AND order_date = ? AND meal_type = ?`,
+        [index + 1, nowText(), orderId, input.order_date, input.meal_type],
+      )
+    }
   })
 }
 
@@ -401,5 +447,35 @@ export async function cancelOrder(orderId: number): Promise<OrderResult | null> 
     )
 
     return getOrder(orderId)
+  })
+}
+
+export async function deleteOrder(orderId: number): Promise<boolean> {
+  return tx(async () => {
+    const order = await getOrder(orderId)
+    if (!order) {
+      return false
+    }
+
+    if (order.status === 'delivered' && order.payment_method === 'meal_card') {
+      if (order.meal_card_id == null) {
+        throw new Error('[orders] meal_card_id is required for delivered meal card orders')
+      }
+      const card = await getMealCard(order.meal_card_id)
+      if (!card) {
+        throw new Error('[orders] meal card was not found')
+      }
+      const usedMeals = Math.max(0, card.used_meals - order.quantity)
+      const status = usedMeals >= card.total_meals ? 'depleted' : 'active'
+      await exec(
+        `UPDATE meal_cards
+        SET used_meals = ?, status = ?
+        WHERE id = ?`,
+        [usedMeals, status, card.id],
+      )
+    }
+
+    await exec('DELETE FROM orders WHERE id = ?', [orderId])
+    return true
   })
 }

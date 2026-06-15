@@ -25,6 +25,11 @@ import {
   CURRENT_SCHEMA_VERSION,
 } from './schema'
 import { exec, select } from './index'
+import type { PlusSqliteRow } from './index'
+
+interface TableInfoRow extends PlusSqliteRow {
+  name: string
+}
 
 /**
  * 每项是一段**可独立执行**的 SQL（可包含多条 statement，用 `;\n` 分隔）。
@@ -38,9 +43,23 @@ export const MIGRATIONS: string[] = [
     SCHEMA_EXPENSE_CATEGORIES,
     SCHEMA_EXPENSES,
   ].join('\n'),
+  'ALTER TABLE expenses ADD COLUMN refund_amount REAL NOT NULL DEFAULT 0;',
+  [
+    'ALTER TABLE orders ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0',
+    'CREATE INDEX IF NOT EXISTS idx_orders_date_meal_sort ON orders(order_date, meal_type, sort_order)',
+  ].join(';\n'),
   // 未来迁移示例（不要启用）：
   // "ALTER TABLE customers ADD COLUMN wechat_openid TEXT;",
 ]
+
+async function shouldSkipStatement(stmt: string): Promise<boolean> {
+  const match = stmt.match(/^ALTER\s+TABLE\s+(\w+)\s+ADD\s+COLUMN\s+(\w+)/i)
+  if (!match) return false
+
+  const [, tableName, columnName] = match
+  const rows = await select<TableInfoRow>(`PRAGMA table_info(${tableName});`)
+  return rows.some((row) => row.name === columnName)
+}
 
 /** 读 PRAGMA user_version */
 export async function getCurrentVersion(): Promise<number> {
@@ -66,6 +85,7 @@ export async function runMigrations(): Promise<void> {
       .map((s) => s.trim())
       .filter((s) => s.length > 0)
     for (const stmt of statements) {
+      if (await shouldSkipStatement(stmt)) continue
       await exec(stmt)
     }
     await setVersion(i + 1)

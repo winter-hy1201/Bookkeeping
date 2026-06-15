@@ -11,3 +11,10 @@ export class AlreadyDeliveredError extends Error {
     this.name = 'AlreadyDeliveredError'
   }
 }
+
+export class DuplicateCustomerNameError extends Error {
+  constructor(message = '客户姓名已存在，请换一个姓名') {
+    super(message)
+    this.name = 'DuplicateCustomerNameError'
+  }
+}

@@ -216,6 +216,26 @@ async function cancelOrder(): Promise<void> {
   }
 }
 
+async function deleteOrder(): Promise<void> {
+  if (!order.value) return
+  const ok = await confirmDialog(
+    '删除订单？',
+    '删除后无法恢复；已配送次卡订单会回滚已扣次数。',
+  )
+  if (!ok) return
+  try {
+    const deleted = await orderStore.remove(order.value.id)
+    if (!deleted) {
+      showToast('订单不存在')
+      return
+    }
+    showToast('已删除')
+    uni.navigateBack()
+  } catch {
+    showToast('删除失败')
+  }
+}
+
 async function markDelivered(): Promise<void> {
   if (!order.value) return
   try {
@@ -409,6 +429,9 @@ onLoad((query) => {
           <button class="primary" @click="markDelivered">标记已配送</button>
           <button class="danger" @click="cancelOrder">取消订单</button>
         </view>
+        <view class="danger-zone">
+          <button class="danger-outline" @click="deleteOrder">删除订单</button>
+        </view>
       </template>
     </template>
   </scroll-view>
@@ -550,7 +573,8 @@ onLoad((query) => {
 
 .primary,
 .secondary,
-.danger {
+.danger,
+.danger-outline {
   flex: 1;
   border-radius: 12rpx;
   font-size: 30rpx;
@@ -569,6 +593,17 @@ onLoad((query) => {
 .danger {
   background: #ee0a24;
   color: #ffffff;
+}
+
+.danger-zone {
+  margin-top: 20rpx;
+}
+
+.danger-outline {
+  width: 100%;
+  border: 1rpx solid #ffccc7;
+  background: #ffffff;
+  color: #ee0a24;
 }
 
 .empty {

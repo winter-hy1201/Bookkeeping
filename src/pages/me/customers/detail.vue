@@ -4,10 +4,18 @@ import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getCustomer } from '../../../api/customers'
 import { listCards } from '../../../api/meal-cards'
 import { listOrders } from '../../../api/orders'
+import { useCustomerStore } from '../../../stores/customer'
 import type { Customer, MealCard, Order } from '../../../types/domain'
 import { formatMoney, formatPercent } from '../../../utils/format'
-import { mealTypeText, orderDisplayAmount, showToast, statusText } from '../../../utils/ui'
+import {
+  confirmDialog,
+  mealTypeText,
+  orderDisplayAmount,
+  showToast,
+  statusText,
+} from '../../../utils/ui'
 
+const customerStore = useCustomerStore()
 const customerId = ref<number | null>(null)
 const customer = ref<Customer | null>(null)
 const cards = ref<MealCard[]>([])
@@ -60,6 +68,23 @@ function goOpenCard(): void {
   }
 }
 
+async function deleteCustomer(): Promise<void> {
+  if (customerId.value === null) return
+  const ok = await confirmDialog('删除客户？', '删除后无法恢复；已有订单或次卡的客户不能删除。')
+  if (!ok) return
+  try {
+    const deleted = await customerStore.remove(customerId.value)
+    if (!deleted) {
+      showToast('该客户已有订单或次卡，不能删除')
+      return
+    }
+    showToast('已删除')
+    uni.navigateBack()
+  } catch {
+    showToast('删除失败')
+  }
+}
+
 onLoad((query) => {
   const id = Number(query?.id)
   if (Number.isFinite(id) && id > 0) {
@@ -84,7 +109,10 @@ onShow(() => {
           <text class="name">{{ customer.name }}</text>
           <text class="meta">{{ customer.wechat || customer.phone || '未填写联系方式' }}</text>
         </view>
-        <button class="edit" @click="goEdit">编辑</button>
+        <view class="hero-actions">
+          <button class="edit" @click="goEdit">编辑</button>
+          <button class="delete" @click="deleteCustomer">删除</button>
+        </view>
       </view>
 
       <view class="panel">
@@ -198,7 +226,8 @@ onShow(() => {
 }
 
 .edit,
-.small {
+.small,
+.delete {
   margin: 0;
   border-radius: 12rpx;
   background: #007aff;
@@ -208,6 +237,16 @@ onShow(() => {
 
 .small {
   padding: 0 18rpx;
+}
+
+.hero-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 12rpx;
+}
+
+.delete {
+  background: #ee0a24;
 }
 
 .row {

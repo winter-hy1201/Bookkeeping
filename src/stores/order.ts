@@ -1,5 +1,13 @@
 import { defineStore } from 'pinia'
-import { cancelOrder, createOrder, listOrders, markDelivered, updateOrder } from '../api/orders'
+import {
+  cancelOrder,
+  createOrder,
+  deleteOrder,
+  listOrders,
+  markDelivered,
+  reorderOrders,
+  updateOrder,
+} from '../api/orders'
 import type { CreateOrderInput, UpdateOrderInput } from '../types/api'
 import type { Order } from '../types/domain'
 import { today } from '../utils/date'
@@ -53,6 +61,21 @@ export const useOrderStore = defineStore('order', {
     async cancel(id: number): Promise<void> {
       await cancelOrder(id)
       await this.refreshForDate(this.currentDate)
+    },
+
+    async remove(id: number): Promise<boolean> {
+      const deleted = await deleteOrder(id)
+      await this.refreshForDate(this.currentDate)
+      return deleted
+    },
+
+    async reorder(date: string, mealType: Order['meal_type'], orderedIds: number[]): Promise<void> {
+      await reorderOrders({
+        order_date: date,
+        meal_type: mealType,
+        orderedIds,
+      })
+      await this.refreshForDate(date)
     },
   },
 })

@@ -1,4 +1,5 @@
 import { exec, select, tx, type PlusSqliteRow } from '../db'
+import { DuplicateCustomerNameError } from './errors'
 import type { CreateCustomerInput, CustomerResult, UpdateCustomerInput } from '../types/api'
 import type { Customer } from '../types/domain'
 
@@ -88,6 +89,19 @@ async function getCount(sql: string, args: Array<number | string | null>): Promi
   return rows[0]?.count ?? 0
 }
 
+async function assertUniqueCustomerName(name: string, excludeId?: number): Promise<void> {
+  const sql =
+    excludeId === undefined
+      ? 'SELECT COUNT(*) AS count FROM customers WHERE name = ?'
+      : 'SELECT COUNT(*) AS count FROM customers WHERE name = ? AND id != ?'
+  const args: Array<number | string | null> =
+    excludeId === undefined ? [name] : [name, excludeId]
+  const count = await getCount(sql, args)
+  if (count > 0) {
+    throw new DuplicateCustomerNameError()
+  }
+}
+
 export async function listCustomers(): Promise<CustomerResult[]> {
   const rows = await select<CustomerRow>(
     `SELECT
@@ -132,6 +146,8 @@ export async function createCustomer(input: CreateCustomerInput): Promise<Custom
     const customer = normalizeCreateInput(input)
     const now = nowText()
 
+    await assertUniqueCustomerName(customer.name)
+
     await exec(
       `INSERT INTO customers (
         name,
@@ -172,6 +188,11 @@ export async function updateCustomer(
 ): Promise<CustomerResult | null> {
   return tx(async () => {
     const updates = buildUpdatePairs(input)
+    const nameUpdate = updates.find((item) => item.column === 'name')
+
+    if (typeof nameUpdate?.value === 'string') {
+      await assertUniqueCustomerName(nameUpdate.value, id)
+    }
 
     if (updates.length > 0) {
       const assignments = updates.map(({ column }) => `${column} = ?`)
