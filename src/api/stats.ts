@@ -1,7 +1,7 @@
 import dayjs from 'dayjs'
 import { select, type PlusSqliteRow } from '../db'
 import type { CategoryBreakdown, DailyTrendPoint, DateRangeInput, StatsSummary } from '../types/api'
-import { addMoney, subtractMoney } from '../utils/format'
+import { addMoney, roundMoney, subtractMoney } from '../utils/format'
 
 interface SummaryRow extends PlusSqliteRow {
   orderCount: number | null
@@ -106,8 +106,12 @@ export async function getRangeSummary(input: DateRangeInput): Promise<StatsSumma
   )
 
   const row = rows[0]
-  const income = addMoney(num(row?.orderIncome), num(row?.cardIncome))
-  const expense = num(row?.expense)
+  // SQL SUM 出口的 number 可能带 IEEE 754 尾数（首页利润曾出现 0.0000000004），
+  // 所有 SUM 字段先过 roundMoney 再加/减，避免 JS 浮点直接相加。
+  const orderIncome = roundMoney(num(row?.orderIncome))
+  const cardIncome = roundMoney(num(row?.cardIncome))
+  const expense = roundMoney(num(row?.expense))
+  const income = addMoney(orderIncome, cardIncome)
   return {
     orderCount: num(row?.orderCount),
     orderQuantity: num(row?.orderQuantity),
@@ -159,17 +163,17 @@ export async function getDailyTrend(input: DateRangeInput): Promise<DailyTrendPo
   for (const row of orderRows) {
     const point = byDate.get(row.date)
     if (!point) continue
-    point.income = addMoney(point.income, num(row.income))
+    point.income = addMoney(point.income, roundMoney(num(row.income)))
   }
   for (const row of cardRows) {
     const point = byDate.get(row.date)
     if (!point) continue
-    point.income = addMoney(point.income, num(row.income))
+    point.income = addMoney(point.income, roundMoney(num(row.income)))
   }
   for (const row of expenseRows) {
     const point = byDate.get(row.date)
     if (!point) continue
-    point.expense = addMoney(point.expense, num(row.expense))
+    point.expense = addMoney(point.expense, roundMoney(num(row.expense)))
   }
 
   return [...byDate.values()].map((point) => ({
@@ -192,12 +196,15 @@ export async function getCategoryBreakdown(input: DateRangeInput): Promise<Categ
     ORDER BY amount DESC, c.sort_order ASC, c.id ASC`,
     [input.startDate, input.endDate],
   )
-  const total = rows.reduce((sum, row) => addMoney(sum, num(row.amount)), 0)
+  const total = rows.reduce((sum, row) => addMoney(sum, roundMoney(num(row.amount))), 0)
 
-  return rows.map((row) => ({
-    categoryId: row.categoryId,
-    categoryName: row.categoryName,
-    amount: num(row.amount),
-    percentage: total > 0 ? Math.round((num(row.amount) / total) * 100) : 0,
-  }))
+  return rows.map((row) => {
+    const amount = roundMoney(num(row.amount))
+    return {
+      categoryId: row.categoryId,
+      categoryName: row.categoryName,
+      amount,
+      percentage: total > 0 ? Math.round((amount / total) * 100) : 0,
+    }
+  })
 }
