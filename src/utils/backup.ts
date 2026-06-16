@@ -36,33 +36,27 @@ interface PlusIoEntryView {
 type AndroidActivityResultHandler = (request: number, result: number, data: unknown) => void
 
 type AndroidActivity = PlusAndroidInstanceObject & {
-  getContentResolver: () => { openInputStream: (uri: unknown) => PlusAndroidInstanceObject | null }
   onActivityResult?: AndroidActivityResultHandler
   startActivityForResult: (intent: PlusAndroidInstanceObject, requestCode: number) => void
 }
 
 type AndroidIntentClass = PlusAndroidClassObject & {
-  ACTION_GET_CONTENT: string
+  ACTION_OPEN_DOCUMENT: string
   CATEGORY_OPENABLE: string
+  EXTRA_MIME_TYPES: string
   createChooser: (intent: PlusAndroidInstanceObject, title: string) => PlusAndroidInstanceObject
 }
 
 type AndroidIntent = PlusAndroidInstanceObject & {
   addCategory: (category: string) => void
   setType: (type: string) => void
-}
-
-type AndroidTextReader = PlusAndroidInstanceObject & {
-  readLine: () => string | null
-  close: () => void
-}
-
-type AndroidInputStream = PlusAndroidInstanceObject & {
-  close: () => void
+  putExtra: (key: string, value: string[]) => void
 }
 
 type AndroidIntentResult = PlusAndroidInstanceObject & {
-  getData: () => unknown
+  getData: () => PlusAndroidInstanceObject
+  getScheme: () => string | null
+  getPath: () => string | null
 }
 
 function nowStamp(): string {
@@ -205,36 +199,120 @@ async function readFileText(path: string): Promise<string> {
   })
 }
 
-function readAndroidUriText(uri: unknown): string {
-  const activity = plus.android.runtimeMainActivity() as AndroidActivity
-  const resolver = activity.getContentResolver()
-  const inputStream = resolver.openInputStream(uri) as AndroidInputStream | null
-  if (!inputStream) {
-    throw new Error('读取备份文件失败')
-  }
+/**
+ * 读取外部存储文件：先 cp 到 app 沙盒 _doc/ 再用 plus.io 读取。
+ * Java I/O (BufferedReader 等) 在 5+ bridge 里方法注册不全，不可用。
+ */
+async function readExternalFileText(absolutePath: string): Promise<string> {
+  const tempName = `_backup_import_${Date.now()}.json`
 
-  const inputStreamReader = plus.android.newObject('java.io.InputStreamReader', [
-    inputStream,
-    'UTF-8',
-  ])
-  const reader = plus.android.newObject('java.io.BufferedReader', [
-    inputStreamReader,
-  ]) as AndroidTextReader
-  plus.android.importClass(reader)
-  plus.android.importClass(inputStream)
+  // _doc/ 是 5+ 虚拟路径，cp 需要设备真实路径
+  const docRealPath = (plus.io as any).convertLocalFileSystemURL('_doc/') as string
+  const destPath = `${docRealPath}${tempName}`
 
-  const lines: string[] = []
+  const runtime = (plus.android.importClass('java.lang.Runtime') as any).getRuntime()
+  const process = runtime.exec(['cp', absolutePath, destPath]) as any
+  plus.android.importClass(process)
+  process.waitFor()
+
   try {
-    let line = reader.readLine()
-    while (line !== null) {
-      lines.push(String(line))
-      line = reader.readLine()
-    }
+    return await readFileText(`_doc/${tempName}`)
   } finally {
-    reader.close()
-    inputStream.close()
+    // 清理临时文件
+    plus.io.resolveLocalFileSystemURL(`_doc/${tempName}`, (entry) => {
+      ;(entry as any).remove(() => {}, () => {})
+    }, () => {})
   }
-  return lines.join('\n')
+}
+
+/** 将 content:// URI 解析为文件系统绝对路径（参考 MVP upload.js） */
+function resolveUriToPath(
+  main: PlusAndroidInstanceObject,
+  uri: PlusAndroidInstanceObject,
+): string | null {
+  try {
+    const u = uri as any
+    plus.android.importClass(uri)
+    const DocumentsContract = plus.android.importClass(
+      'android.provider.DocumentsContract',
+    ) as any
+    const MediaStore = plus.android.importClass('android.provider.MediaStore') as any
+    const Environment = plus.android.importClass('android.os.Environment') as any
+
+    if (DocumentsContract.isDocumentUri(main, uri)) {
+      const authority = u.getAuthority()
+
+      if (authority === 'com.android.externalstorage.documents') {
+        const docId: string = DocumentsContract.getDocumentId(uri)
+        const [type = '', name = ''] = docId.split(':')
+        if (type === 'primary') {
+          return Environment.getExternalStorageDirectory() + '/' + name
+        }
+        const System = plus.android.importClass('java.lang.System') as any
+        const sdPath = System.getenv('SECONDARY_STORAGE')
+        if (sdPath) return sdPath + '/' + name
+        return null
+      }
+
+      if (authority === 'com.android.providers.downloads.documents') {
+        const docId: string = DocumentsContract.getDocumentId(uri)
+        const [type = '', id = ''] = docId.split(':')
+        if (type === 'raw') return id
+        const ContentUris = plus.android.importClass('android.content.ContentUris') as any
+        const Uri = plus.android.importClass('android.net.Uri') as any
+        const contentUri = ContentUris.withAppendedId(
+          Uri.parse('content://downloads/public_downloads'),
+          parseInt(id, 10),
+        )
+        return getDataColumn(main, contentUri, null, null)
+      }
+
+      if (authority === 'com.android.providers.media.documents') {
+        const docId: string = DocumentsContract.getDocumentId(uri)
+        const [type = '', id = ''] = docId.split(':')
+        let contentUri
+        if (type === 'image') contentUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        else if (type === 'video') contentUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+        else if (type === 'audio') contentUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+        else contentUri = MediaStore.Files.getContentUri('external')
+        return getDataColumn(main, contentUri, '_id=?', [id])
+      }
+    }
+
+    if (u.getScheme() === 'content') {
+      return getDataColumn(main, uri, null, null)
+    }
+    if (u.getScheme() === 'file') {
+      return u.getPath()
+    }
+  } catch (e) {
+    console.error('resolveUriToPath error', e)
+  }
+  return null
+}
+
+/** 通过 ContentResolver.query 拿 _data 列 */
+function getDataColumn(
+  main: PlusAndroidInstanceObject,
+  uri: PlusAndroidInstanceObject,
+  selection: string | null,
+  selectionArgs: string[] | null,
+): string | null {
+  try {
+    const m = main as any
+    plus.android.importClass(m.getContentResolver())
+    const cursor = m.getContentResolver().query(uri, ['_data'], selection, selectionArgs, null) as any
+    plus.android.importClass(cursor)
+    if (cursor && cursor.moveToFirst()) {
+      const idx = cursor.getColumnIndexOrThrow('_data')
+      const result: string = cursor.getString(idx)
+      // 不调 cursor.close()：5+ bridge 不注册 AutoCloseable 方法，靠 GC 回收
+      return result
+    }
+  } catch (e) {
+    console.error('getDataColumn error', e)
+  }
+  return null
 }
 
 function pickAndroidFileText(): Promise<string> {
@@ -245,15 +323,15 @@ function pickAndroidFileText(): Promise<string> {
     }
 
     const Intent = plus.android.importClass('android.content.Intent') as AndroidIntentClass
-    const activity = plus.android.runtimeMainActivity() as AndroidActivity
+    const main = plus.android.runtimeMainActivity() as AndroidActivity
     const requestCode = Date.now() % 65535
-    const previousHandler = activity.onActivityResult
+    const previousHandler = main.onActivityResult
 
     const restoreHandler = () => {
-      activity.onActivityResult = previousHandler
+      main.onActivityResult = previousHandler
     }
 
-    activity.onActivityResult = (request: number, result: number, data: unknown) => {
+    main.onActivityResult = (request: number, result: number, data: unknown) => {
       if (request !== requestCode) {
         previousHandler?.(request, result, data)
         return
@@ -267,7 +345,12 @@ function pickAndroidFileText(): Promise<string> {
         const intentData = data as AndroidIntentResult
         plus.android.importClass(intentData)
         const uri = intentData.getData()
-        resolve(readAndroidUriText(uri))
+        const filePath = resolveUriToPath(main, uri)
+        if (!filePath) {
+          reject(new Error('无法获取文件路径，请检查存储权限'))
+          return
+        }
+        readExternalFileText(filePath).then(resolve).catch(reject)
       } catch (error) {
         reject(error instanceof Error ? error : new Error('读取备份文件失败'))
       }
@@ -276,11 +359,15 @@ function pickAndroidFileText(): Promise<string> {
     try {
       const intent = plus.android.newObject(
         'android.content.Intent',
-        Intent.ACTION_GET_CONTENT,
+        Intent.ACTION_OPEN_DOCUMENT,
       ) as AndroidIntent
       intent.addCategory(Intent.CATEGORY_OPENABLE)
-      intent.setType('*/*')
-      activity.startActivityForResult(Intent.createChooser(intent, '选择备份 JSON 文件'), requestCode)
+      intent.setType('application/json')
+      intent.putExtra(Intent.EXTRA_MIME_TYPES, ['application/json', 'text/plain'])
+      main.startActivityForResult(
+        Intent.createChooser(intent, '选择备份 JSON 文件'),
+        requestCode,
+      )
     } catch {
       restoreHandler()
       reject(new Error('打开文件选择器失败'))
