@@ -9,7 +9,7 @@ import { getOrder, updateOrderPayment } from '../../api/orders'
 import { InsufficientCardError } from '../../api/errors'
 import { useOrderStore } from '../../stores/order'
 import type { Customer, MealCard, MealType, Order, PaymentMethod } from '../../types/domain'
-import { formatMoney } from '../../utils/format'
+import { divideMoney, formatMoney, multiplyMoney } from '../../utils/format'
 import dayjs from 'dayjs'
 import {
   actionSheet,
@@ -53,7 +53,7 @@ const paymentOptions = [
 const canEdit = computed(() => order.value?.status === 'pending')
 const isEditMealCard = computed(() => editPaymentMethod.value === 'meal_card')
 const editTotalAmount = computed(() =>
-  isEditMealCard.value ? 0 : editPrice.value * editQuantity.value,
+  isEditMealCard.value ? 0 : multiplyMoney(editPrice.value, editQuantity.value),
 )
 const canSaveEdit = computed(() => {
   if (
@@ -78,7 +78,7 @@ const fallbackUnitPrice = computed(() => {
 const fallbackAmount = computed(() => {
   const current = order.value
   if (!current) return 0
-  return fallbackUnitPrice.value * current.quantity
+  return multiplyMoney(fallbackUnitPrice.value, current.quantity)
 })
 
 watch([selectedCustomer, editMealType], () => {
@@ -176,7 +176,7 @@ async function saveEdit(): Promise<void> {
   saving.value = true
   try {
     const card = editActiveCard.value
-    const mealCardUnitPrice = card ? card.amount / card.total_meals : undefined
+    const mealCardUnitPrice = card ? divideMoney(card.amount, card.total_meals) : undefined
     const updated = await orderStore.update(order.value.id, {
       customer_id: selectedCustomer.value.id,
       order_date: editDate.value,
@@ -356,7 +356,7 @@ onLoad((query) => {
           次卡 #{{ editActiveCard.id }} 剩
           {{ editActiveCard.total_meals - editActiveCard.used_meals }}/{{
             editActiveCard.total_meals
-          }}，次均 {{ formatMoney(editActiveCard.amount / editActiveCard.total_meals) }}
+          }}，次均 {{ formatMoney(divideMoney(editActiveCard.amount, editActiveCard.total_meals)) }}
         </view>
 
         <view class="field field--top">

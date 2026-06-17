@@ -4,7 +4,7 @@ import { onShow } from '@dcloudio/uni-app'
 import StatCard from '../../components/StatCard.vue'
 import { useStatsStore } from '../../stores/stats'
 import { formatDate, monthRange, today, weekRange } from '../../utils/date'
-import { formatMoney } from '../../utils/format'
+import { divideMoney, formatMoney } from '../../utils/format'
 import { showToast } from '../../utils/ui'
 
 type RangeMode = 'today' | 'week' | 'month' | 'custom'
@@ -17,7 +17,7 @@ const customEnd = ref(today())
 const summary = computed(() => statsStore.summary ?? { orderCount: 0, income: 0, expense: 0, profit: 0 })
 const averageOrder = computed(() => {
   if (summary.value.orderCount <= 0) return '—'
-  return formatMoney(summary.value.income / summary.value.orderCount)
+  return formatMoney(divideMoney(summary.value.income, summary.value.orderCount))
 })
 const maxTrendIncome = computed(() => Math.max(...statsStore.trend.map((item) => item.income), 0))
 const hasTrend = computed(() => statsStore.trend.some((item) => item.income || item.expense))

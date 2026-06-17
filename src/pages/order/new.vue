@@ -6,7 +6,7 @@ import { listCards } from '../../api/meal-cards'
 import { useOrderStore } from '../../stores/order'
 import type { Customer, MealCard, MealType, PaymentMethod } from '../../types/domain'
 import { tomorrow } from '../../utils/date'
-import { formatMoney } from '../../utils/format'
+import { divideMoney, formatMoney, multiplyMoney } from '../../utils/format'
 import { customerPrice, priceHint, showToast, toNumber } from '../../utils/ui'
 
 const orderStore = useOrderStore()
@@ -32,7 +32,7 @@ const paymentOptions = [
 ]
 
 const isMealCard = computed(() => paymentMethod.value === 'meal_card')
-const totalAmount = computed(() => (isMealCard.value ? 0 : actualPrice.value * quantity.value))
+const totalAmount = computed(() => (isMealCard.value ? 0 : multiplyMoney(actualPrice.value, quantity.value)))
 const selectedMealCard = computed(() => activeCards.value[0] ?? null)
 const activeCardSummary = computed(() => {
   const totalMeals = activeCards.value.reduce((sum, card) => sum + card.total_meals, 0)
@@ -114,7 +114,7 @@ async function save(): Promise<void> {
   saving.value = true
   try {
     const card = selectedMealCard.value
-    const mealCardUnitPrice = card ? card.amount / card.total_meals : undefined
+    const mealCardUnitPrice = card ? divideMoney(card.amount, card.total_meals) : undefined
     await orderStore.create({
       customer_id: selectedCustomer.value.id,
       order_date: orderDate.value,
@@ -196,7 +196,7 @@ async function save(): Promise<void> {
         <text class="card-meta">
           当前 {{ activeCardSummary.count }} 张 active 次卡，本单优先使用 #{{
             selectedMealCard.id
-          }}，次均 {{ formatMoney(selectedMealCard.amount / selectedMealCard.total_meals) }}
+          }}，次均 {{ formatMoney(divideMoney(selectedMealCard.amount, selectedMealCard.total_meals)) }}
         </text>
       </view>
 

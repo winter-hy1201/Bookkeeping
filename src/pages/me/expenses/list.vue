@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useExpenseStore } from '../../../stores/expense'
 import type { Expense } from '../../../types/domain'
-import { formatMoney } from '../../../utils/format'
+import { formatMoney, subtractMoney } from '../../../utils/format'
 import { actionSheet, confirmDialog, showToast } from '../../../utils/ui'
 
 const expenseStore = useExpenseStore()
@@ -40,7 +40,7 @@ function goDetail(id: number): void {
 }
 
 function netExpenseAmount(expense: Expense): number {
-  return Math.max(0, expense.amount - (expense.refund_amount ?? 0))
+  return Math.max(0, subtractMoney(expense.amount, expense.refund_amount ?? 0))
 }
 
 async function onLongPress(id: number): Promise<void> {

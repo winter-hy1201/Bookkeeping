@@ -4,7 +4,7 @@ import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getExpense } from '../../../api/expenses'
 import { useExpenseStore } from '../../../stores/expense'
 import type { Expense, ExpenseCategory } from '../../../types/domain'
-import { formatMoney, parseMoney } from '../../../utils/format'
+import { formatMoney, parseMoney, subtractMoney } from '../../../utils/format'
 import { confirmDialog, showToast } from '../../../utils/ui'
 
 interface UniFormsRef {
@@ -63,7 +63,7 @@ const selectedCategory = computed(() =>
 )
 const amountValue = computed(() => parseMoney(form.amount))
 const refundAmountValue = computed(() => parseMoney(form.refund_amount))
-const netAmount = computed(() => Math.max(0, amountValue.value - refundAmountValue.value))
+const netAmount = computed(() => Math.max(0, subtractMoney(amountValue.value, refundAmountValue.value)))
 const canSave = computed(
   () =>
     Boolean(form.expense_date) &&

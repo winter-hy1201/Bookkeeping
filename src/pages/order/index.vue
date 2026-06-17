@@ -5,7 +5,7 @@ import { useCustomerStore } from '../../stores/customer'
 import { useOrderStore } from '../../stores/order'
 import type { MealType, Order, OrderStatus } from '../../types/domain'
 import { today } from '../../utils/date'
-import { formatMoney } from '../../utils/format'
+import { addMoney, formatMoney } from '../../utils/format'
 import { mealTypeText, orderDisplayAmount, showToast, statusText } from '../../utils/ui'
 
 const orderStore = useOrderStore()
@@ -80,7 +80,7 @@ const orderSections = computed<OrderSection[]>(() =>
       orders,
       activeCount: activeOrders.length,
       quantity: activeOrders.reduce((total, order) => total + order.quantity, 0),
-      amount: activeOrders.reduce((total, order) => total + order.amount, 0),
+      amount: activeOrders.reduce((total, order) => addMoney(total, order.amount), 0),
     }
   }),
 )

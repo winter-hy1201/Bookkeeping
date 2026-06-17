@@ -3,7 +3,7 @@ import { computed, reactive, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useExpenseStore } from '../../../stores/expense'
 import { today } from '../../../utils/date'
-import { formatMoney, parseMoney } from '../../../utils/format'
+import { formatMoney, parseMoney, subtractMoney } from '../../../utils/format'
 import { showToast } from '../../../utils/ui'
 
 interface UniFormsRef {
@@ -52,7 +52,7 @@ const categoryOptions = computed(() =>
 )
 const amountValue = computed(() => parseMoney(form.amount))
 const refundAmountValue = computed(() => parseMoney(form.refund_amount))
-const netAmount = computed(() => Math.max(0, amountValue.value - refundAmountValue.value))
+const netAmount = computed(() => Math.max(0, subtractMoney(amountValue.value, refundAmountValue.value)))
 const canSave = computed(
   () =>
     Boolean(form.expense_date) &&
