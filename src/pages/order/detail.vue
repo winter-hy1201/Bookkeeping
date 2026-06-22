@@ -68,6 +68,13 @@ const canSaveEdit = computed(() => {
   if (isEditMealCard.value) return editActiveCard.value !== null
   return editPrice.value >= 0
 })
+const copyInfoText = computed(() => {
+  const current = order.value
+  if (!current) return ''
+  const customerName = customer.value?.name ?? `客户 #${current.customer_id}`
+  const note = current.note?.trim()
+  return [customerName, `${current.quantity}份`, note].filter(Boolean).join(' ')
+})
 
 const fallbackUnitPrice = computed(() => {
   const current = order.value
@@ -234,6 +241,18 @@ async function deleteOrder(): Promise<void> {
   } catch {
     showToast('删除失败')
   }
+}
+
+function copyOrderInfo(): void {
+  if (!copyInfoText.value) {
+    showToast('暂无可复制内容')
+    return
+  }
+  uni.setClipboardData({
+    data: copyInfoText.value,
+    success: () => showToast('已复制'),
+    fail: () => showToast('复制失败'),
+  })
 }
 
 async function markDelivered(): Promise<void> {
@@ -425,9 +444,14 @@ onLoad((query) => {
           >
         </view>
 
-        <view v-if="order.status === 'pending'" class="actions">
-          <button class="primary" @click="markDelivered">标记已配送</button>
-          <button class="danger" @click="cancelOrder">取消订单</button>
+        <view class="actions">
+          <button class="secondary" @click="copyOrderInfo">复制信息</button>
+          <button v-if="order.status === 'pending'" class="primary" @click="markDelivered">
+            标记已配送
+          </button>
+          <button v-if="order.status === 'pending'" class="danger" @click="cancelOrder">
+            取消订单
+          </button>
         </view>
         <view class="danger-zone">
           <button class="danger-outline" @click="deleteOrder">删除订单</button>
@@ -569,6 +593,10 @@ onLoad((query) => {
 .actions {
   display: flex;
   gap: 20rpx;
+}
+
+.actions button {
+  margin: 0;
 }
 
 .primary,
