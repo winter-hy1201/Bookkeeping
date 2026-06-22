@@ -65,3 +65,4 @@
 - 2026-06-16：统计 SUM 出口精度收口：`src/api/stats.ts` 三处 SQL `SUM` 出口的 number（`getRangeSummary` 的 `orderIncome` / `cardIncome` / `expense`、`getDailyTrend` 三组 `income` / `expense`、`getCategoryBreakdown` 的 `amount` / `total`）全部先过 `roundMoney()` 再相加/相减；首页 Dashboard `summary.expense` 之前完全没经过精度处理，顺手把 `summary.income` 也显式 `roundMoney`，与 `addMoney` 配合后两端口径一致。`pnpm type-check` / `pnpm lint` 通过；真机回归待 HBuilderX 验证（首页 8.1 流程 + 统计页 8.5 重点复测）。
 - 2026-06-22：订单详情复制信息：`src/pages/order/detail.vue` 只读态新增「复制信息」按钮，点击后将客户名、订单份数和备注写入系统剪贴板；空备注不写入复制内容，复制成功 / 失败沿用现有 toast 提示。
 - 2026-06-22：配送完成后自动沉底：`src/api/orders.ts` 的 `markDelivered()` 成功配送时同步把订单 `sort_order` 改为同日同餐次最大值 + 1；从订单详情触发配送后，订单列表刷新即可把已配送订单挪到对应餐次最后一位。
+- 2026-06-22：今日午餐全部已配送后自动折叠：`src/pages/order/index.vue` 的午餐 / 晚餐折叠面板改用 `:model-value` 受控；当筛选日期为今天且午餐订单非空并全部为 `delivered` 时，午餐面板默认折叠，晚餐和其他日期保持原展开逻辑。

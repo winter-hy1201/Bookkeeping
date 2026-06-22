@@ -86,8 +86,19 @@ const orderSections = computed<OrderSection[]>(() =>
 )
 
 const defaultOpenSections = computed(() =>
-  orderSections.value.filter((section) => section.orders.length > 0).map((section) => section.type),
+  orderSections.value
+    .filter((section) => section.orders.length > 0 && !shouldCollapseCompletedLunch(section))
+    .map((section) => section.type),
 )
+
+function shouldCollapseCompletedLunch(section: OrderSection): boolean {
+  return (
+    orderStore.currentDate === today() &&
+    section.type === 'lunch' &&
+    section.orders.length > 0 &&
+    section.orders.every((order) => order.status === 'delivered')
+  )
+}
 
 function sectionTitle(section: OrderSection): string {
   return `${section.title} · ${section.activeCount}单 ${section.quantity}份 ${formatMoney(section.amount)}`
@@ -347,7 +358,7 @@ onShow(() => {
       :show-scrollbar="false"
       @scroll="onListScroll"
     >
-      <uni-collapse :value="defaultOpenSections">
+      <uni-collapse :model-value="defaultOpenSections">
         <uni-collapse-item
           v-for="section in orderSections"
           :key="section.type"

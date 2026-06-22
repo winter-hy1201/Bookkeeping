@@ -10,7 +10,7 @@
 - **项目阶段**：**v1.0 已发布**（Phase 1-9 全部完成；9.3 / 9.4 按用户决策跳过，用 HBuilderX 标准基座 debug APK 侧载；CHANGELOG.md v1.0 节已写好）
 - **已建文件**：`docs/archive/PRD-v1.0.md`、`CLAUDE.md`、`AGENTS.md`、`memory-bank/` 活文档、uni-app Vue 3 + Vite + TS 模板、5 张表 DDL + 迁移 + seed + integrity_check + tx() 工具、domain/api 类型、日期/金额/页面/备份工具、完整 API 层、4 个 Pinia store、3 个通用 UI 组件、uni-ui 表单组件、4 个 Tab 与关键子页、App.vue 全局 onError 兜底
 - **DB 状态**：v0 基线（`memory-bank/bookkeeping-v0.db`，CLI sqlite smoke-test 生成）；v1 阶段基线（`memory-bank/bookkeeping-v1.db`，Phase 8 真机 E2E 通过后归档，`user_version=1`）；当前 schema 版本为 3，新增 `expenses.refund_amount` 退差金额字段与 `orders.sort_order` 同餐次拖拽排序字段，真机下次启动会自动迁移
-- **最后更新**：2026-06-15
+- **最后更新**：2026-06-22
 
 ---
 
@@ -92,7 +92,7 @@
 | 文件 | 作用 |
 |---|---|
 | `src/pages/index/index.vue` | Tab 1「今日」Dashboard：`onShow` 刷新 stats/order/customer store，展示订单数、收入、支出、利润，以及待配送 / 已配送 / 已取消三组今日订单；三类状态计数卡片和列表分组用主题色展示。 |
-| `src/pages/order/index.vue` | Tab 2「订单」列表：用 `uni-datetime-picker` 按日期筛选 `orderStore.list`，再用 uni-ui `uni-collapse` 分成午餐 / 晚餐两个折叠面板；面板标题展示该餐次有效订单数、份数、金额，列表项展示左侧 `uni-icons bars` 拖拽把手、客户名、餐次、份数、单价、备注、金额和状态；支持跳转新建订单与订单详情；拖拽把手可在当天同餐次内拖拽排序，松手后写回 `orders.sort_order`；v1.6（2026-06-16）改用**动态 `:scroll-y` 开关 + 边缘自动滚屏**修复滚动冲突：触摸事件下沉到 drag-handle、`@touchstart.stop` 记录 dragIntent、`@touchmove` 跨阈值 10px 激活后 `lockScroll()`（`listScrollable=false` 关闭 scroll-view 滚动能力，绕开 JS 层 preventDefault 在 Android 标准基座不生效的死结）、手指拖到顶/底 64px 内用 `setTimeout(16)` 驱动 `:scroll-top` 程序化滚屏（app-plus 逻辑层无 `requestAnimationFrame`，必须用 setTimeout）并反向修正 `dragState.startY` 让 targetIndex 跟随不错位、`@scroll` 回写真实 scrollTop 规避 `:scroll-top` 受控陷阱。 |
+| `src/pages/order/index.vue` | Tab 2「订单」列表：用 `uni-datetime-picker` 按日期筛选 `orderStore.list`，再用 uni-ui `uni-collapse` 分成午餐 / 晚餐两个折叠面板；面板标题展示该餐次有效订单数、份数、金额，列表项展示左侧 `uni-icons bars` 拖拽把手、客户名、餐次、份数、单价、备注、金额和状态；当筛选日期为今天且午餐分组所有订单均为已配送时，午餐面板默认自动折叠；支持跳转新建订单与订单详情；拖拽把手可在当天同餐次内拖拽排序，松手后写回 `orders.sort_order`；v1.6（2026-06-16）改用**动态 `:scroll-y` 开关 + 边缘自动滚屏**修复滚动冲突：触摸事件下沉到 drag-handle、`@touchstart.stop` 记录 dragIntent、`@touchmove` 跨阈值 10px 激活后 `lockScroll()`（`listScrollable=false` 关闭 scroll-view 滚动能力，绕开 JS 层 preventDefault 在 Android 标准基座不生效的死结）、手指拖到顶/底 64px 内用 `setTimeout(16)` 驱动 `:scroll-top` 程序化滚屏（app-plus 逻辑层无 `requestAnimationFrame`，必须用 setTimeout）并反向修正 `dragState.startY` 让 targetIndex 跟随不错位、`@scroll` 回写真实 scrollTop 规避 `:scroll-top` 受控陷阱。 |
 | `src/pages/order/new.vue` | 新建订单表单：CustomerPicker 选客户；日期用 `uni-datetime-picker` 且默认明天，可手动修改；餐次/支付用 `uni-data-checkbox`，份数/备注用 `uni-easyinput`；普通订单按客户默认价 × 折扣率预填，次卡支付时通过 `listCards(customerId)` 汇总所有 active 卡的剩余 / 总次数用于展示，订单仍绑定最新 active 卡，amount=0 且 unit_price=该卡金额/总次数，创建时不扣次。 |
 | `src/pages/order/detail.vue` | 订单详情：按 id 读取单条订单与客户信息；pending 订单可在详情页进入编辑态，修改客户、日期、餐次、份数、价格、支付方式与备注；pending 仍可取消或标记已配送；捕获 `InsufficientCardError` 后按客户默认价 × 折扣率整单改微信/现金再配送，客户无默认价时回退订单原单价。只读态支持将客户名、订单份数和备注复制到系统剪贴板，便于发给客户或配送核对。已配送 / 已取消订单保持只读，避免回写次卡扣次或退款状态；所有状态均可删除订单，已配送次卡订单删除时由 API 回滚已扣次数。 |
 | `src/pages/stats/index.vue` | Tab 3「统计」：今日/本周/本月/自定义区间切换，自定义日期用 `uni-datetime-picker`；展示收入、支出、利润、订单数、客单价、日趋势 CSS 进度条和支出分类占比。 |
@@ -274,3 +274,4 @@
 - 2026-06-16：统计 SUM 出口精度收口 —— `src/api/stats.ts` 三处 SQL `SUM` 出口的 number 之前在 `getRangeSummary` 的 `expense = num(row?.expense)` 与 `getCategoryBreakdown` 的 `amount: num(row.amount)` 两条路径**完全没**经过 `roundMoney`（income / 利润走 `addMoney` / `subtractMoney` 隐式 `.toFixed(2)` 才保住精度）；本次把 `getRangeSummary` 的 `orderIncome` / `cardIncome` / `expense`、`getDailyTrend` 三组 `income` / `expense`、`getCategoryBreakdown` 的 `amount` / `total` 全部显式 `roundMoney()` 后再相加相减；首页 Dashboard `summary.expense` 与统计页支出分类两个浮点尾数源头修复。`pnpm type-check` / `pnpm lint` 通过；真机回归待 HBuilderX 验证（首页 8.1 流程 + 统计页 8.5 重点复测）。
 - 2026-06-22：订单详情复制信息 — `src/pages/order/detail.vue` 只读态新增「复制信息」按钮，通过 `uni.setClipboardData` 写入客户名、订单份数和备注；空备注不写入复制内容，复制成功 / 失败沿用现有 toast 提示。
 - 2026-06-22：配送完成后自动沉底 — `src/api/orders.ts` 的 `markDelivered()` 成功配送时同步把订单 `sort_order` 更新为同日同餐次最大值 + 1；从订单详情触发配送后，`src/pages/order/index.vue` 重新读取列表即可把该订单排到对应餐次最后。
+- 2026-06-22：今日午餐完成后自动折叠 — `src/pages/order/index.vue` 的默认展开面板改为 `:model-value` 控制；筛选日期为今天且午餐分组所有订单均为 `delivered` 时，午餐面板从默认展开列表中移除。
