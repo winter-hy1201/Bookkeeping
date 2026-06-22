@@ -304,14 +304,17 @@ INSERT INTO expense_categories (name, icon, sort_order, is_default) VALUES
    ↓
 事务：
   1. UPDATE orders SET status='delivered', updated_at=now
-  2. 若 payment_method='meal_card'：
+  2. UPDATE orders SET sort_order = 同日同餐次最大 sort_order + 1
+  3. 若 payment_method='meal_card'：
      - 校验 `used_meals + quantity <= total_meals`（不够则走异常分支）
      - UPDATE meal_cards SET used_meals = used_meals + quantity
      - 若 used_meals >= total_meals → 自动置 status='depleted'
-  3. COMMIT
+  4. COMMIT
    ↓
 提示"已标记配送"，订单从"待配送"列表移除
 ```
+
+注：配送完成后会自动排到订单列表中同日同餐次的最后一位；该行为复用 `orders.sort_order`，不影响金额、统计或次卡扣次口径。
 
 **异常分支（次卡次数不够）**：
 - 弹窗"次卡已用完（或本次份数超剩余），请选择支付方式"

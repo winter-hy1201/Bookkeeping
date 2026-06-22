@@ -392,11 +392,15 @@ export async function markDelivered(orderId: number): Promise<OrderResult> {
       throw new Error('[orders] cancelled order cannot be delivered')
     }
 
+    const sortOrder = await getNextSortOrder(order.order_date, order.meal_type)
+    const now = nowText()
     await exec(
       `UPDATE orders
-      SET status = 'delivered', updated_at = ?
+      SET status = 'delivered',
+        sort_order = ?,
+        updated_at = ?
       WHERE id = ?`,
-      [nowText(), orderId],
+      [sortOrder, now, orderId],
     )
 
     if (order.payment_method === 'meal_card') {

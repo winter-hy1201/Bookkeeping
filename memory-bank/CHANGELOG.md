@@ -255,3 +255,22 @@ v1.4 用 `@longpress` 激活 + `@touchmove` 绑在整个 `order-item` 上，零 
 
 ---
 
+## v1.7（2026-06-22）
+
+订单状态流转补齐配送后的自动排序行为。
+
+### 行为变更
+
+- **配送完成自动沉底**：`src/api/orders.ts` 的 `markDelivered()` 成功把订单从 `pending` 改为 `delivered` 时，同步把该订单 `sort_order` 更新为同日同餐次最大值 + 1。
+- 从 `src/pages/order/detail.vue` 触发配送后返回 `src/pages/order/index.vue`，列表按既有 `sort_order ASC` 重新读取，已配送订单会自动排到对应午餐 / 晚餐分组最后一位。
+
+### 行为说明
+
+- 复用 v1.4 已落地的 `orders.sort_order`，不新增字段、不迁移 schema。
+- 次卡扣次仍发生在配送事务内；若次卡次数不足抛 `InsufficientCardError`，状态和排序都会随事务一起回滚。
+- 排序只影响同日同餐次列表展示，不影响收入、支出、利润、订单数或次卡统计。
+
+### 验证门禁
+
+- 静态质量门禁：`pnpm type-check` 通过；`pnpm lint` 通过。
+- 真机行为：待用户在 HBuilderX 真机验证从订单详情标记配送后返回列表，订单位于对应餐次最后一位。
