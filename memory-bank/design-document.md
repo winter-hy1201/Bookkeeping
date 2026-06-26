@@ -109,6 +109,19 @@ CREATE TABLE meal_cards (
 CREATE INDEX idx_cards_customer ON meal_cards(customer_id);
 CREATE INDEX idx_cards_status ON meal_cards(status);
 
+-- 次卡扣次明细（保留每笔配送实际扣了哪些卡，便于删除回滚）
+CREATE TABLE meal_card_usages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id INTEGER NOT NULL,
+  meal_card_id INTEGER NOT NULL,
+  quantity INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (order_id) REFERENCES orders(id),
+  FOREIGN KEY (meal_card_id) REFERENCES meal_cards(id)
+);
+CREATE INDEX idx_card_usages_order ON meal_card_usages(order_id);
+CREATE INDEX idx_card_usages_card ON meal_card_usages(meal_card_id);
+
 -- 订单
 CREATE TABLE orders (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -120,7 +133,7 @@ CREATE TABLE orders (
   unit_price REAL NOT NULL,               -- 单价（按订单记，避免菜单变价影响历史）
   amount REAL NOT NULL,                   -- 总价 = quantity × unit_price
   payment_method TEXT NOT NULL,           -- 'wechat' | 'cash' | 'meal_card'
-  meal_card_id INTEGER,                -- payment_method='meal_card' 时必填
+  meal_card_id INTEGER,                -- payment_method='meal_card' 时记录首张扣次卡 / 兼容旧数据
   status TEXT NOT NULL DEFAULT 'pending', -- 'pending' | 'delivered' | 'cancelled'
   note TEXT,
   created_at TEXT NOT NULL,
@@ -166,7 +179,7 @@ CREATE INDEX idx_expenses_category ON expenses(category_id);
 - `quantity × unit_price = amount` 存冗余（查询时不用每次计算）
 - `unit_price` 记在订单上 → 菜单调价不影响历史订单
 - `sort_order` 只用于订单列表拖拽排序；按 `order_date + meal_type` 分组生效，不参与金额、统计或状态流转
-- `meal_card_id` + `payment_method='meal_card'` 配对 → 次卡订单可追溯
+- `meal_card_id` + `payment_method='meal_card'` 配对 → 记录本单首张扣次卡 / 兼容 v1-v3 旧数据；精确扣次以 `meal_card_usages` 为准
 - `cancelled_at` 独立字段 → 用于审计 / 排查（不再用于次卡返还，因 A1 后次卡扣次移到配送节点）
 
 **customers 表**（A6 调整后）：
@@ -183,9 +196,14 @@ CREATE INDEX idx_expenses_category ON expenses(category_id);
 
 **meal_cards 表**：
 - `total_meals` 典型 20，亦可 30 / 50；按"次"计费，无有效期
-- `used_meals` 实时维护：**配送完成时** +quantity（A1 调整后，创建订单不扣次；pending 取消不返还）
+- `used_meals` 实时维护：**配送完成时** 按客户所有 active 次卡余额池扣次（A1 调整后，创建订单不扣次；pending 取消不返还）
 - `status` 状态机：active → depleted（次数用完）
 - 不存"剩余金额" → 次卡是固定次数模型，不是储值卡
+
+**meal_card_usages 表**：
+- 每条记录表示某个已配送次卡订单从某张次卡扣了多少次。
+- 支持一单跨多张卡扣次（例如旧卡剩 1 次、新卡剩 18 次、订单 quantity=2 → 两条 usage）。
+- 删除已配送次卡订单时按 usage 精确回滚；旧备份 / 旧库迁移会按历史 `orders.meal_card_id + quantity` 自动补一条 usage。
 
 **expense_categories 表**：
 - `is_default=1` 的分类初始化时插入，运行时不可删（防误操作）
@@ -263,13 +281,13 @@ INSERT INTO expense_categories (name, icon, sort_order, is_default) VALUES
 │ 单价  [¥15.00]                       │
 │ 合计  ¥30.00（自动）                 │
 │ 支付  ○ 微信  ○ 现金  ◉ 次卡         │
-│ 次卡  [次卡 #3 剩余 20/20 ▼]         │
+│ 次卡  [次卡总剩余 20/20]             │
 │ 备注  [____________________]         │
 │         [保存]                       │
 └──────────────────────────────────────┘
    ↓
 事务（一次提交）：
-  1. INSERT INTO orders（payment_method='meal_card' 时填入 meal_card_id）
+  1. INSERT INTO orders（payment_method='meal_card' 时记录参考 meal_card_id；最终扣次以配送时余额池为准）
   2. **不扣次卡次、不检查次卡余额**（A1 调整后，移到配送完成时，见 §4.3）
   3. COMMIT
    ↓
@@ -306,9 +324,12 @@ INSERT INTO expense_categories (name, icon, sort_order, is_default) VALUES
   1. UPDATE orders SET status='delivered', updated_at=now
   2. UPDATE orders SET sort_order = 同日同餐次最大 sort_order + 1
   3. 若 payment_method='meal_card'：
-     - 校验 `used_meals + quantity <= total_meals`（不够则走异常分支）
-     - UPDATE meal_cards SET used_meals = used_meals + quantity
-     - 若 used_meals >= total_meals → 自动置 status='depleted'
+     - 汇总客户所有 active 次卡剩余次数（余额池）
+     - 若总剩余 < quantity → 走异常分支
+     - 按 created_at ASC / id ASC 旧卡优先扣次，允许跨卡扣同一单
+     - 每张被扣的卡写入 meal_card_usages(order_id, meal_card_id, quantity)
+     - UPDATE meal_cards SET used_meals = used_meals + 扣次
+     - 单张卡用完时自动置 status='depleted'
   4. COMMIT
    ↓
 提示"已标记配送"，订单从"待配送"列表移除
@@ -337,6 +358,7 @@ INSERT INTO expense_categories (name, icon, sort_order, is_default) VALUES
         "customers": [...],
         "meal_cards": [...],
         "orders": [...],
+        "meal_card_usages": [...],
         "expense_categories": [...],
         "expenses": [...]
       }
@@ -403,7 +425,7 @@ INSERT INTO expense_categories (name, icon, sort_order, is_default) VALUES
 事务：
   1. 读取当前记录
   2. 若记录已产生业务副作用，先回滚副作用
-     - 已配送次卡订单：meal_cards.used_meals -= orders.quantity，并按剩余次数恢复 active/depleted
+     - 已配送次卡订单：按 meal_card_usages 逐张回滚 used_meals，并按剩余次数恢复 active/depleted
      - 微信 / 现金订单：删除订单本身即可，统计通过查询自然少算该笔收入
      - 支出：删除支出本身即可，统计通过查询自然少算该笔支出
   3. DELETE 当前记录

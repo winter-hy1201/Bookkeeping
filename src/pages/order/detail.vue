@@ -4,7 +4,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import AmountInput from '../../components/AmountInput.vue'
 import CustomerPicker from '../../components/CustomerPicker.vue'
 import { getCustomer } from '../../api/customers'
-import { getActiveCard, getCard } from '../../api/meal-cards'
+import { listCards } from '../../api/meal-cards'
 import { getOrder, updateOrderPayment } from '../../api/orders'
 import { InsufficientCardError } from '../../api/errors'
 import { useOrderStore } from '../../stores/order'
@@ -35,7 +35,7 @@ const editMealType = ref<MealType>('lunch')
 const editQuantity = ref(1)
 const editPrice = ref(0)
 const editPaymentMethod = ref<PaymentMethod>('wechat')
-const editActiveCard = ref<MealCard | null>(null)
+const editActiveCards = ref<MealCard[]>([])
 const editNote = ref('')
 const userEditedPrice = ref(false)
 const initializingEditForm = ref(false)
@@ -54,6 +54,13 @@ const canEdit = computed(() => order.value?.status === 'pending')
 const isEditMealCard = computed(() => editPaymentMethod.value === 'meal_card')
 const editTotalAmount = computed(() =>
   isEditMealCard.value ? 0 : multiplyMoney(editPrice.value, editQuantity.value),
+)
+const cardRemaining = (card: MealCard): number => card.total_meals - card.used_meals
+const editActiveCard = computed(
+  () =>
+    editActiveCards.value.find((card) => cardRemaining(card) >= editQuantity.value) ??
+    editActiveCards.value.find((card) => cardRemaining(card) > 0) ??
+    null,
 )
 const canSaveEdit = computed(() => {
   if (
@@ -101,7 +108,7 @@ watch([selectedCustomer, editMealType], () => {
 watch(editPaymentMethod, async (value) => {
   if (!editing.value || initializingEditForm.value) return
   if (value !== 'meal_card') {
-    editActiveCard.value = null
+    editActiveCards.value = []
     const price = customerPrice(selectedCustomer.value, editMealType.value)
     if (!userEditedPrice.value) editPrice.value = price ?? 0
     return
@@ -125,17 +132,21 @@ async function load(id: number): Promise<void> {
 async function loadEditActiveCard(): Promise<void> {
   if (!selectedCustomer.value) {
     editPaymentMethod.value = 'wechat'
+    editActiveCards.value = []
     showToast('请先选择客户')
     return
   }
   try {
-    editActiveCard.value = await getActiveCard(selectedCustomer.value.id)
+    editActiveCards.value = (await listCards(selectedCustomer.value.id))
+      .filter((card) => card.status === 'active' && cardRemaining(card) > 0)
+      .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id - b.id)
     if (!editActiveCard.value) {
       editPaymentMethod.value = 'wechat'
       showToast('该客户无可用次卡')
     }
   } catch {
     editPaymentMethod.value = 'wechat'
+    editActiveCards.value = []
     showToast('次卡加载失败')
   }
 }
@@ -152,11 +163,11 @@ async function startEdit(): Promise<void> {
   editPaymentMethod.value = order.value.payment_method
   editNote.value = order.value.note ?? ''
   userEditedPrice.value = true
-  editActiveCard.value = null
+  editActiveCards.value = []
 
   try {
-    if (order.value.payment_method === 'meal_card' && order.value.meal_card_id != null) {
-      editActiveCard.value = await getCard(order.value.meal_card_id)
+    if (order.value.payment_method === 'meal_card') {
+      await loadEditActiveCard()
     }
   } catch {
     showToast('次卡加载失败')
@@ -254,7 +265,6 @@ function copyOrderInfo(): void {
     fail: () => showToast('复制失败'),
   })
 }
-
 async function markDelivered(): Promise<void> {
   if (!order.value) return
   try {
@@ -372,10 +382,10 @@ onLoad((query) => {
         </view>
 
         <view v-if="isEditMealCard && editActiveCard" class="card-box">
-          次卡 #{{ editActiveCard.id }} 剩
-          {{ editActiveCard.total_meals - editActiveCard.used_meals }}/{{
-            editActiveCard.total_meals
-          }}，次均 {{ formatMoney(divideMoney(editActiveCard.amount, editActiveCard.total_meals)) }}
+          次卡共剩
+          {{ editActiveCards.reduce((sum, card) => sum + cardRemaining(card), 0) }}/{{
+            editActiveCards.reduce((sum, card) => sum + card.total_meals, 0)
+          }}，参考次均 {{ formatMoney(divideMoney(editActiveCard.amount, editActiveCard.total_meals)) }}
         </view>
 
         <view class="field field--top">

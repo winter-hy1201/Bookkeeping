@@ -66,6 +66,20 @@ CREATE INDEX IF NOT EXISTS idx_orders_date_status ON orders(order_date, status);
 CREATE INDEX IF NOT EXISTS idx_orders_date_meal_sort ON orders(order_date, meal_type, sort_order);
 `
 
+export const SCHEMA_MEAL_CARD_USAGES = `
+CREATE TABLE IF NOT EXISTS meal_card_usages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id INTEGER NOT NULL,
+  meal_card_id INTEGER NOT NULL,
+  quantity INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (order_id) REFERENCES orders(id),
+  FOREIGN KEY (meal_card_id) REFERENCES meal_cards(id)
+);
+CREATE INDEX IF NOT EXISTS idx_card_usages_order ON meal_card_usages(order_id);
+CREATE INDEX IF NOT EXISTS idx_card_usages_card ON meal_card_usages(meal_card_id);
+`
+
 export const SCHEMA_EXPENSE_CATEGORIES = `
 CREATE TABLE IF NOT EXISTS expense_categories (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -97,4 +111,4 @@ CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category_id);
  *   1. 在 MIGRATIONS 数组末尾追加新的一段 SQL
  *   2. CURRENT_SCHEMA_VERSION += 1
  */
-export const CURRENT_SCHEMA_VERSION = 3
+export const CURRENT_SCHEMA_VERSION = 4

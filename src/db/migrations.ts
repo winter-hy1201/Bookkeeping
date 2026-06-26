@@ -19,6 +19,7 @@
 import {
   SCHEMA_CUSTOMERS,
   SCHEMA_MEAL_CARDS,
+  SCHEMA_MEAL_CARD_USAGES,
   SCHEMA_ORDERS,
   SCHEMA_EXPENSE_CATEGORIES,
   SCHEMA_EXPENSES,
@@ -40,6 +41,7 @@ export const MIGRATIONS: string[] = [
     SCHEMA_CUSTOMERS,
     SCHEMA_MEAL_CARDS,
     SCHEMA_ORDERS,
+    SCHEMA_MEAL_CARD_USAGES,
     SCHEMA_EXPENSE_CATEGORIES,
     SCHEMA_EXPENSES,
   ].join('\n'),
@@ -47,6 +49,18 @@ export const MIGRATIONS: string[] = [
   [
     'ALTER TABLE orders ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0',
     'CREATE INDEX IF NOT EXISTS idx_orders_date_meal_sort ON orders(order_date, meal_type, sort_order)',
+  ].join(';\n'),
+  [
+    SCHEMA_MEAL_CARD_USAGES,
+    `INSERT INTO meal_card_usages (order_id, meal_card_id, quantity, created_at)
+      SELECT id, meal_card_id, quantity, updated_at
+      FROM orders
+      WHERE status = 'delivered'
+        AND payment_method = 'meal_card'
+        AND meal_card_id IS NOT NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM meal_card_usages WHERE meal_card_usages.order_id = orders.id
+        )`,
   ].join(';\n'),
   // 未来迁移示例（不要启用）：
   // "ALTER TABLE customers ADD COLUMN wechat_openid TEXT;",

@@ -33,7 +33,13 @@ const paymentOptions = [
 
 const isMealCard = computed(() => paymentMethod.value === 'meal_card')
 const totalAmount = computed(() => (isMealCard.value ? 0 : multiplyMoney(actualPrice.value, quantity.value)))
-const selectedMealCard = computed(() => activeCards.value[0] ?? null)
+const cardRemaining = (card: MealCard): number => card.total_meals - card.used_meals
+const selectedMealCard = computed(
+  () =>
+    activeCards.value.find((card) => cardRemaining(card) >= quantity.value) ??
+    activeCards.value.find((card) => cardRemaining(card) > 0) ??
+    null,
+)
 const activeCardSummary = computed(() => {
   const totalMeals = activeCards.value.reduce((sum, card) => sum + card.total_meals, 0)
   const usedMeals = activeCards.value.reduce((sum, card) => sum + card.used_meals, 0)
@@ -83,9 +89,9 @@ async function loadActiveCard(): Promise<void> {
     return
   }
   try {
-    activeCards.value = (await listCards(selectedCustomer.value.id)).filter(
-      (card) => card.status === 'active',
-    )
+    activeCards.value = (await listCards(selectedCustomer.value.id))
+      .filter((card) => card.status === 'active' && cardRemaining(card) > 0)
+      .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id - b.id)
     if (activeCards.value.length === 0) {
       paymentMethod.value = 'wechat'
       showToast('该客户无可用次卡')
@@ -194,9 +200,8 @@ async function save(): Promise<void> {
           次卡共剩 {{ activeCardSummary.remainingMeals }}/{{ activeCardSummary.totalMeals }}
         </text>
         <text class="card-meta">
-          当前 {{ activeCardSummary.count }} 张 active 次卡，本单优先使用 #{{
-            selectedMealCard.id
-          }}，次均 {{ formatMoney(divideMoney(selectedMealCard.amount, selectedMealCard.total_meals)) }}
+          当前 {{ activeCardSummary.count }} 张 active 次卡，参考次均
+          {{ formatMoney(divideMoney(selectedMealCard.amount, selectedMealCard.total_meals)) }}
         </text>
       </view>
 

@@ -31,6 +31,14 @@ export interface MealCard {
   created_at: string
 }
 
+export interface MealCardUsage {
+  id: number
+  order_id: number
+  meal_card_id: number
+  quantity: number
+  created_at: string
+}
+
 export interface Order {
   id: number
   customer_id: number

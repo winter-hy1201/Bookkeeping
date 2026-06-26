@@ -7,13 +7,14 @@ import type {
   UpdateOrderInput,
   UpdateOrderPaymentInput,
 } from '../types/api'
-import type { Customer, MealCard, MealType, Order, OrderStatus } from '../types/domain'
+import type { Customer, MealCard, MealCardUsage, MealType, Order, OrderStatus } from '../types/domain'
 import { divideMoney, multiplyMoney } from '../utils/format'
 import { AlreadyDeliveredError, InsufficientCardError } from './errors'
 
 type OrderRow = Order & PlusSqliteRow
 type CustomerRow = Customer & PlusSqliteRow
 type MealCardRow = MealCard & PlusSqliteRow
+type MealCardUsageRow = MealCardUsage & PlusSqliteRow
 
 interface LastInsertRow extends PlusSqliteRow {
   id: number
@@ -95,6 +96,120 @@ async function getMealCard(cardId: number): Promise<MealCard | null> {
   return (rows[0] as MealCard | undefined) ?? null
 }
 
+async function listUsableMealCards(customerId: number): Promise<MealCard[]> {
+  const rows = await select<MealCardRow>(
+    `SELECT
+      id,
+      customer_id,
+      total_meals,
+      used_meals,
+      amount,
+      status,
+      created_at
+    FROM meal_cards
+    WHERE customer_id = ? AND status = 'active' AND used_meals < total_meals
+    ORDER BY created_at ASC, id ASC`,
+    [customerId],
+  )
+  return rows as MealCard[]
+}
+
+async function listMealCardUsages(orderId: number): Promise<MealCardUsage[]> {
+  const rows = await select<MealCardUsageRow>(
+    `SELECT
+      id,
+      order_id,
+      meal_card_id,
+      quantity,
+      created_at
+    FROM meal_card_usages
+    WHERE order_id = ?
+    ORDER BY id ASC`,
+    [orderId],
+  )
+  return rows as MealCardUsage[]
+}
+
+async function consumeMealCards(order: Order, now: string): Promise<void> {
+  const cards = await listUsableMealCards(order.customer_id)
+  let remainingQuantity = order.quantity
+  let firstCardId: number | null = null
+
+  for (const card of cards) {
+    if (remainingQuantity <= 0) break
+    const available = card.total_meals - card.used_meals
+    if (available <= 0) continue
+    const quantity = Math.min(available, remainingQuantity)
+    const usedMeals = card.used_meals + quantity
+    const status = usedMeals >= card.total_meals ? 'depleted' : 'active'
+
+    if (firstCardId == null) firstCardId = card.id
+    await exec(
+      `UPDATE meal_cards
+      SET used_meals = ?, status = ?
+      WHERE id = ?`,
+      [usedMeals, status, card.id],
+    )
+    await exec(
+      `INSERT INTO meal_card_usages (order_id, meal_card_id, quantity, created_at)
+      VALUES (?, ?, ?, ?)`,
+      [order.id, card.id, quantity, now],
+    )
+    remainingQuantity -= quantity
+  }
+
+  if (remainingQuantity > 0 || firstCardId == null) {
+    throw new InsufficientCardError()
+  }
+
+  if (order.meal_card_id !== firstCardId) {
+    await exec(
+      `UPDATE orders
+      SET meal_card_id = ?, updated_at = ?
+      WHERE id = ?`,
+      [firstCardId, now, order.id],
+    )
+  }
+}
+
+async function rollbackMealCardUsages(order: Order): Promise<void> {
+  const usages = await listMealCardUsages(order.id)
+  if (usages.length === 0) {
+    if (order.meal_card_id == null) {
+      throw new Error('[orders] meal_card_id is required for delivered meal card orders')
+    }
+    const card = await getMealCard(order.meal_card_id)
+    if (!card) {
+      throw new Error('[orders] meal card was not found')
+    }
+    const usedMeals = Math.max(0, card.used_meals - order.quantity)
+    const status = usedMeals >= card.total_meals ? 'depleted' : 'active'
+    await exec(
+      `UPDATE meal_cards
+      SET used_meals = ?, status = ?
+      WHERE id = ?`,
+      [usedMeals, status, card.id],
+    )
+    return
+  }
+
+  for (const usage of usages) {
+    const card = await getMealCard(usage.meal_card_id)
+    if (!card) {
+      throw new Error('[orders] meal card usage card was not found')
+    }
+    const usedMeals = Math.max(0, card.used_meals - usage.quantity)
+    const status = usedMeals >= card.total_meals ? 'depleted' : 'active'
+    await exec(
+      `UPDATE meal_cards
+      SET used_meals = ?, status = ?
+      WHERE id = ?`,
+      [usedMeals, status, card.id],
+    )
+  }
+  await exec('DELETE FROM meal_card_usages WHERE order_id = ?', [order.id])
+}
+
 async function resolveOrderPrice(input: CreateOrderInput): Promise<{
   unitPrice: number
   amount: number
@@ -112,6 +227,9 @@ async function resolveOrderPrice(input: CreateOrderInput): Promise<{
     }
     if (card.customer_id !== input.customer_id) {
       throw new Error('[orders] meal card does not belong to the customer')
+    }
+    if (card.status !== 'active') {
+      throw new Error('[orders] meal card is not active')
     }
     if (card.total_meals <= 0) {
       throw new Error('[orders] meal card total_meals is invalid')
@@ -404,24 +522,7 @@ export async function markDelivered(orderId: number): Promise<OrderResult> {
     )
 
     if (order.payment_method === 'meal_card') {
-      if (order.meal_card_id == null) {
-        throw new Error('[orders] meal_card_id is required for meal card orders')
-      }
-      const card = await getMealCard(order.meal_card_id)
-      if (!card) {
-        throw new Error('[orders] meal card was not found')
-      }
-      const usedMeals = card.used_meals + order.quantity
-      if (usedMeals > card.total_meals) {
-        throw new InsufficientCardError()
-      }
-      const status = usedMeals >= card.total_meals ? 'depleted' : 'active'
-      await exec(
-        `UPDATE meal_cards
-        SET used_meals = ?, status = ?
-        WHERE id = ?`,
-        [usedMeals, status, card.id],
-      )
+      await consumeMealCards(order, now)
     }
 
     const updated = await getOrder(orderId)
@@ -464,23 +565,10 @@ export async function deleteOrder(orderId: number): Promise<boolean> {
     }
 
     if (order.status === 'delivered' && order.payment_method === 'meal_card') {
-      if (order.meal_card_id == null) {
-        throw new Error('[orders] meal_card_id is required for delivered meal card orders')
-      }
-      const card = await getMealCard(order.meal_card_id)
-      if (!card) {
-        throw new Error('[orders] meal card was not found')
-      }
-      const usedMeals = Math.max(0, card.used_meals - order.quantity)
-      const status = usedMeals >= card.total_meals ? 'depleted' : 'active'
-      await exec(
-        `UPDATE meal_cards
-        SET used_meals = ?, status = ?
-        WHERE id = ?`,
-        [usedMeals, status, card.id],
-      )
+      await rollbackMealCardUsages(order)
     }
 
+    await exec('DELETE FROM meal_card_usages WHERE order_id = ?', [orderId])
     await exec('DELETE FROM orders WHERE id = ?', [orderId])
     return true
   })

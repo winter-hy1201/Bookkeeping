@@ -1,6 +1,13 @@
 import { exec, select, tx, type PlusSqliteRow } from '../db'
 import { seedIfEmpty } from '../db/seed'
-import type { Customer, Expense, ExpenseCategory, MealCard, Order } from '../types/domain'
+import type {
+  Customer,
+  Expense,
+  ExpenseCategory,
+  MealCard,
+  MealCardUsage,
+  Order,
+} from '../types/domain'
 
 const BACKUP_VERSION = '1.0'
 
@@ -10,6 +17,7 @@ interface BackupPayload {
   schema_version: number
   customers: Customer[]
   meal_cards: MealCard[]
+  meal_card_usages?: MealCardUsage[]
   orders: Order[]
   expense_categories: ExpenseCategory[]
   expenses: Expense[]
@@ -21,6 +29,7 @@ interface VersionRow extends PlusSqliteRow {
 
 type CustomerRow = Customer & PlusSqliteRow
 type MealCardRow = MealCard & PlusSqliteRow
+type MealCardUsageRow = MealCardUsage & PlusSqliteRow
 type OrderRow = Order & PlusSqliteRow
 type ExpenseCategoryRow = ExpenseCategory & PlusSqliteRow
 type ExpenseRow = Expense & PlusSqliteRow
@@ -73,14 +82,16 @@ async function schemaVersion(): Promise<number> {
 }
 
 export async function buildBackupPayload(): Promise<BackupPayload> {
-  const [version, customers, mealCards, orders, expenseCategories, expenses] = await Promise.all([
-    schemaVersion(),
-    select<CustomerRow>('SELECT * FROM customers ORDER BY id ASC'),
-    select<MealCardRow>('SELECT * FROM meal_cards ORDER BY id ASC'),
-    select<OrderRow>('SELECT * FROM orders ORDER BY id ASC'),
-    select<ExpenseCategoryRow>('SELECT * FROM expense_categories ORDER BY id ASC'),
-    select<ExpenseRow>('SELECT * FROM expenses ORDER BY id ASC'),
-  ])
+  const [version, customers, mealCards, mealCardUsages, orders, expenseCategories, expenses] =
+    await Promise.all([
+      schemaVersion(),
+      select<CustomerRow>('SELECT * FROM customers ORDER BY id ASC'),
+      select<MealCardRow>('SELECT * FROM meal_cards ORDER BY id ASC'),
+      select<MealCardUsageRow>('SELECT * FROM meal_card_usages ORDER BY id ASC'),
+      select<OrderRow>('SELECT * FROM orders ORDER BY id ASC'),
+      select<ExpenseCategoryRow>('SELECT * FROM expense_categories ORDER BY id ASC'),
+      select<ExpenseRow>('SELECT * FROM expenses ORDER BY id ASC'),
+    ])
 
   return {
     version: BACKUP_VERSION,
@@ -88,6 +99,7 @@ export async function buildBackupPayload(): Promise<BackupPayload> {
     schema_version: version,
     customers: customers as Customer[],
     meal_cards: mealCards as MealCard[],
+    meal_card_usages: mealCardUsages as MealCardUsage[],
     orders: orders as Order[],
     expense_categories: expenseCategories as ExpenseCategory[],
     expenses: expenses as Expense[],
@@ -104,6 +116,9 @@ function ensureBackupPayload(value: unknown): BackupPayload {
     payload.expenses,
   ]
   if (payload.version !== BACKUP_VERSION || arrays.some((item) => !Array.isArray(item))) {
+    throw new Error('备份文件版本不兼容或格式无效')
+  }
+  if (payload.meal_card_usages !== undefined && !Array.isArray(payload.meal_card_usages)) {
     throw new Error('备份文件版本不兼容或格式无效')
   }
   if (typeof payload.schema_version !== 'number') {
@@ -485,13 +500,13 @@ export async function readBackupFile(path: string): Promise<BackupPayload> {
 export async function importBackup(payload: BackupPayload): Promise<void> {
   const currentSchemaVersion = await schemaVersion()
   const canUpgradeOlderBackup =
-    (payload.schema_version === 1 && currentSchemaVersion === 2) ||
-    ([1, 2].includes(payload.schema_version) && currentSchemaVersion === 3)
+    payload.schema_version >= 1 && payload.schema_version < currentSchemaVersion
   if (payload.schema_version !== currentSchemaVersion && !canUpgradeOlderBackup) {
     throw new Error('备份文件版本不兼容')
   }
 
   await tx(async () => {
+    await exec('DELETE FROM meal_card_usages')
     await exec('DELETE FROM orders')
     await exec('DELETE FROM expenses')
     await exec('DELETE FROM meal_cards')
@@ -571,6 +586,31 @@ export async function importBackup(payload: BackupPayload): Promise<void> {
       )
     }
 
+    const mealCardUsages =
+      payload.meal_card_usages ??
+      payload.orders
+        .filter(
+          (item) =>
+            item.status === 'delivered' &&
+            item.payment_method === 'meal_card' &&
+            item.meal_card_id != null,
+        )
+        .map((item, index) => ({
+          id: index + 1,
+          order_id: item.id,
+          meal_card_id: item.meal_card_id as number,
+          quantity: item.quantity,
+          created_at: item.updated_at,
+        }))
+
+    for (const item of mealCardUsages) {
+      await exec(
+        `INSERT INTO meal_card_usages (id, order_id, meal_card_id, quantity, created_at)
+        VALUES (?, ?, ?, ?, ?)`,
+        [item.id, item.order_id, item.meal_card_id, item.quantity, item.created_at],
+      )
+    }
+
     for (const item of payload.expenses) {
       const refundAmount = item.refund_amount ?? 0
       await exec(
@@ -593,6 +633,7 @@ export async function importBackup(payload: BackupPayload): Promise<void> {
 
 export async function clearAllData(): Promise<void> {
   await tx(async () => {
+    await exec('DELETE FROM meal_card_usages')
     await exec('DELETE FROM orders')
     await exec('DELETE FROM expenses')
     await exec('DELETE FROM meal_cards')
