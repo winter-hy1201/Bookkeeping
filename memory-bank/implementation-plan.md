@@ -6,6 +6,41 @@
 
 ---
 
+## 10. 次卡充值记录与总次数校正（2026-07-14）
+
+> 设计基线：`docs/superpowers/specs/2026-07-14-meal-card-recharge-records-design.md`
+
+### Step 10.1 — 次卡总次数修改 API `[x]`
+
+- `src/types/api.ts` 增加 `UpdateMealCardTotalInput`。
+- `src/api/errors.ts` 增加 `MealCardTotalTooSmallError`。
+- `src/api/meal-cards.ts` 增加 `updateCardTotalMeals()`，事务内校验下限并同步 `active/depleted`。
+
+### Step 10.2 — 充值记录入口与列表 `[x]`
+
+- `src/pages/me/customers/detail.vue` 增加“充值记录”入口。
+- 新增 `src/pages/me/customers/card-records.vue`，按新到旧展示全部次卡记录。
+- `src/pages.json` 注册充值记录路由。
+
+### Step 10.3 — 开卡/编辑共用表单 `[x]`
+
+- `src/pages/me/customers/open-card.vue` 改为 `<uni-forms>` + `<uni-forms-item>`。
+- 带 `cardId` 时进入编辑模式，充值金额、日期和已用次数只读，仅允许修改总次数。
+
+### Step 10.4 — 文档同步 `[x]`
+
+- 同步 `design-document.md` / `architecture.md` / `progress.md` / `CHANGELOG.md`。
+- 明确本次不改 schema、备份结构、历史充值金额和 `meal_card_usages`。
+
+### Step 10.5 — 静态门禁与真机回归 `[~]`
+
+- CLI：`pnpm type-check` / `pnpm lint` / `pnpm build:h5` 已通过（H5 仅有既有 uni-ui Sass deprecation warnings）。
+- HBuilderX 真机：覆盖调大、调小、调至已用数、低于已用数拦截、depleted 恢复 active、收入/扣次不变。
+
+### **里程碑 10.5 — 充值记录可查可校正**：`[~]`（CLI 验证已通过，HBuilderX 真机待用户回归）
+
+---
+
 ## 阶段模板
 
 v1.0 的阶段切分（5-10 步/阶段，里程碑挂在最后一步）已被验证好抄。每个新需求按以下模板展开：

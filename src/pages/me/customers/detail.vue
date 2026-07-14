@@ -68,6 +68,12 @@ function goOpenCard(): void {
   }
 }
 
+function goCardRecords(): void {
+  if (customerId.value !== null) {
+    uni.navigateTo({ url: `/pages/me/customers/card-records?customerId=${customerId.value}` })
+  }
+}
+
 async function deleteCustomer(): Promise<void> {
   if (customerId.value === null) return
   const ok = await confirmDialog('删除客户？', '删除后无法恢复；已有订单或次卡的客户不能删除。')
@@ -137,10 +143,13 @@ onShow(() => {
       </view>
 
       <view class="panel">
-        <view class="section-head"
-          ><text class="section-title">次卡</text
-          ><button class="small" @click="goOpenCard">+ 开新卡</button></view
-        >
+        <view class="section-head">
+          <text class="section-title">次卡</text>
+          <view class="section-actions">
+            <button class="small secondary" @click="goCardRecords">充值记录</button>
+            <button class="small" @click="goOpenCard">+ 开新卡</button>
+          </view>
+        </view>
         <view v-if="activeCardSummary.count > 0" class="card-box">
           <view class="card-top">
             <text
@@ -243,6 +252,18 @@ onShow(() => {
   display: flex;
   flex: 0 0 auto;
   gap: 12rpx;
+}
+
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.secondary {
+  border: 1rpx solid #007aff;
+  background: #ffffff;
+  color: #007aff;
 }
 
 .delete {

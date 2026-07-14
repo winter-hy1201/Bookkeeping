@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import { listActiveMealCardCustomerIds } from '../../../api/meal-cards'
 import { useCustomerStore } from '../../../stores/customer'
 import type { Customer } from '../../../types/domain'
 import {
@@ -14,6 +15,10 @@ import { discountLabel, showToast } from '../../../utils/ui'
 const customerStore = useCustomerStore()
 const keyword = ref('')
 const scrollTarget = ref('')
+const pageLoading = ref(false)
+const loadFailed = ref(false)
+const activeMealCardCustomerIds = ref<Set<number>>(new Set())
+let refreshGeneration = 0
 
 interface CustomerSection {
   letter: string
@@ -84,11 +89,30 @@ function goDetail(id: number): void {
   uni.navigateTo({ url: `/pages/me/customers/detail?id=${id}` })
 }
 
+function avatarLabel(customerId: number): '次' | '普' {
+  return activeMealCardCustomerIds.value.has(customerId) ? '次' : '普'
+}
+
 async function refresh(): Promise<void> {
+  const generation = ++refreshGeneration
+  pageLoading.value = true
+  loadFailed.value = false
+  activeMealCardCustomerIds.value = new Set()
   try {
-    await customerStore.refresh()
+    const [, customerIds] = await Promise.all([
+      customerStore.refresh(),
+      listActiveMealCardCustomerIds(),
+    ])
+    if (generation !== refreshGeneration) return
+    activeMealCardCustomerIds.value = new Set(customerIds)
   } catch {
+    if (generation !== refreshGeneration) return
+    loadFailed.value = true
     showToast('客户加载失败')
+  } finally {
+    if (generation === refreshGeneration) {
+      pageLoading.value = false
+    }
   }
 }
 
@@ -111,7 +135,8 @@ onShow(() => {
       <button class="add" @click="goNew">+</button>
     </view>
 
-    <view v-if="customerStore.loading" class="empty">客户加载中...</view>
+    <view v-if="pageLoading" class="empty">客户加载中...</view>
+    <view v-else-if="loadFailed" class="empty">客户加载失败</view>
     <view v-else-if="sections.length === 0" class="empty">
       {{ keyword.trim() ? '未找到匹配客户' : '暂无客户' }}
     </view>
@@ -135,11 +160,13 @@ onShow(() => {
           class="item"
           @click="goDetail(customer.id)"
         >
-          <view class="avatar">{{ customer.name.slice(0, 1) }}</view>
+          <view class="avatar">{{ avatarLabel(customer.id) }}</view>
           <view class="main">
             <view class="name-row">
               <text class="name">{{ customer.name }}</text>
-              <text v-if="discountLabel(customer)" class="badge">{{ discountLabel(customer) }}</text>
+              <text v-if="discountLabel(customer)" class="badge">{{
+                discountLabel(customer)
+              }}</text>
             </view>
             <text class="meta">{{ customer.wechat || customer.phone || '未填写联系方式' }}</text>
           </view>
@@ -147,7 +174,7 @@ onShow(() => {
       </view>
     </scroll-view>
 
-    <view v-if="!customerStore.loading && indexLetters.length > 0" class="index-bar">
+    <view v-if="!pageLoading && !loadFailed && indexLetters.length > 0" class="index-bar">
       <text
         v-for="letter in indexLetters"
         :key="letter"

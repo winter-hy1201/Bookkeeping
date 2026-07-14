@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { useCustomerStore } from '../stores/customer'
 import type { Customer } from '../types/domain'
+import { compareCustomerName, getCustomerInitial } from '../utils/pinyin'
 
 const props = withDefaults(
   defineProps<{
@@ -21,23 +22,61 @@ const emit = defineEmits<{
 const customerStore = useCustomerStore()
 const visible = ref(false)
 const keyword = ref('')
+const scrollTarget = ref('')
+
+interface CustomerSection {
+  letter: string
+  anchorId: string
+  customers: Customer[]
+}
+
+function anchorId(letter: string): string {
+  return letter === '#' ? 'picker-section-other' : `picker-section-${letter.toLowerCase()}`
+}
 
 const selectedText = computed(() => props.modelValue?.name ?? '请选择客户')
 
 const filteredCustomers = computed(() => {
   const query = keyword.value.trim().toLowerCase()
-  if (!query) return customerStore.list
+  const customers = [...customerStore.list].sort(compareCustomerName)
+  if (!query) return customers
 
-  return customerStore.list.filter((customer) => {
+  return customers.filter((customer) => {
     return [customer.name, customer.wechat, customer.phone].some((value) =>
       (value ?? '').toLowerCase().includes(query),
     )
   })
 })
 
+const sections = computed<CustomerSection[]>(() => {
+  const map = new Map<string, Customer[]>()
+
+  filteredCustomers.value.forEach((customer) => {
+    const letter = getCustomerInitial(customer.name)
+    const customers = map.get(letter) ?? []
+    customers.push(customer)
+    map.set(letter, customers)
+  })
+
+  return Array.from(map.entries()).map(([letter, customers]) => ({
+    letter,
+    anchorId: anchorId(letter),
+    customers,
+  }))
+})
+
+const indexLetters = computed(() => sections.value.map((section) => section.letter))
+
+async function jumpTo(letter: string): Promise<void> {
+  scrollTarget.value = ''
+  await nextTick()
+  scrollTarget.value = anchorId(letter)
+}
+
 async function openSheet(): Promise<void> {
   visible.value = true
   keyword.value = ''
+  scrollTarget.value = ''
 
   if (!customerStore.loading && customerStore.list.length === 0) {
     try {
@@ -100,27 +139,51 @@ function discountLabel(customer: Customer): string {
           />
         </view>
 
-        <scroll-view class="customer-list" scroll-y>
+        <scroll-view
+          class="customer-list"
+          scroll-y
+          :scroll-into-view="scrollTarget"
+          :scroll-with-animation="true"
+        >
           <view v-if="customerStore.loading" class="empty-state">客户加载中...</view>
-          <view v-else-if="filteredCustomers.length === 0" class="empty-state">
+          <view v-else-if="sections.length === 0" class="empty-state">
             {{ customerStore.list.length === 0 ? '暂无客户，请先新建' : '没有匹配的客户' }}
           </view>
           <view
-            v-for="customer in filteredCustomers"
+            v-for="section in sections"
             v-else
-            :key="customer.id"
-            class="customer-item"
-            @click="selectCustomer(customer)"
+            :id="section.anchorId"
+            :key="section.letter"
+            class="customer-section"
           >
-            <view class="customer-info">
-              <text class="customer-name">{{ customer.name }}</text>
-              <text v-if="customer.wechat" class="customer-meta">{{ customer.wechat }}</text>
+            <view class="section-title">{{ section.letter }}</view>
+            <view
+              v-for="customer in section.customers"
+              :key="customer.id"
+              class="customer-item"
+              @click="selectCustomer(customer)"
+            >
+              <view class="customer-info">
+                <text class="customer-name">{{ customer.name }}</text>
+                <text v-if="customer.wechat" class="customer-meta">{{ customer.wechat }}</text>
+              </view>
+              <text v-if="discountLabel(customer)" class="discount-badge">
+                {{ discountLabel(customer) }}
+              </text>
             </view>
-            <text v-if="discountLabel(customer)" class="discount-badge">
-              {{ discountLabel(customer) }}
-            </text>
           </view>
         </scroll-view>
+
+        <view v-if="!customerStore.loading && indexLetters.length > 0" class="index-bar">
+          <text
+            v-for="letter in indexLetters"
+            :key="letter"
+            class="index-letter"
+            @click.stop="jumpTo(letter)"
+          >
+            {{ letter }}
+          </text>
+        </view>
 
         <button v-if="showCreate" class="create-button" @click="handleCreate">+ 新建客户</button>
       </view>
@@ -192,6 +255,7 @@ function discountLabel(customer: Customer): string {
 }
 
 .picker-panel {
+  position: relative;
   width: 100%;
   max-height: 78vh;
   padding: 18rpx 24rpx 28rpx;
@@ -231,6 +295,16 @@ function discountLabel(customer: Customer): string {
 .customer-list {
   max-height: 52vh;
   margin-top: 18rpx;
+  padding-right: 38rpx;
+  box-sizing: border-box;
+}
+
+.section-title {
+  height: 48rpx;
+  padding: 0 4rpx;
+  color: #6b7280;
+  font-size: 24rpx;
+  line-height: 48rpx;
 }
 
 .customer-item {
@@ -280,6 +354,26 @@ function discountLabel(customer: Customer): string {
   padding: 64rpx 0;
   color: #999999;
   font-size: 28rpx;
+  text-align: center;
+}
+
+.index-bar {
+  position: absolute;
+  top: 50%;
+  right: 8rpx;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translateY(-50%);
+}
+
+.index-letter {
+  min-width: 32rpx;
+  padding: 3rpx 0;
+  color: #4b5563;
+  font-size: 21rpx;
+  line-height: 25rpx;
   text-align: center;
 }
 

@@ -62,6 +62,12 @@
       }
     },
     {
+      "path": "pages/me/customers/card-records",
+      "style": {
+        "navigationBarTitleText": "充值记录"
+      }
+    },
+    {
       "path": "pages/me/expenses/list",
       "style": {
         "navigationBarTitleText": "支出管理"

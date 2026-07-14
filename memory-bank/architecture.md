@@ -10,7 +10,7 @@
 - **项目阶段**：**v1.0 已发布**（Phase 1-9 全部完成；9.3 / 9.4 按用户决策跳过，用 HBuilderX 标准基座 debug APK 侧载；CHANGELOG.md v1.0 节已写好）
 - **已建文件**：`docs/archive/PRD-v1.0.md`、`CLAUDE.md`、`AGENTS.md`、`memory-bank/` 活文档、uni-app Vue 3 + Vite + TS 模板、6 张表 DDL + 迁移 + seed + integrity_check + tx() 工具、domain/api 类型、日期/金额/页面/备份工具、完整 API 层、4 个 Pinia store、3 个通用 UI 组件、uni-ui 表单组件、4 个 Tab 与关键子页、App.vue 全局 onError 兜底
 - **DB 状态**：v0 基线（`memory-bank/bookkeeping-v0.db`，CLI sqlite smoke-test 生成）；v1 阶段基线（`memory-bank/bookkeeping-v1.db`，Phase 8 真机 E2E 通过后归档，`user_version=1`）；当前 schema 版本为 4，新增 `expenses.refund_amount` 退差金额字段、`orders.sort_order` 同餐次拖拽排序字段与 `meal_card_usages` 次卡扣次明细表，真机下次启动会自动迁移
-- **最后更新**：2026-06-26
+- **最后更新**：2026-07-14
 
 ---
 
@@ -43,7 +43,10 @@
 |---|---|---|
 | `CLAUDE.md` | Claude Code 入口；项目概述 + 关键设计约束 + 写代码约定 | 极少更新（约束类） |
 | `docs/archive/PRD-v1.0.md` | v1.0 产品需求基线（已定稿，不修改；存于 archive/ 留作历史参考） | 永不更新 |
-| `docs/` | 仅存 `archive/` 子目录（v1.0 PRD 已归档；v1.1+ 正式发布文档放这里） | — |
+| `docs/` | `archive/` 保留历史基线；`superpowers/specs/` 保留已批准的增量功能设计 | 新增/归档设计文档时 |
+| `docs/superpowers/specs/2026-07-14-meal-card-recharge-records-design.md` | 次卡充值记录入口与总次数校正的已批准设计、数据边界和验收标准 | 该功能设计变更时 |
+| `docs/superpowers/specs/2026-07-14-customer-picker-pinyin-sort-design.md` | CustomerPicker 按客户姓名拼音分组并支持右侧索引跳转的已批准设计与验收标准 | 该分组索引行为变更时 |
+| `docs/superpowers/specs/2026-07-14-customer-card-avatar-label-design.md` | 客户列表头像按当前可用次卡显示“次 / 普”的已批准设计与验收标准 | 该身份判定或展示变更时 |
 | `.gitignore` | git 忽略规则（node_modules、dist、IDE 文件等） | 加新忽略项时 |
 | `index.html` | Vite H5 入口 HTML；`<script type="module" src="/src/main.ts">` | 几乎不改 |
 | `package.json` | 项目元数据 + scripts（dev / build / lint / format / type-check） | 加新脚本/依赖时 |
@@ -97,10 +100,11 @@
 | `src/pages/order/detail.vue` | 订单详情：按 id 读取单条订单与客户信息；pending 订单可在详情页进入编辑态，修改客户、日期、餐次、份数、价格、支付方式与备注；编辑次卡支付时展示客户 active 次卡总剩余，并优先选择能覆盖本单份数的卡作为参考；pending 仍可取消或标记已配送；捕获 `InsufficientCardError` 后按客户默认价 × 折扣率整单改微信/现金再配送，客户无默认价时回退订单原单价。只读态支持将客户名、订单份数和备注复制到系统剪贴板，便于发给客户或配送核对。已配送 / 已取消订单保持只读，避免回写次卡扣次或退款状态；所有状态均可删除订单，已配送次卡订单删除时由 API 按扣次明细回滚已扣次数。 |
 | `src/pages/stats/index.vue` | Tab 3「统计」：今日/本周/本月/自定义区间切换，自定义日期用 `uni-datetime-picker`；展示收入、支出、利润、订单数、客单价、日趋势 CSS 进度条和支出分类占比。 |
 | `src/pages/me/index.vue` | Tab 4「我的」入口：跳转客户管理、支出管理、备份恢复。 |
-| `src/pages/me/customers/list.vue` | 客户列表：`onShow` 刷新 customer store，前端用 `uni-easyinput` 按姓名/微信/手机号/姓名拼音/拼音首字母搜索；按 `src/utils/pinyin.ts` 转换中文客户名后生成拼音首字母分组、右侧索引和滚动定位；展示折扣角标，支持新建和详情跳转。 |
+| `src/pages/me/customers/list.vue` | 客户列表：`onShow` 并行刷新 customer store 与当前有剩余次数的 active 次卡客户 ID，头像区按身份显示“次 / 普”；前端用 `uni-easyinput` 按姓名/微信/手机号/姓名拼音/拼音首字母搜索；按 `src/utils/pinyin.ts` 生成拼音首字母分组、右侧索引和滚动定位；展示折扣角标，支持新建和详情跳转。 |
 | `src/pages/me/customers/new.vue` | 客户新建/编辑共用页：用 uni-ui 表单组件维护姓名、手机、微信、午餐/晚餐默认价、折扣率、备注；默认价未触碰时保存为 null；保存时捕获客户姓名重复错误并提示不可重复。 |
-| `src/pages/me/customers/detail.vue` | 客户详情：展示基础信息、active 次卡汇总进度、历史订单；支持编辑、删除和跳转开次卡。删除走 `customerStore.remove()`，客户存在订单或次卡依赖时保持数据并提示不可删除。次卡区通过 `listCards(customerId)` 汇总所有 active 卡的剩余 / 总次数，避免新开卡后只显示最新一张而像是覆盖旧卡。历史订单通过 `listOrders({ customerId })` 查询。 |
-| `src/pages/me/customers/open-card.vue` | 开次卡页：总次数用 `uni-number-box`、金额用 AmountInput，默认 20 次，金额允许为 0；若已有 active 次卡先确认，确认文案按所有 active 卡汇总剩余 / 总次数，确认后仍可新开，旧卡保留。 |
+| `src/pages/me/customers/detail.vue` | 客户详情：展示基础信息、active 次卡汇总进度、历史订单；支持编辑、删除、开次卡和进入充值记录。删除走 `customerStore.remove()`，客户存在订单或次卡依赖时保持数据并提示不可删除。次卡区通过 `listCards(customerId)` 汇总所有 active 卡的剩余 / 总次数，避免新开卡后只显示最新一张而像是覆盖旧卡。历史订单通过 `listOrders({ customerId })` 查询。 |
+| `src/pages/me/customers/card-records.vue` | 客户次卡充值记录列表：按时间倒序展示所有 `meal_cards` 的充值日期、金额、总/已用/剩余次数和状态；点击记录进入总次数修改。 |
+| `src/pages/me/customers/open-card.vue` | 次卡开卡/充值记录修改共用页：用 `<uni-forms>` + `<uni-forms-item>` 统一承载校验；开卡模式默认 20 次且金额允许为 0，已有 active 次卡时先汇总确认；带 `cardId` 时只允许修改该记录总次数，下限为已用次数。 |
 | `src/pages/me/expenses/list.vue` | 支出列表：用 `uni-datetime-picker` 按日期读取 expense store，展示分类 emoji/名称、实际支出金额和备注；有退差时补充展示原支出金额与退差金额；点击卡片进入支出详情，长按仍可快捷删除。 |
 | `src/pages/me/expenses/new.vue` | 新建支出页：使用 `<uni-forms>` + `<uni-forms-item>` 承载日期、分类、支出金额、退差金额、备注；金额 > 0、分类已选、退差金额不超过支出金额才可保存，实际支出按 `amount - refund_amount` 预览。 |
 | `src/pages/me/expenses/detail.vue` | 支出详情：按 id 读取单条支出与分类；使用 `<uni-forms>` + `<uni-forms-item>` 承载日期、分类、支出金额、退差金额、备注，展示实际支出，支持修改和硬删除；删除后返回列表，保存后按列表当前日期刷新。 |
@@ -113,7 +117,7 @@
 | `src/components/.gitkeep` | 占位文件，让空目录被 git 跟踪 |
 | `src/components/StatCard.vue` | 通用数字卡片；props 为 `label` / `value` / `color?: 'normal' \| 'positive' \| 'negative'` / `hint?`；上方展示 label，下方展示大号 value，可选 hint；利润 label 在未显式传 color 时按数值正负自动映射绿色/红色。 |
 | `src/components/AmountInput.vue` | 金额输入组件；props 为 `modelValue: number` / `label` / `placeholder?`；事件 `update:modelValue`；内部用 `uni-easyinput` 保留字符串输入态，使用 `parseMoney()` 将输入解析为 number 回传，模板提供 `¥` 前缀。 |
-| `src/components/CustomerPicker.vue` | 客户选择组件；props 为 `modelValue: Customer \| null` / `showCreate?`；事件 `update:modelValue` / `create`；点击输入区打开底部选择弹层，内部用 `uni-easyinput` 支持按姓名、微信、手机号前端搜索，列表展示客户名和折扣角标。 |
+| `src/components/CustomerPicker.vue` | 客户选择组件；props 为 `modelValue: Customer \| null` / `showCreate?`；事件 `update:modelValue` / `create`；点击输入区打开底部选择弹层，内部用 `uni-easyinput` 支持按姓名、微信、手机号前端搜索；列表复用 `src/utils/pinyin.ts` 按姓名拼音排序和首字母分组，右侧 `index-bar` 可跳转到对应分组，并展示客户名和折扣角标。 |
 
 ### stores/ — Pinia 状态
 
@@ -138,9 +142,9 @@
 | 文件 | 作用 |
 |---|---|
 | `src/api/customers.ts` | customers 表 CRUD：`listCustomers()` / `getCustomer(id)` / `createCustomer(input)` / `updateCustomer(id, input)` / `deleteCustomer(id)`。`createCustomer` 与 `updateCustomer` 返回最新客户记录；创建/改名时按 trim 后姓名判重；`deleteCustomer` 在客户存在次卡或订单依赖时返回 `false` 并保留数据，避免外键失败。 |
-| `src/api/meal-cards.ts` | meal_cards 表基础 API：`getActiveCard(customerId): Promise<MealCardResult \| null>` / `listCards(customerId): Promise<MealCardResult[]>` / `openCard(input: OpenMealCardInput): Promise<MealCardResult>` / `getCard(id): Promise<MealCardResult \| null>`。`openCard` 用 `tx()` 包裹，写入 `used_meals=0`、`status='active'`。 |
+| `src/api/meal-cards.ts` | meal_cards 表基础 API：`getActiveCard()` / `listCards()` / `listActiveMealCardCustomerIds()` / `openCard()` / `getCard()` / `updateCardTotalMeals()`。批量身份查询只返回 `status='active' AND used_meals < total_meals` 的客户 ID；`openCard` 用 `tx()` 写入 `used_meals=0`、`status='active'`；`updateCardTotalMeals` 事务内禁止总次数小于已用次数，并按剩余次数同步 `active/depleted`。 |
 | `src/api/orders.ts` | orders 表与订单流程 API：`listOrders(input: ListOrdersInput): Promise<OrderResult[]>` / `getOrder(id): Promise<OrderResult \| null>` / `createOrder(input: CreateOrderInput): Promise<OrderResult>` / `updateOrder(id, input): Promise<OrderResult>` / `updateOrderStatus(id, status): Promise<OrderResult \| null>` / `updateOrderPayment(id, input): Promise<OrderResult \| null>` / `reorderOrders(input): Promise<void>` / `markDelivered(orderId): Promise<OrderResult>` / `cancelOrder(orderId): Promise<OrderResult \| null>` / `deleteOrder(orderId): Promise<boolean>`。`listOrders` 的 `startDate/endDate` 可选，页面可用 `customerId` 查询客户历史订单，并按 `sort_order` 展示当天同餐次拖拽顺序；`createOrder` 不扣次卡且自动排到同日同餐次末尾；`updateOrder` 仅允许 pending 订单修改订单字段，次卡仍不在编辑时扣次；`reorderOrders` 只更新同日同餐次订单排序号；`markDelivered` 在配送完成时按客户所有 active 次卡余额池旧卡优先扣次，支持一单跨卡扣次并写入 `meal_card_usages`，总剩余不足时回滚，成功配送后自动把订单排到同日同餐次末尾；`cancelOrder` 不返还次卡次；`deleteOrder` 硬删除订单，若已配送次卡订单则按 `meal_card_usages` 回滚 `meal_cards.used_meals` 与状态。 |
-| `src/api/errors.ts` | API 层业务异常：`InsufficientCardError`（次卡次数不足，供配送异常分支捕获）/ `AlreadyDeliveredError`（已配送订单禁止取消）/ `DuplicateCustomerNameError`（客户姓名重复）。 |
+| `src/api/errors.ts` | API 层业务异常：`InsufficientCardError`（次卡次数不足）/ `AlreadyDeliveredError`（已配送订单禁止取消）/ `DuplicateCustomerNameError`（客户姓名重复）/ `MealCardTotalTooSmallError`（充值记录总次数小于已用次数）。 |
 | `src/api/expense-categories.ts` | expense_categories 只读 API：`listCategories(): Promise<ExpenseCategoryResult[]>` / `getCategory(id): Promise<ExpenseCategoryResult \| null>`。v1.0 不暴露分类增删改。 |
 | `src/api/expenses.ts` | expenses 表 CRUD：`listExpenses(input: ListExpensesInput): Promise<ExpenseResult[]>` / `getExpense(id): Promise<ExpenseResult \| null>` / `createExpense(input: CreateExpenseInput): Promise<ExpenseResult>` / `updateExpense(id, input): Promise<ExpenseResult \| null>` / `deleteExpense(id): Promise<boolean>`。`createExpense` / `updateExpense` 用 `tx()` 包裹，`amount <= 0` 拒绝，`refund_amount` 默认为 0 且不可为负或超过 `amount`；`deleteExpense` 硬删除支出。 |
 | `src/api/stats.ts` | 统计聚合 API：`getDashboardSummary(date): Promise<StatsSummary>` / `getRangeSummary(input: DateRangeInput): Promise<StatsSummary>` / `getDailyTrend(input: DateRangeInput): Promise<DailyTrendPoint[]>` / `getCategoryBreakdown(input: DateRangeInput): Promise<CategoryBreakdown[]>`。收入口径 = 非 cancelled 订单金额 + 开次卡金额；支出口径 = `expenses.amount - expenses.refund_amount`；利润 = 收入 - 支出。 |
@@ -160,7 +164,7 @@
 | 文件 | 作用 |
 |---|---|
 | `src/types/domain.ts` | 与 schema snake_case 字段严格对齐的核心领域类型：`Customer` / `MealCard` / `MealCardUsage` / `Order` / `ExpenseCategory` / `Expense`，以及枚举联合类型 `MealType` / `PaymentMethod` / `OrderStatus` / `MealCardStatus`。可空 DB 字段统一为 `T \| null`。 |
-| `src/types/api.ts` | API 层复用的入参/出参契约：客户创建/更新、开次卡、订单创建/订单更新/支付方式更新/列表筛选、支出创建/筛选、统计范围、`StatsSummary` / `DailyTrendPoint` / `CategoryBreakdown` 等。`ListOrdersInput.startDate/endDate` 为可选，支持客户详情历史订单查询。 |
+| `src/types/api.ts` | API 层复用的入参/出参契约：客户创建/更新、开次卡、`UpdateMealCardTotalInput`、订单创建/更新/支付与列表筛选、支出创建/筛选、统计范围及各结果类型。`ListOrdersInput.startDate/endDate` 为可选，支持客户详情历史订单查询。 |
 | `src/types/pinia.d.ts` | 本地类型声明：在不手动安装 npm `pinia` 的前提下，让 `vue-tsc` 能识别 uni-app/HBuilderX 内置 Pinia 的 `createPinia` / `defineStore`。仅提供类型，不提供运行时代码。 |
 
 ---
@@ -276,3 +280,6 @@
 - 2026-06-22：配送完成后自动沉底 — `src/api/orders.ts` 的 `markDelivered()` 成功配送时同步把订单 `sort_order` 更新为同日同餐次最大值 + 1；从订单详情触发配送后，`src/pages/order/index.vue` 重新读取列表即可把该订单排到对应餐次最后。
 - 2026-06-22：今日午餐完成后自动折叠 — `src/pages/order/index.vue` 的默认展开面板改为 `:model-value` 控制；筛选日期为今天且午餐分组所有订单均为 `delivered` 时，午餐面板从默认展开列表中移除。
 - 2026-06-26：次卡余额池扣次 — schema 升级到 v4，新增 `meal_card_usages` 记录已配送次卡订单的实际扣次明细；`markDelivered()` 改为按客户所有 active 次卡旧卡优先扣次，支持一单跨多张卡，只有总剩余不足才弹改微信 / 现金；`deleteOrder()` 按 usage 明细精确回滚；新建 / 编辑订单页优先选择能覆盖本单份数的 active 卡作为参考 `meal_card_id`，展示上弱化单张卡编号；备份恢复支持 v1-v3 旧备份自动补 usage 明细。
+- 2026-07-14：次卡充值记录与总次数校正 — 客户详情增加充值记录入口，新增 `card-records.vue` 展示全部历史卡；`open-card.vue` 重构为 uni-forms 并兼容编辑模式；`updateCardTotalMeals()` 禁止总次数小于已用次数，并自动切换 `active/depleted`；不改 schema、充值金额或历史扣次明细。
+- 2026-07-14：客户选择器拼音分组索引 — `CustomerPicker.vue` 复用 `compareCustomerName()` / `getCustomerInitial()` 按客户姓名拼音排序和分组，右侧 `index-bar` 点击后通过 `scroll-into-view` 跳转；新建订单与订单详情编辑同时生效。
+- 2026-07-14：客户列表次卡身份头像 — `src/api/meal-cards.ts` 新增单次批量查询当前有剩余次数的 active 次卡客户 ID；`src/pages/me/customers/list.vue` 头像区将这类客户显示为“次”，其他客户显示为“普”，不改 schema 和其他页面。

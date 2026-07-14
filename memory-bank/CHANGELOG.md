@@ -319,3 +319,55 @@ v1.4 用 `@longpress` 激活 + `@touchmove` 绑在整个 `order-item` 上，零 
 
 - 静态质量门禁：`pnpm type-check` 通过；`pnpm lint` 通过。
 - 真机行为：待用户在 HBuilderX 真机验证客户多张 active 次卡时，订单数量小于等于总剩余即可正常标记配送；删除该已配送订单后，各次卡扣次按明细回滚。
+
+---
+
+## v1.10（2026-07-14）
+
+增加客户次卡充值记录查看与总次数数据校正能力。
+
+### 新增功能
+
+- **充值记录入口**：客户详情次卡区域增加“充值记录”，可查看该客户全部历史次卡。
+- **充值记录列表**：新增 `src/pages/me/customers/card-records.vue`，展示充值日期、金额、总次数、已用次数、剩余次数和卡状态。
+- **总次数修改**：点击充值记录后可修改原 `meal_cards.total_meals`；金额、日期和已用次数只读。
+
+### 业务规则
+
+- 新总次数必须为正整数，且不得小于该卡已用次数。
+- 新总次数等于已用次数时，卡状态改为 `depleted`；大于已用次数时为 `active`。
+- 只校正原充值记录的总次数；不重复计入收入，不修改历史订单、`used_meals` 和 `meal_card_usages`。
+- 本次不改 schema 和备份 JSON 结构。
+
+### 实现说明
+
+- `src/api/meal-cards.ts` 新增 `updateCardTotalMeals()`，在事务内校验下限、更新总次数并同步状态。
+- `src/pages/me/customers/open-card.vue` 改为 `<uni-forms>` + `<uni-forms-item>`，兼容开卡和充值记录修改两种模式。
+- 设计基线见 `docs/superpowers/specs/2026-07-14-meal-card-recharge-records-design.md`。
+
+### 验证门禁
+
+- 静态质量门禁：`pnpm type-check` / `pnpm lint` / `pnpm build:h5` 通过；H5 build 仅有既有 uni-ui Sass deprecation warnings。
+- 真机行为：待用户在 HBuilderX 验证调大、调小、调至已用数、低于已用数拦截、depleted 恢复 active，以及充值收入/历史扣次不变。
+
+---
+
+## v1.11（2026-07-14）
+
+客户列表增加当前次卡身份标识。
+
+### 行为变更
+
+- 客户列表头像区不再显示姓名首字；当前存在 `status='active' AND used_meals < total_meals` 次卡的客户显示“次”，其他客户显示“普”。
+- 已用完的次卡不再把客户标记为次卡用户。
+
+### 实现说明
+
+- `src/api/meal-cards.ts` 新增 `listActiveMealCardCustomerIds()`，用一条批量 SQL 返回当前次卡用户 ID，避免逐客户查询。
+- `src/pages/me/customers/list.vue` 在 `onShow` 同时刷新客户列表与次卡身份集合，保留原有搜索、拼音分组、右侧索引和详情跳转。
+- 本次不修改 schema、备份格式或其他页面。
+
+### 验证门禁
+
+- 静态质量门禁：`pnpm type-check` / `pnpm lint` / `pnpm build:h5` 通过；H5 build 仅有既有 uni-ui Sass deprecation warnings。
+- 真机行为：待用户在 HBuilderX 验证有剩余次数客户显示“次”，已用完和从未开卡客户显示“普”。

@@ -55,7 +55,7 @@
    ├─ 客户管理
    │   ├─ 客户列表
    │   ├─ [+] 新建客户
-   │   └─ 客户详情 → 编辑 / 开次卡 / 历史订单
+   │   └─ 客户详情 → 编辑 / 开次卡 / 充值记录 / 历史订单
    ├─ 支出管理
    │   ├─ 支出列表
    │   ├─ [+] 新建支出
@@ -199,6 +199,7 @@ CREATE INDEX idx_expenses_category ON expenses(category_id);
 - `used_meals` 实时维护：**配送完成时** 按客户所有 active 次卡余额池扣次（A1 调整后，创建订单不扣次；pending 取消不返还）
 - `status` 状态机：active → depleted（次数用完）
 - 不存"剩余金额" → 次卡是固定次数模型，不是储值卡
+- 每条 `meal_cards` 都是一笔独立充值记录；允许校正 `total_meals`，但新值不得小于 `used_meals`，且不回溯修改 `amount` / `created_at` / `meal_card_usages`
 
 **meal_card_usages 表**：
 - 每条记录表示某个已配送次卡订单从某张次卡扣了多少次。
@@ -437,6 +438,25 @@ INSERT INTO expense_categories (name, icon, sort_order, is_default) VALUES
 - 无依赖客户才允许硬删除。
 
 **统一原则**：后续所有删除功能默认采用"硬删除 + 回滚已产生副作用"；如果某类数据无法安全回滚，删除入口必须拒绝并给出可读提示。
+
+### 4.7 查看充值记录与校正总次数
+
+```
+客户详情 → [充值记录]
+   ↓
+按 created_at DESC / id DESC 展示该客户全部 meal_cards
+   ↓
+点击某笔充值记录 → 修改 total_meals
+   ↓
+事务：
+  1. 读取原次卡
+  2. 校验新 total_meals 为正整数且 >= used_meals
+  3. total_meals = used_meals 时 status='depleted'，否则 status='active'
+  4. 只更新 total_meals + status
+  5. COMMIT
+```
+
+修改总次数是对原充值记录的数据校正：不新建充值收入，不修改已用次数和历史扣次明细，不重算历史订单。调大已用完次卡的总次数时，该卡恢复为 active 并重新进入客户余额池。
 
 ---
 

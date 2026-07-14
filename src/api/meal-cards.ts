@@ -1,11 +1,16 @@
 import { exec, select, tx, type PlusSqliteRow } from '../db'
-import type { MealCardResult, OpenMealCardInput } from '../types/api'
+import type { MealCardResult, OpenMealCardInput, UpdateMealCardTotalInput } from '../types/api'
 import type { MealCard } from '../types/domain'
+import { MealCardTotalTooSmallError } from './errors'
 
 type MealCardRow = MealCard & PlusSqliteRow
 
 interface LastInsertRow extends PlusSqliteRow {
   id: number
+}
+
+interface ActiveCardCustomerRow extends PlusSqliteRow {
+  customer_id: number
 }
 
 function nowText(): string {
@@ -70,6 +75,15 @@ export async function listCards(customerId: number): Promise<MealCardResult[]> {
   return rows as MealCardResult[]
 }
 
+export async function listActiveMealCardCustomerIds(): Promise<number[]> {
+  const rows = await select<ActiveCardCustomerRow>(
+    `SELECT DISTINCT customer_id
+    FROM meal_cards
+    WHERE status = 'active' AND used_meals < total_meals`,
+  )
+  return rows.map((row) => row.customer_id)
+}
+
 export async function openCard(input: OpenMealCardInput): Promise<MealCardResult> {
   return tx(async () => {
     validateOpenCardInput(input)
@@ -109,4 +123,30 @@ export async function getCard(id: number): Promise<MealCardResult | null> {
     [id],
   )
   return (rows[0] as MealCardResult | undefined) ?? null
+}
+
+export async function updateCardTotalMeals(
+  id: number,
+  input: UpdateMealCardTotalInput,
+): Promise<MealCardResult | null> {
+  return tx(async () => {
+    const card = await getCard(id)
+    if (!card) return null
+
+    if (!Number.isInteger(input.total_meals) || input.total_meals <= 0) {
+      throw new Error('[meal-cards] total_meals must be a positive integer')
+    }
+    if (input.total_meals < card.used_meals) {
+      throw new MealCardTotalTooSmallError(card.used_meals)
+    }
+
+    const status = input.total_meals === card.used_meals ? 'depleted' : 'active'
+    await exec(
+      `UPDATE meal_cards
+      SET total_meals = ?, status = ?
+      WHERE id = ?`,
+      [input.total_meals, status, id],
+    )
+    return getCard(id)
+  })
 }

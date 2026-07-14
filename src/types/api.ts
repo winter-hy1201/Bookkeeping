@@ -28,6 +28,10 @@ export interface OpenMealCardInput {
   note?: string | null
 }
 
+export interface UpdateMealCardTotalInput {
+  total_meals: number
+}
+
 export interface CreateOrderInput {
   customer_id: number
   order_date: string

@@ -18,3 +18,13 @@ export class DuplicateCustomerNameError extends Error {
     this.name = 'DuplicateCustomerNameError'
   }
 }
+
+export class MealCardTotalTooSmallError extends Error {
+  constructor(
+    public readonly usedMeals: number,
+    message = `总次数不能小于已用次数 ${usedMeals}`,
+  ) {
+    super(message)
+    this.name = 'MealCardTotalTooSmallError'
+  }
+}
