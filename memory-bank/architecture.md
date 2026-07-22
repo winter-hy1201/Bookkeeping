@@ -10,6 +10,7 @@
 - **项目阶段**：**v1.0 已发布**（Phase 1-9 全部完成；9.3 / 9.4 按用户决策跳过，用 HBuilderX 标准基座 debug APK 侧载；CHANGELOG.md v1.0 节已写好）
 - **已建文件**：`docs/archive/PRD-v1.0.md`、`CLAUDE.md`、`AGENTS.md`、`memory-bank/` 活文档、uni-app Vue 3 + Vite + TS 模板、6 张表 DDL + 迁移 + seed + integrity_check + tx() 工具、domain/api 类型、日期/金额/页面/备份工具、完整 API 层、4 个 Pinia store、3 个通用 UI 组件、uni-ui 表单组件、4 个 Tab 与关键子页、App.vue 全局 onError 兜底
 - **DB 状态**：v0 基线（`memory-bank/bookkeeping-v0.db`，CLI sqlite smoke-test 生成）；v1 阶段基线（`memory-bank/bookkeeping-v1.db`，Phase 8 真机 E2E 通过后归档，`user_version=1`）；当前 schema 版本为 5，`orders.meal_card_quantity` 支持组合支付与 pending 次卡预占，v4 → v5 真机迁移待回归
+- **UI 基线**：v1.13 新增 `docs/design.md` 与 `$hej-*` 语义 token，并由样式预处理检查保护；订单空态、新建 / 编辑确认区和统计对账趋势已按该基线改造；今日页按用户反馈保留既有布局，HBuilderX 视觉回归待执行
 - **最后更新**：2026-07-22
 
 ---
@@ -43,7 +44,9 @@
 |---|---|---|
 | `CLAUDE.md` | Claude Code 入口；项目概述 + 关键设计约束 + 写代码约定 | 极少更新（约束类） |
 | `docs/archive/PRD-v1.0.md` | v1.0 产品需求基线（已定稿，不修改；存于 archive/ 留作历史参考） | 永不更新 |
-| `docs/` | `archive/` 保留历史基线；`superpowers/specs/` 保留已批准的增量功能设计 | 新增/归档设计文档时 |
+| `docs/` | `archive/` 保留历史基线；`superpowers/specs/` 保留已批准的增量功能设计；根目录放当前 UI 规范与 AI 选型索引 | 新增/归档设计或协作指引时 |
+| `docs/design.md` | 盒记项目级 UI 设计规范：语义 token、按钮 / 状态 / 空态规则与页面验收清单；视觉改动前先读。 | 改动跨页面视觉语言、token 或 UI 验收标准时 |
+| `docs/uni-modules-ai-index.md` | 本地 `src/uni_modules` 的 AI 选型索引：45 个包的版本、场景、状态、边界、本地 README 与项目内用例；新增 / 重做 UI 先查。 | 增删 / 升级本地组件，或形成新的项目内用例时 |
 | `docs/superpowers/specs/2026-07-14-meal-card-recharge-records-design.md` | 次卡充值记录入口与总次数校正的已批准设计、数据边界和验收标准 | 该功能设计变更时 |
 | `docs/superpowers/specs/2026-07-14-customer-picker-pinyin-sort-design.md` | CustomerPicker 按客户姓名拼音分组并支持右侧索引跳转的已批准设计与验收标准 | 该分组索引行为变更时 |
 | `docs/superpowers/specs/2026-07-22-customer-picker-form-label-design.md` | CustomerPicker 的字段标签归属、调用页统一表单标签与验收标准 | 该标签归属或调用方式变更时 |
@@ -55,6 +58,7 @@
 | `tests/db-transaction.test.cjs` | Node 内置测试：验证单一 SQLite 连接上的并发顶层事务必须串行，防止双击建单 / 配送交错写入 | `tx()` 并发边界变化时 |
 | `tests/order-rules.test.cjs` | Node 内置测试：覆盖次卡不足、纯 / 组合支付金额、非法次卡次数、备注去重、支付冲突和合并改单价预览 | 订单规则变化时 |
 | `tests/schema-v5.test.cjs` | SQLite CLI 冒烟测试：验证 fresh schema v5 字段约束、v5 迁移追加与旧纯次卡订单回填 | schema / migration 变化时 |
+| `tests/ui-style-preprocess.test.cjs` | Node 静态测试：扫描业务 Vue 样式块，使用 `$hej-*` token 时必须声明 `lang="scss"`，避免 token 原样输出使 App 回退默认样式 | token 样式页面变化时 |
 | `pnpm-lock.yaml` | pnpm 锁定文件（**不要**手动编辑） | pnpm install 后自动 |
 | `tsconfig.json` | TypeScript 配置；extends `@vue/tsconfig`，加 3 个 strict 选项；排除 `src/uni_modules` 第三方 uni-ui 源码 | 调整严格度时 |
 | `vite.config.ts` | Vite 配置；只注册 `uni()` 插件 | 加 Vite 插件时 |
@@ -90,20 +94,20 @@
 | `src/env.d.ts` | Vite 客户端类型（`/// <reference types="vite/client" />`）|
 | `src/manifest.json` | uni-app App 元数据：`name=盒记` / `appid=com.bookkeeping.app` / Android `minSdkVersion=21` `targetSdkVersion=30` |
 | `src/pages.json` | uni-app 路由 + 全局样式 + `tabBar`（4 个 Tab：今日 / 订单 / 统计 / 我的） |
-| `src/uni.scss` | uni-app 全局 SCSS 变量（rpx 换算等）|
+| `src/uni.scss` | uni-app 全局 SCSS 变量，并定义盒记 `$hej-*` 语义 token（画布 / 表面 / 文字 / 状态 / 间距 / 圆角 / 阴影 / 字级）供订单和统计页使用；既有 `$uni-color-*` 主状态色保留原值，避免影响今日页基线样式。 |
 | `src/shime-uni.d.ts` | 扩展 Vue `ComponentCustomOptions` 加上 uni-app 的 App/Page 实例类型（**注：文件名是模板的拼写，保留不修**） |
 | `src/static/` | 静态资源（默认有 `logo.png`）|
-| `src/uni_modules/` | uni-ui easycom 组件源码目录；业务表单统一使用其中的 `uni-easyinput` / `uni-data-checkbox` / `uni-data-select` / `uni-datetime-picker` 等组件，质量检查不 lint/type-check 该第三方源码 |
+| `src/uni_modules/` | uni-ui easycom 组件源码目录；业务表单统一使用其中的表单组件，质量检查不 lint/type-check 该第三方源码；选型入口见 `docs/uni-modules-ai-index.md`。 |
 
 ### pages/ — 页面（uni-app 自动路由；Phase 7 已实现）
 
 | 文件 | 作用 |
 |---|---|
 | `src/pages/index/index.vue` | Tab 1「今日」Dashboard：`onShow` 刷新 stats/order/customer store，展示订单数、收入、支出、利润，以及待配送 / 已配送 / 已取消三组今日订单；三类状态计数卡片和列表分组用主题色展示。 |
-| `src/pages/order/index.vue` | Tab 2「订单」列表：按日期筛选并用 `uni-collapse` 分成午餐 / 晚餐；列表项保留拖拽把手、客户名和状态，副标题按“餐次 · 总份数 · 次卡次数 · 微信/现金金额 · 完整备注”组合并自然换行，删除最右侧次卡 / 金额块；今日午餐全部配送后默认折叠。拖拽继续使用 v1.6 的动态 `:scroll-y` 开关 + `setTimeout(16)` 边缘自动滚屏方案并写回 `orders.sort_order`。 |
-| `src/pages/order/new.vue` | `<uni-forms>` 新建订单表单：份数表示“本次增量”；支持微信 / 现金 / 次卡 / 组合支付四个一级选项，组合支付的次卡次数初始为空且由用户填写；查询同键有效订单并提示合并 / 已配送阻断，展示实际剩余、其他 pending 预占、保存后所需次数；切换客户 / 日期 / 餐次后立即清理旧价，只在新上下文查询成功后允许保存；合并改单价时展示旧价、新价、受影响份数与金额后二次确认。 |
-| `src/pages/order/detail.vue` | 订单详情与 `<uni-forms>` 编辑：只读态分别展示总份数、支付摘要、次卡次数、货币份数、实际单价与货币金额；编辑态份数表示整单总量，支持组合支付、预占校验以及改变客户 / 日期 / 餐次后的目标订单合并确认。配送余额不足时整笔回滚并提示“去编辑支付”，不再自动整单改微信 / 现金；保留复制、整单配送 / 取消 / 删除能力。 |
-| `src/pages/stats/index.vue` | Tab 3「统计」：今日/本周/本月/自定义区间切换，自定义日期用 `uni-datetime-picker`；展示收入、支出、利润、订单数、客单价、日趋势 CSS 进度条和支出分类占比。 |
+| `src/pages/order/index.vue` | Tab 2「订单」列表：按日期筛选并用 `uni-collapse` 分成午餐 / 晚餐；顶部日期 / 新建区使用有内边距的操作区，日期控件保持弱表面，新建按钮使用 `$hej-color-accent` 主动作蓝，页面样式显式使用 SCSS 编译 token。列表项保留拖拽把手、客户名和状态，副标题按“餐次 · 总份数 · 次卡次数 · 微信/现金金额 · 完整备注”组合并自然换行，删除最右侧次卡 / 金额块；空态可直接新建当前所选日期的首单，今日午餐全部配送后默认折叠。拖拽继续使用 v1.6 的动态 `:scroll-y` 开关 + `setTimeout(16)` 边缘自动滚屏方案并写回 `orders.sort_order`。 |
+| `src/pages/order/new.vue` | `<uni-forms>` 新建订单表单：高频录单使用顶部紧凑“配送安排”（日期 + 餐次）和一张连续录单卡；份数表示“本次增量”，客户仍走现有搜索 / 拼音选择。微信 / 现金 / 次卡为一级选择，份数大于 1 才出现组合支付入口；用户主动进入组合支付时，次卡次数预填 1 次并可用步进器在合法范围调整，补款与金额自动计算。实际单价直接显示输入框，选定客户后带入默认 / 已有订单单价；备注保持一行常显。次卡正常时紧凑提示，有预占或不足才展开明细。支持从订单空态带入所选日期；后台查询同键有效订单，pending 紧凑提示合并、delivered 阻断，改单价仍二次确认。固定确认区展示金额 / 支付摘要和当前缺失项；保存后由原生二次弹窗选择“继续下一单”（清空客户、份数、单价、备注，保留日期 / 餐次 / 支付）或“结束录单”（返回对应日期列表）。订单、金额、预占和 SQLite 写入规则不变。 |
+| `src/pages/order/detail.vue` | 订单详情与 `<uni-forms>` 编辑：只读态分别展示总份数、支付摘要、次卡次数、货币份数、实际单价与实际金额；编辑态按“订单对象 → 配送与支付（含金额） → 备注”分区，金额作为配送与支付卡内的分隔小节，并将本次实际金额、取消编辑与保存修改固定在底部，支付摘要明确微信 / 现金份数。份数表示整单总量，支持组合支付、预占校验以及改变客户 / 日期 / 餐次后的目标订单合并确认。配送余额不足时整笔回滚并提示“去编辑支付”，不再自动整单改微信 / 现金；保留复制、整单配送 / 取消 / 删除能力。 |
+| `src/pages/stats/index.vue` | Tab 3「统计」：今日/本周/本月/自定义区间切换，自定义日期用 `uni-datetime-picker`；展示入账收入、支出、利润、有效订单和平均每单收入。日趋势改为“收支 / 利润趋势”，按日期同时呈现入账、支出和正 / 负利润的 CSS 进度条；统计 API 公式不变。 |
 | `src/pages/me/index.vue` | Tab 4「我的」入口：跳转客户管理、支出管理、备份恢复。 |
 | `src/pages/me/customers/list.vue` | 客户列表：`onShow` 并行刷新 customer store 与当前有剩余次数的 active 次卡客户 ID，头像区按身份显示“次 / 普”；前端用 `uni-easyinput` 按姓名/微信/手机号/姓名拼音/拼音首字母搜索；按 `src/utils/pinyin.ts` 生成拼音首字母分组、右侧索引和滚动定位；展示折扣角标，支持新建和详情跳转。 |
 | `src/pages/me/customers/new.vue` | 客户新建/编辑共用页：用 uni-ui 表单组件维护姓名、手机、微信、午餐/晚餐默认价、折扣率、备注；默认价未触碰时保存为 null；保存时捕获客户姓名重复错误并提示不可重复。 |
@@ -291,3 +295,8 @@
 - 2026-07-14：客户列表次卡身份头像 — `src/api/meal-cards.ts` 新增单次批量查询当前有剩余次数的 active 次卡客户 ID；`src/pages/me/customers/list.vue` 头像区将这类客户显示为“次”，其他客户显示为“普”，不改 schema 和其他页面。
 - 2026-07-22：一餐一单与组合支付（v1.12）—— schema 升至 v5，`orders` 新增 `meal_card_quantity`；新增 `src/utils/order-rules.ts` 与三组 Node / SQLite CLI 测试。订单 API 在事务内合并同客户 / 日期 / 餐次 pending 增量、校验次卡预占、支付渠道和改单价确认，配送 / 删除只处理次卡分配部分；`tx()` 串行顶层事务，详情状态操作增加 in-flight 锁，防止双击 / 多页并发重复扣次或建单；新增 / 编辑页重构为 uni-forms，列表改为完整组合支付副标题；备份与充值记录校正同步 v5 口径。静态门禁与 H5 构建结果见 `CHANGELOG.md v1.12`，HBuilderX 真机回归待执行。
 - 2026-07-22：客户表单标签统一 — 新建订单与订单详情编辑均由 `<uni-forms-item label="客户">` 提供字段标签；`CustomerPicker` 移除内部重复标签，保留选择、搜索和拼音分组交互。
+- 2026-07-22：订单与对账 UI 基线（v1.13）—— 新增 `docs/design.md` 和 `src/uni.scss` 的 `$hej-*` 语义 token；订单列表空态可新建所选日期首单，新建 / 编辑订单按统一层级并使用固定确认区，统计页改为“收支 / 利润趋势”逐日并列展示入账、支出和利润。首页按用户反馈恢复既有概览与分组布局；本轮自定义按钮统一采用固定高度与等值行高，保证 App 端文字垂直居中。订单页顶部日期 / 新建区增加内边距并使用蓝色主动作；修复漏写 `lang="scss"` 导致 `$hej-*` token 原样输出、App 回退默认样式的问题，新增静态回归测试；新建订单的合并、配送冲突、次卡、加载 / 失败和字段占位提示改为说明原因与下一步。未改订单、金额或 SQLite 业务规则；`pnpm test`（22 条）、`pnpm type-check`、`pnpm lint`、`pnpm build:h5` 与 `git diff --check` 通过，H5 仅输出既有 uni-ui / Dart Sass deprecation warnings，HBuilderX 真机视觉 / 交互回归待执行。
+- 2026-07-22：订单金额展示文案—— 新建 / 编辑确认区和订单详情将“货币金额”改为“实际金额”；仅改用户可见名称，不改 `orders.amount`、支付拆分或金额计算。`pnpm test`（22 条）、`pnpm type-check`、`pnpm lint`、`pnpm build:h5` 与 `git diff --check` 通过。
+- 2026-07-22：AI 协作入口收敛——新增 `docs/uni-modules-ai-index.md`，按场景完整登记 45 个本地 uni-ui 包的版本、验证状态、使用边界、README 与项目内用例；`AGENTS.md` 改为任务路由、硬约束、验证与平台陷阱的短运行时规则，详细业务、历史与 API 信息回归各自权威文档。本次不改应用代码或业务行为。
+- 2026-07-22：订单支付摘要与表单层级——新建 / 编辑订单将金额收进“配送与支付”卡内作为分隔小节；固定确认区、合并改单价提示和详情份数均明确显示微信 / 现金渠道，不再对用户显示“货币支付 / 货币份数”。不改 `orders.amount`、支付拆分或金额计算。`pnpm test`（22 条）、`pnpm type-check`、`pnpm lint`、`pnpm build:h5` 与 `git diff --check` 通过。
+- 2026-07-22：新建订单高频录单重构（v1.14）——`src/pages/order/new.vue` 收敛为配送安排条 + 一张连续录单卡：默认日期 / 餐次 / 微信保留，组合支付降为份数大于 1 时的次级入口，用户主动进入后预填 1 次并可步进调整；实际单价直接显示输入框、备注改为一行常显，底部主操作直接说明当前缺失项。保存成功后弹出“继续下一单 / 结束录单”，继续时只清空本次字段。未改 schema、API、金额计算或订单状态机；静态门禁与 H5 构建通过，HBuilderX 真机回归待执行。

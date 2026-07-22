@@ -1,8 +1,24 @@
 # 盒记 — 实施进度
 
 > v1.0 已发布（2026-06-11）。9 阶段 **61/63** 步完成，2 步按用户决策跳过（9.3 真机性能 / 9.4 Release APK 打包），用 HBuilderX 标准基座 debug APK 侧载替代。
-> 下一步：完成 v1.12 的 HBuilderX 真机回归（组合支付、预占、v4 → v5、备份往返）。
+> 下一步：一并完成 v1.12 业务回归与 v1.13 / v1.14 UI 回归（组合支付、预占、v4 → v5、备份往返，以及今日页既有概览、订单空态、高频录单、固定确认区、统计趋势）。
 > 完整步骤与里程碑详见 `memory-bank/implementation-plan.md`（已通过 9 阶段实施基线）。
+
+---
+
+## 当前增量（订单与对账 UI 基线）
+
+| Step | 内容 | 状态 |
+|---|---|---|
+| 12.1 | 项目级设计规范与 `$hej-*` token | ✅ 2026-07-22 |
+| 12.2 | 订单空态与今日页回滚 | ✅ 2026-07-22 |
+| 12.3 | 新建 / 编辑订单层级与固定确认区 | ✅ 2026-07-22 |
+| 12.4 | 对账指标与收支 / 利润趋势 | ✅ 2026-07-22 |
+| 12.5 | 订单表单层级、支付摘要、顶部操作区与样式编译 | ✅ 2026-07-22 |
+| 12.6 | test / type-check / lint / H5 build / HBuilderX 回归 | 🔄 自动化、CLI 与 H5 已通过，真机待验证 |
+| 12.7 | 新建订单高频录单收敛 | 🔄 静态、H5 与 390 × 844 浏览器结构检查通过，真机待验证 |
+
+设计基线：`docs/design.md`
 
 ---
 
@@ -100,3 +116,8 @@
 - 2026-07-14：客户列表次卡身份头像：`src/api/meal-cards.ts` 新增单次批量查询当前有剩余次数的 active 次卡客户 ID；`src/pages/me/customers/list.vue` 头像区将这类客户显示为“次”，其他客户显示为“普”，不改 schema 和其他页面。`pnpm type-check` / `pnpm lint` / `pnpm build:h5` 通过（H5 仅有既有 uni-ui Sass 弃用警告），HBuilderX 真机待验证。
 - 2026-07-22：一餐一单与组合支付（v1.12）：schema v5 新增 `orders.meal_card_quantity`；订单创建 / 编辑在事务内维护同键唯一有效订单、次卡 pending 预占、支付冲突和改单价 / 目标合并确认，配送 / 删除只处理次卡分配部分；顶层 SQLite 事务改为队列串行，页面状态操作增加 in-flight 锁；新增 / 编辑页改为 uni-forms，列表改为完整支付副标题；备份与充值记录校正同步。`pnpm test` 21 条、`pnpm type-check`、`pnpm lint`、`pnpm build:h5` 通过，HBuilderX 真机待回归。
 - 2026-07-22：客户表单标签统一：新建订单与订单详情编辑均由 `<uni-forms-item label="客户">` 提供字段标签；`CustomerPicker` 移除内部重复标签，保留选择、搜索和拼音分组交互。`pnpm type-check`、`pnpm lint`、`pnpm build:h5` 与 `git diff --check` 通过；H5 仅输出既有 uni-ui Sass 弃用警告。
+- 2026-07-22：订单与对账 UI 基线（v1.13）—— 新增 `docs/design.md` 和 `src/uni.scss` 的 `$hej-*` 语义 token；订单列表空态可新建所选日期首单，新建 / 编辑订单按统一层级并使用固定确认区，统计页改为“收支 / 利润趋势”逐日并列展示入账、支出和利润。首页按用户反馈恢复既有概览与分组布局；本轮自定义按钮统一采用固定高度与等值行高，保证 App 端文字垂直居中。订单页顶部日期 / 新建区增加内边距并使用蓝色主动作；修复漏写 `lang="scss"` 导致 `$hej-*` token 原样输出、App 回退默认样式的问题，新增静态回归测试；新建订单的合并、配送冲突、次卡、加载 / 失败和字段占位提示改为说明原因与下一步。未改订单、金额或 SQLite 业务规则；`pnpm test`（22 条）、`pnpm type-check`、`pnpm lint`、`pnpm build:h5` 与 `git diff --check` 通过，H5 仅输出既有 uni-ui / Dart Sass deprecation warnings，HBuilderX 真机视觉 / 交互回归待执行。
+- 2026-07-22：订单金额展示文案—— 新建 / 编辑确认区和订单详情将“货币金额”改为“实际金额”；仅改用户可见名称，不改 `orders.amount`、支付拆分或金额计算。`pnpm test`（22 条）、`pnpm type-check`、`pnpm lint`、`pnpm build:h5` 与 `git diff --check` 通过。
+- 2026-07-22：AI 协作入口收敛——新增本地 `uni_modules` 选型索引，完整登记 45 个包并规定新增 / 重做 UI 先查本地、满足边界才优先复用；`AGENTS.md` 收敛为任务路由、硬约束、验证与平台陷阱，重复的产品细节、历史复盘和 API 说明回归各自权威文档。本次不改应用代码或业务行为。
+- 2026-07-22：订单支付摘要与表单层级——新建 / 编辑订单将金额收进“配送与支付”卡内作为分隔小节；固定确认区、合并改单价提示和详情份数均明确显示微信 / 现金渠道，不再对用户显示“货币支付 / 货币份数”。不改 `orders.amount`、支付拆分或金额计算。`pnpm test`（22 条）、`pnpm type-check`、`pnpm lint`、`pnpm build:h5` 与 `git diff --check` 通过。
+- 2026-07-22：新建订单高频录单（v1.14）——`src/pages/order/new.vue` 改为紧凑配送安排 + 连续单卡，默认明天 / 午餐 / 微信不变；组合支付降为份数大于 1 时的次级入口，用户主动进入后预填 1 次并用步进器调整，实际单价直接显示输入框、备注一行常显。固定确认区直接说明缺失项；保存后由二次弹窗选择继续下一单（安全清空本次字段）或结束录单。未改订单事务、次卡预占、金额或 schema。`pnpm test`（22 条）、`pnpm type-check`、`pnpm lint`、`pnpm build:h5` 与 `git diff --check` 通过；390 × 844 H5 浏览器结构检查通过，HBuilderX 真机待验证。

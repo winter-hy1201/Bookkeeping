@@ -23,6 +23,7 @@ import {
   customerPrice,
   mealTypeText,
   orderPaymentSummary,
+  paymentText,
   priceHint,
   showToast,
   statusText,
@@ -136,6 +137,15 @@ const cardRequirementLabel = computed(() =>
   editTargetOrder.value?.status === 'pending' ? '合并后订单需要' : '订单需要',
 )
 const moneyQuantity = computed(() => Math.max(0, form.quantity - cardQuantity.value))
+function moneyPaymentText(quantity: number): string {
+  const method = isMixed.value
+    ? form.money_method
+    : form.payment_mode === 'cash'
+      ? 'cash'
+      : 'wechat'
+  return `${quantity} 份${paymentText(method)}支付`
+}
+const moneyPaymentSummary = computed(() => moneyPaymentText(moneyQuantity.value))
 const editTotalAmount = computed(() => multiplyMoney(actualPrice.value, moneyQuantity.value))
 const cardAvailabilityError = computed(() => {
   if (!editAvailability.value || requiredCardQuantity.value === 0) return ''
@@ -163,6 +173,10 @@ const copyInfoText = computed(() => {
 const orderMoneyQuantity = computed(() => {
   if (!order.value) return 0
   return order.value.quantity - order.value.meal_card_quantity
+})
+const orderMoneyPaymentLabel = computed(() => {
+  const current = order.value
+  return current ? `${paymentText(current.payment_method)}支付份数` : '支付份数'
 })
 
 watch(selectedCustomer, (value) => {
@@ -370,7 +384,7 @@ async function submitEditWithConfirmations(): Promise<Order | null> {
           '确认修改合并订单单价？',
           `旧单价 ${formatMoney(error.oldUnitPrice)}，新单价 ${formatMoney(
             error.newUnitPrice,
-          )}。合并后 ${error.moneyQuantity} 份货币支付将由 ${formatMoney(
+          )}。合并后，${moneyPaymentText(error.moneyQuantity)}将由 ${formatMoney(
             error.oldAmount,
           )} 重算为 ${formatMoney(error.newAmount)}。`,
         )
@@ -506,267 +520,334 @@ onLoad((query) => {
 </script>
 
 <template>
-  <scroll-view class="page" scroll-y>
-    <view v-if="loading" class="empty">加载中...</view>
-    <view v-else-if="!order" class="empty">订单不存在</view>
-    <template v-else>
-      <view class="hero">
-        <view class="hero-main">
-          <text class="name">{{ customer?.name ?? `客户 #${order.customer_id}` }}</text>
-          <text class="status">{{ statusText(order.status) }}</text>
-        </view>
-        <button
-          v-if="canEdit && !editing"
-          class="edit-button"
-          :disabled="actioning"
-          @click="startEdit"
-        >
-          编辑
+  <view class="page">
+    <scroll-view class="page-scroll" scroll-y>
+      <view class="page-content">
+        <view v-if="loading" class="empty">正在读取订单...</view>
+        <view v-else-if="!order" class="empty">订单不存在或已被删除</view>
+        <template v-else>
+          <view class="hero">
+            <view class="hero-main">
+              <text class="name">{{ customer?.name ?? `客户 #${order.customer_id}` }}</text>
+              <text
+                class="status"
+                :class="{
+                  'status--delivered': order.status === 'delivered',
+                  'status--cancelled': order.status === 'cancelled',
+                }"
+              >
+                {{ statusText(order.status) }}
+              </text>
+            </view>
+            <button
+              v-if="canEdit && !editing"
+              class="edit-button"
+              :disabled="actioning"
+              @click="startEdit"
+            >
+              编辑订单
+            </button>
+          </view>
+
+          <uni-forms
+            v-if="editing"
+            ref="formRef"
+            class="form"
+            :model-value="form"
+            :rules="rules"
+            validate-trigger="blur"
+            label-width="88"
+          >
+            <view class="form-section">
+              <view class="form-section-header">
+                <text class="form-section-title">订单对象</text>
+                <text class="form-section-meta">确认客户与配送时间</text>
+              </view>
+              <uni-forms-item name="customer_id" label="客户" required>
+                <CustomerPicker v-model="selectedCustomer" show-create @create="goCreateCustomer" />
+              </uni-forms-item>
+
+              <uni-forms-item name="order_date" label="日期" required>
+                <uni-datetime-picker
+                  v-model="form.order_date"
+                  class="date-picker"
+                  type="date"
+                  :clear-icon="false"
+                />
+              </uni-forms-item>
+
+              <uni-forms-item name="meal_type" label="餐次" required>
+                <uni-data-checkbox
+                  v-model="form.meal_type"
+                  class="segmented"
+                  mode="button"
+                  :localdata="mealTypeOptions"
+                  selected-color="#0070f3"
+                />
+              </uni-forms-item>
+            </view>
+
+            <view v-if="editContextLoading" class="context-box">正在检查目标餐次...</view>
+            <view
+              v-else-if="editTargetOrder?.status === 'pending'"
+              class="context-box context-box--info"
+            >
+              保存时会先询问是否与订单 #{{ editTargetOrder.id }} 合并，并保留目标排序。
+              <button class="link-button" @click="goTargetOrder">查看目标订单</button>
+            </view>
+            <view
+              v-else-if="editTargetOrder?.status === 'delivered'"
+              class="context-box context-box--danger"
+            >
+              目标客户本餐次已经配送，不能修改到该餐次。
+              <button class="link-button" @click="goTargetOrder">查看已配送订单</button>
+            </view>
+
+            <view class="form-section">
+              <view class="form-section-header">
+                <text class="form-section-title">配送与支付</text>
+                <text class="form-section-meta">调整总份数与支付方式</text>
+              </view>
+              <uni-forms-item name="quantity" label="总份数" required>
+                <uni-number-box
+                  v-model="form.quantity"
+                  class="number-box"
+                  :min="1"
+                  :max="99"
+                  :width="72"
+                  @change="onQuantityChange"
+                />
+              </uni-forms-item>
+
+              <uni-forms-item name="payment_mode" label="支付" required>
+                <uni-data-checkbox
+                  v-model="form.payment_mode"
+                  class="payment-grid"
+                  mode="button"
+                  :localdata="paymentOptions"
+                  selected-color="#0070f3"
+                />
+              </uni-forms-item>
+
+              <template v-if="isMixed">
+                <uni-forms-item name="money_method" label="补款方式" required>
+                  <uni-data-checkbox
+                    v-model="form.money_method"
+                    mode="button"
+                    :localdata="moneyMethodOptions"
+                    selected-color="#0070f3"
+                  />
+                </uni-forms-item>
+
+                <uni-forms-item name="meal_card_quantity" label="次卡次数" required>
+                  <uni-easyinput
+                    v-model="form.meal_card_quantity"
+                    type="number"
+                    inputmode="numeric"
+                    placeholder="请手动填写"
+                    :clearable="true"
+                  />
+                </uni-forms-item>
+              </template>
+
+              <view v-if="requiredCardQuantity > 0 && editAvailability" class="card-box">
+                <text>实际剩余 {{ editAvailability.actual_remaining }} 次</text>
+                <text>其他订单已预占 {{ editAvailability.reserved_by_others }} 次</text>
+                <text>
+                  当前可用 {{ editAvailability.available }} 次，{{ cardRequirementLabel }}
+                  {{ requiredCardQuantity }} 次
+                </text>
+                <text v-if="cardAvailabilityError" class="inline-error">
+                  {{ cardAvailabilityError }}
+                </text>
+              </view>
+
+              <view v-if="hasMoney" class="form-subsection">
+                <view class="form-section-header form-subsection-header">
+                  <text class="form-subsection-title">金额</text>
+                  <text class="form-section-meta">按实际单价计算</text>
+                </view>
+                <view class="hint">
+                  {{ priceHint(selectedCustomer, form.meal_type) }}
+                </view>
+                <uni-forms-item name="actual_price" label="实际单价" required>
+                  <view class="amount-control">
+                    <text class="amount-prefix">¥</text>
+                    <uni-easyinput
+                      v-model="form.actual_price"
+                      class="amount-input"
+                      type="digit"
+                      inputmode="decimal"
+                      placeholder="请填单价"
+                      :clearable="false"
+                      :input-border="false"
+                    />
+                  </view>
+                </uni-forms-item>
+              </view>
+            </view>
+
+            <view class="form-section form-section--note">
+              <view class="form-section-header">
+                <text class="form-section-title">备注</text>
+                <text class="form-section-meta">可选</text>
+              </view>
+              <uni-forms-item name="note" label="备注">
+                <uni-easyinput
+                  v-model="form.note"
+                  class="textarea"
+                  type="textarea"
+                  placeholder="可不填"
+                />
+              </uni-forms-item>
+            </view>
+            <view class="form-bottom-spacer" />
+          </uni-forms>
+
+          <template v-else>
+            <view class="panel">
+              <view class="panel-header">
+                <text class="panel-title">订单详情</text>
+                <text class="panel-meta">配送与收款记录</text>
+              </view>
+              <view class="row"
+                ><text>日期</text><text>{{ order.order_date }}</text></view
+              >
+              <view class="row">
+                <text>餐次</text>
+                <text>{{ mealTypeText(order.meal_type) }} × {{ order.quantity }}</text>
+              </view>
+              <view class="row"
+                ><text>支付</text><text>{{ orderPaymentSummary(order) }}</text></view
+              >
+              <view v-if="order.meal_card_quantity > 0" class="row">
+                <text>次卡次数</text><text>{{ order.meal_card_quantity }} 次</text>
+              </view>
+              <view v-if="orderMoneyQuantity > 0" class="row">
+                <text>{{ orderMoneyPaymentLabel }}</text
+                ><text>{{ orderMoneyQuantity }} 份</text>
+              </view>
+              <view class="row"
+                ><text>实际单价</text><text>{{ formatMoney(order.unit_price) }}</text></view
+              >
+              <view class="row"
+                ><text>实际金额</text><text>{{ formatMoney(order.amount) }}</text></view
+              >
+              <view class="row row--top">
+                <text>备注</text><text class="note">{{ order.note || '—' }}</text>
+              </view>
+              <view class="row">
+                <text>创建</text
+                ><text>{{ dayjs(order.created_at).format('YYYY-MM-DD HH:mm:ss') }}</text>
+              </view>
+              <view v-if="order.cancelled_at" class="row">
+                <text>取消</text><text>{{ order.cancelled_at }}</text>
+              </view>
+            </view>
+
+            <view v-if="customer" class="panel">
+              <view class="panel-header">
+                <text class="panel-title">客户联系</text>
+                <text class="panel-meta">仅用于配送沟通</text>
+              </view>
+              <view class="row"
+                ><text>微信</text><text>{{ customer.wechat || '—' }}</text></view
+              >
+              <view class="row"
+                ><text>手机</text><text>{{ customer.phone || '—' }}</text></view
+              >
+            </view>
+
+            <view class="actions">
+              <button class="secondary" :disabled="actioning" @click="copyOrderInfo">
+                复制信息
+              </button>
+              <button
+                v-if="order.status === 'pending'"
+                class="primary"
+                :disabled="actioning"
+                @click="markDelivered"
+              >
+                标记已配送
+              </button>
+              <button
+                v-if="order.status === 'pending'"
+                class="danger"
+                :disabled="actioning"
+                @click="cancelOrder"
+              >
+                取消订单
+              </button>
+            </view>
+            <view class="danger-zone">
+              <button class="danger-outline" :disabled="actioning" @click="deleteOrder">
+                删除订单
+              </button>
+            </view>
+          </template>
+        </template>
+      </view>
+    </scroll-view>
+
+    <view v-if="order && editing" class="edit-submit-bar">
+      <view class="submit-summary">
+        <text class="submit-label">{{ hasMoney ? '本次实际金额' : '本次支付方式' }}</text>
+        <text class="submit-value">{{ hasMoney ? formatMoney(editTotalAmount) : '次卡支付' }}</text>
+        <text class="submit-meta">
+          {{
+            isMixed
+              ? `次卡 ${cardQuantity} 次 · ${moneyPaymentSummary}`
+              : hasMoney
+                ? moneyPaymentSummary
+                : '金额记 ¥0.00'
+          }}
+        </text>
+      </view>
+      <view class="edit-submit-actions">
+        <button class="secondary" @click="cancelEdit">取消编辑</button>
+        <button class="primary" :disabled="!canSaveEdit" @click="saveEdit">
+          {{ saving ? '保存中...' : '保存修改' }}
         </button>
       </view>
-
-      <uni-forms
-        v-if="editing"
-        ref="formRef"
-        class="form"
-        :model-value="form"
-        :rules="rules"
-        validate-trigger="blur"
-        label-width="88"
-      >
-        <uni-forms-item name="customer_id" label="客户" required>
-          <CustomerPicker v-model="selectedCustomer" show-create @create="goCreateCustomer" />
-        </uni-forms-item>
-
-        <uni-forms-item name="order_date" label="日期" required>
-          <uni-datetime-picker
-            v-model="form.order_date"
-            class="date-picker"
-            type="date"
-            :clear-icon="false"
-          />
-        </uni-forms-item>
-
-        <uni-forms-item name="meal_type" label="餐次" required>
-          <uni-data-checkbox
-            v-model="form.meal_type"
-            class="segmented"
-            mode="button"
-            :localdata="mealTypeOptions"
-            selected-color="#007aff"
-          />
-        </uni-forms-item>
-
-        <view v-if="editContextLoading" class="context-box">正在检查目标餐次...</view>
-        <view
-          v-else-if="editTargetOrder?.status === 'pending'"
-          class="context-box context-box--info"
-        >
-          保存时会先询问是否与订单 #{{ editTargetOrder.id }} 合并，并保留目标排序。
-          <button class="link-button" @click="goTargetOrder">查看目标订单</button>
-        </view>
-        <view
-          v-else-if="editTargetOrder?.status === 'delivered'"
-          class="context-box context-box--danger"
-        >
-          目标客户本餐次已经配送，不能修改到该餐次。
-          <button class="link-button" @click="goTargetOrder">查看已配送订单</button>
-        </view>
-
-        <uni-forms-item name="quantity" label="总份数" required>
-          <uni-number-box
-            v-model="form.quantity"
-            class="number-box"
-            :min="1"
-            :max="99"
-            :width="72"
-            @change="onQuantityChange"
-          />
-        </uni-forms-item>
-
-        <uni-forms-item name="payment_mode" label="支付" required>
-          <uni-data-checkbox
-            v-model="form.payment_mode"
-            class="payment-grid"
-            mode="button"
-            :localdata="paymentOptions"
-            selected-color="#007aff"
-          />
-        </uni-forms-item>
-
-        <template v-if="isMixed">
-          <uni-forms-item name="money_method" label="补款方式" required>
-            <uni-data-checkbox
-              v-model="form.money_method"
-              mode="button"
-              :localdata="moneyMethodOptions"
-              selected-color="#007aff"
-            />
-          </uni-forms-item>
-
-          <uni-forms-item name="meal_card_quantity" label="次卡次数" required>
-            <uni-easyinput
-              v-model="form.meal_card_quantity"
-              type="number"
-              inputmode="numeric"
-              placeholder="请手动填写"
-              :clearable="true"
-            />
-          </uni-forms-item>
-        </template>
-
-        <view v-if="requiredCardQuantity > 0 && editAvailability" class="card-box">
-          <text>实际剩余 {{ editAvailability.actual_remaining }} 次</text>
-          <text>其他订单已预占 {{ editAvailability.reserved_by_others }} 次</text>
-          <text>
-            当前可用 {{ editAvailability.available }} 次，{{ cardRequirementLabel }}
-            {{ requiredCardQuantity }} 次
-          </text>
-          <text v-if="cardAvailabilityError" class="inline-error">
-            {{ cardAvailabilityError }}
-          </text>
-        </view>
-
-        <view v-if="hasMoney" class="hint">
-          {{ priceHint(selectedCustomer, form.meal_type) }}
-        </view>
-        <uni-forms-item v-if="hasMoney" name="actual_price" label="实际单价" required>
-          <view class="amount-control">
-            <text class="amount-prefix">¥</text>
-            <uni-easyinput
-              v-model="form.actual_price"
-              class="amount-input"
-              type="digit"
-              inputmode="decimal"
-              placeholder="请填单价"
-              :clearable="false"
-              :input-border="false"
-            />
-          </view>
-        </uni-forms-item>
-
-        <view v-if="isMixed" class="calculation-box">
-          货币支付 {{ moneyQuantity }} 份，补款 {{ formatMoney(editTotalAmount) }}
-        </view>
-
-        <uni-forms-item name="note" label="备注">
-          <uni-easyinput
-            v-model="form.note"
-            class="textarea"
-            type="textarea"
-            placeholder="可不填"
-          />
-        </uni-forms-item>
-
-        <view class="total-row">
-          <text>货币金额</text>
-          <text>{{ hasMoney ? formatMoney(editTotalAmount) : '次卡支付，金额记 0' }}</text>
-        </view>
-
-        <view class="actions">
-          <button class="secondary" @click="cancelEdit">取消编辑</button>
-          <button class="primary" :disabled="!canSaveEdit" @click="saveEdit">
-            {{ saving ? '保存中...' : '保存修改' }}
-          </button>
-        </view>
-      </uni-forms>
-
-      <template v-else>
-        <view class="panel">
-          <view class="row"
-            ><text>日期</text><text>{{ order.order_date }}</text></view
-          >
-          <view class="row">
-            <text>餐次</text>
-            <text>{{ mealTypeText(order.meal_type) }} × {{ order.quantity }}</text>
-          </view>
-          <view class="row"
-            ><text>支付</text><text>{{ orderPaymentSummary(order) }}</text></view
-          >
-          <view v-if="order.meal_card_quantity > 0" class="row">
-            <text>次卡次数</text><text>{{ order.meal_card_quantity }} 次</text>
-          </view>
-          <view v-if="orderMoneyQuantity > 0" class="row">
-            <text>货币份数</text><text>{{ orderMoneyQuantity }} 份</text>
-          </view>
-          <view class="row"
-            ><text>实际单价</text><text>{{ formatMoney(order.unit_price) }}</text></view
-          >
-          <view class="row"
-            ><text>货币金额</text><text>{{ formatMoney(order.amount) }}</text></view
-          >
-          <view class="row row--top"
-            ><text>备注</text><text class="note">{{ order.note || '—' }}</text></view
-          >
-          <view class="row">
-            <text>创建</text
-            ><text>{{ dayjs(order.created_at).format('YYYY-MM-DD HH:mm:ss') }}</text>
-          </view>
-          <view v-if="order.cancelled_at" class="row">
-            <text>取消</text><text>{{ order.cancelled_at }}</text>
-          </view>
-        </view>
-
-        <view v-if="customer" class="panel">
-          <view class="row"
-            ><text>微信</text><text>{{ customer.wechat || '—' }}</text></view
-          >
-          <view class="row"
-            ><text>手机</text><text>{{ customer.phone || '—' }}</text></view
-          >
-        </view>
-
-        <view class="actions">
-          <button class="secondary" :disabled="actioning" @click="copyOrderInfo">复制信息</button>
-          <button
-            v-if="order.status === 'pending'"
-            class="primary"
-            :disabled="actioning"
-            @click="markDelivered"
-          >
-            标记已配送
-          </button>
-          <button
-            v-if="order.status === 'pending'"
-            class="danger"
-            :disabled="actioning"
-            @click="cancelOrder"
-          >
-            取消订单
-          </button>
-        </view>
-        <view class="danger-zone">
-          <button class="danger-outline" :disabled="actioning" @click="deleteOrder">
-            删除订单
-          </button>
-        </view>
-      </template>
-    </template>
-  </scroll-view>
+    </view>
+  </view>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .page {
-  min-height: 100vh;
-  padding: 24rpx;
-  background: #f6f7f9;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: $hej-color-canvas;
   box-sizing: border-box;
 }
 
+.page-scroll {
+  flex: 1;
+  height: 0;
+  min-height: 0;
+}
+
+.page-content {
+  padding: $hej-space-5;
+}
+
 .hero,
-.panel,
-.form {
-  margin-bottom: 20rpx;
-  padding: 28rpx 24rpx;
-  border-radius: 12rpx;
-  background: #ffffff;
+.panel {
+  margin-bottom: $hej-space-5;
+  padding: $hej-space-5;
+  border: 1rpx solid $hej-color-border;
+  border-radius: $hej-radius-panel;
+  background: $hej-color-surface;
+  box-shadow: $hej-shadow-panel;
 }
 
 .hero {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20rpx;
+  gap: $hej-space-4;
 }
 
 .hero-main {
@@ -778,7 +859,7 @@ onLoad((query) => {
 
 .name {
   overflow: hidden;
-  color: #222222;
+  color: $hej-color-text;
   font-size: 38rpx;
   font-weight: 700;
   text-overflow: ellipsis;
@@ -786,52 +867,122 @@ onLoad((query) => {
 }
 
 .status {
-  margin-top: 8rpx;
-  color: #007aff;
-  font-size: 26rpx;
+  margin-top: $hej-space-1;
+  color: $hej-color-accent;
+  font-size: $hej-font-meta;
+}
+
+.status--delivered {
+  color: $hej-color-success;
+}
+
+.status--cancelled {
+  color: $hej-color-danger;
 }
 
 .edit-button {
   flex: 0 0 auto;
+  height: 72rpx;
   margin: 0;
-  padding: 0 28rpx;
-  border-radius: 12rpx;
-  background: #eef5ff;
-  color: #007aff;
-  font-size: 28rpx;
+  padding: 0 $hej-space-4;
+  border-radius: $hej-radius-control;
+  background: $hej-color-accent-soft;
+  color: $hej-color-accent;
+  font-size: $hej-font-meta;
+  font-weight: 600;
+  line-height: 72rpx;
+  text-align: center;
+}
+
+.form {
+  display: block;
+}
+
+.form-section {
+  margin-bottom: $hej-space-5;
+  padding: $hej-space-5;
+  border: 1rpx solid $hej-color-border;
+  border-radius: $hej-radius-panel;
+  background: $hej-color-surface;
+  box-shadow: $hej-shadow-panel;
+}
+
+.form-section-header,
+.panel-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: $hej-space-3;
+  margin-bottom: $hej-space-4;
+}
+
+.form-section-title,
+.panel-title {
+  color: $hej-color-text;
+  font-size: $hej-font-body;
+  font-weight: 700;
+}
+
+.form-section-meta,
+.panel-meta {
+  color: $hej-color-text-tertiary;
+  font-size: $hej-font-caption;
+  text-align: right;
+}
+
+.form-subsection {
+  margin-top: $hej-space-5;
+  padding-top: $hej-space-5;
+  border-top: 1rpx solid $hej-color-border;
+}
+
+.card-box + .form-subsection {
+  margin-top: 0;
+}
+
+.form-subsection-header {
+  margin-bottom: $hej-space-3;
+}
+
+.form-subsection-title {
+  color: $hej-color-text;
+  font-size: $hej-font-meta;
+  font-weight: 600;
 }
 
 .context-box,
-.card-box,
-.calculation-box,
-.total-row {
-  margin-bottom: 24rpx;
-  padding: 22rpx 24rpx;
-  border-radius: 12rpx;
-  background: #f8f9fb;
-  color: #333333;
-  font-size: 26rpx;
+.card-box {
+  margin-bottom: $hej-space-5;
+  padding: $hej-space-4 $hej-space-5;
+  border-radius: $hej-radius-control;
+  background: $hej-color-surface-subtle;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-meta;
   line-height: 1.6;
 }
 
 .context-box--info {
-  background: #eef6ff;
-  color: #165d9c;
+  background: $hej-color-accent-soft;
+  color: $hej-color-accent;
 }
 
 .context-box--danger {
-  background: #fff1f0;
-  color: #cf1322;
+  background: $hej-color-danger-soft;
+  color: $hej-color-danger;
 }
 
 .link-button {
   display: inline-block;
-  margin: 12rpx 0 0;
+  height: 56rpx;
+  margin: $hej-space-2 0 0;
   padding: 0;
+  border: 0;
   background: transparent;
-  color: #007aff;
-  font-size: 26rpx;
-  line-height: 1.5;
+  color: inherit;
+  font-size: $hej-font-meta;
+  font-weight: 600;
+  line-height: 56rpx;
+  text-align: center;
 }
 
 .card-box text {
@@ -839,25 +990,26 @@ onLoad((query) => {
 }
 
 .hint {
-  margin: -8rpx 0 20rpx 176rpx;
-  color: #8f8f94;
-  font-size: 24rpx;
+  margin: 0 0 $hej-space-3;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-caption;
+  line-height: 1.5;
 }
 
 .amount-control {
   display: flex;
   align-items: center;
   min-width: 0;
-  padding: 12rpx 18rpx;
-  border: 1rpx solid #e5e5e5;
-  border-radius: 10rpx;
-  background: #ffffff;
+  padding: $hej-space-2 $hej-space-3;
+  border: 1rpx solid $hej-color-border;
+  border-radius: $hej-radius-control;
+  background: $hej-color-surface;
 }
 
 .amount-prefix {
-  margin-right: 8rpx;
-  color: #333333;
-  font-size: 30rpx;
+  margin-right: $hej-space-1;
+  color: $hej-color-text;
+  font-size: $hej-font-body;
   font-weight: 600;
 }
 
@@ -867,8 +1019,8 @@ onLoad((query) => {
 }
 
 .inline-error {
-  margin-top: 10rpx;
-  color: #d93025;
+  margin-top: $hej-space-2;
+  color: $hej-color-danger;
   font-weight: 600;
 }
 
@@ -876,22 +1028,14 @@ onLoad((query) => {
   min-height: 150rpx;
 }
 
-.total-row {
-  display: flex;
-  justify-content: space-between;
-  color: #222222;
-  font-size: 30rpx;
-  font-weight: 600;
-}
-
 .row {
   display: flex;
   justify-content: space-between;
-  gap: 24rpx;
-  padding: 18rpx 0;
-  border-bottom: 1rpx solid #f1f1f1;
-  color: #333333;
-  font-size: 28rpx;
+  gap: $hej-space-4;
+  padding: $hej-space-3 0;
+  border-bottom: 1rpx solid $hej-color-border;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-body;
 }
 
 .row:last-child {
@@ -905,13 +1049,14 @@ onLoad((query) => {
 .note {
   max-width: 70%;
   overflow-wrap: anywhere;
+  color: $hej-color-text;
   text-align: right;
   white-space: normal;
 }
 
 .actions {
   display: flex;
-  gap: 20rpx;
+  gap: $hej-space-3;
 }
 
 .actions button {
@@ -923,40 +1068,113 @@ onLoad((query) => {
 .danger,
 .danger-outline {
   flex: 1;
-  border-radius: 12rpx;
-  font-size: 30rpx;
+  height: 88rpx;
+  margin: 0;
+  padding: 0;
+  border-radius: $hej-radius-control;
+  font-size: $hej-font-body;
+  font-weight: 600;
+  line-height: 88rpx;
+  text-align: center;
 }
 
 .primary {
-  background: #007aff;
-  color: #ffffff;
+  background: $hej-color-accent;
+  color: $hej-color-surface;
 }
 
 .secondary {
-  background: #eef0f4;
-  color: #333333;
+  background: $hej-color-surface-subtle;
+  color: $hej-color-text;
 }
 
 .danger {
-  background: #ee0a24;
-  color: #ffffff;
+  background: $hej-color-danger;
+  color: $hej-color-surface;
 }
 
 .danger-zone {
-  margin-top: 20rpx;
+  margin-top: $hej-space-4;
 }
 
 .danger-outline {
   width: 100%;
-  border: 1rpx solid #ffccc7;
-  background: #ffffff;
-  color: #ee0a24;
+  border: 1rpx solid $hej-color-danger;
+  background: $hej-color-surface;
+  color: $hej-color-danger;
+}
+
+.form-bottom-spacer {
+  height: $hej-space-2;
+}
+
+.edit-submit-bar {
+  flex: 0 0 auto;
+  padding: $hej-space-3 $hej-space-5 $hej-space-4;
+  border-top: 1rpx solid $hej-color-border;
+  background: $hej-color-surface;
+}
+
+.submit-summary {
+  margin-bottom: $hej-space-3;
+}
+
+.submit-label,
+.submit-meta {
+  display: block;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-caption;
+}
+
+.submit-value {
+  display: block;
+  margin-top: 2rpx;
+  overflow: hidden;
+  color: $hej-color-text;
+  font-size: $hej-font-title;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.submit-meta {
+  margin-top: 2rpx;
+}
+
+.edit-submit-actions {
+  display: flex;
+  gap: $hej-space-3;
+}
+
+.primary:active,
+.secondary:active,
+.danger:active,
+.danger-outline:active,
+.edit-button:active {
+  opacity: 0.82;
+}
+
+.primary:focus-visible,
+.secondary:focus-visible,
+.danger:focus-visible,
+.danger-outline:focus-visible,
+.edit-button:focus-visible {
+  outline: 2rpx solid $hej-color-text;
+  outline-offset: -4rpx;
+}
+
+.primary[disabled],
+.secondary[disabled],
+.danger[disabled],
+.danger-outline[disabled],
+.edit-button[disabled] {
+  opacity: 0.5;
 }
 
 .empty {
   padding: 120rpx 0;
-  color: #8f8f94;
-  font-size: 28rpx;
+  color: $hej-color-text-tertiary;
+  font-size: $hej-font-body;
   text-align: center;
 }
 </style>

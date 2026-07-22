@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import CustomerPicker from '../../components/CustomerPicker.vue'
 import {
   DeliveredOrderConflictError,
@@ -19,6 +20,7 @@ import {
   confirmDialog,
   customerPrice,
   orderPaymentSummary,
+  paymentText,
   priceHint,
   showToast,
   toNumber,
@@ -48,6 +50,7 @@ const availability = ref<MealCardAvailabilityResult | null>(null)
 const contextLoading = ref(false)
 const contextReady = ref(false)
 const contextError = ref('')
+const cardOperationError = ref('')
 const saving = ref(false)
 const userEditedPrice = ref(false)
 let contextVersion = 0
@@ -66,28 +69,28 @@ const form = reactive<OrderForm>({
 
 const rules = {
   customer_id: {
-    rules: [{ required: true, errorMessage: '请选择客户' }],
+    rules: [{ required: true, errorMessage: '先选择客户' }],
   },
   order_date: {
-    rules: [{ required: true, errorMessage: '请选择日期' }],
+    rules: [{ required: true, errorMessage: '请选择配送日期' }],
   },
   meal_type: {
-    rules: [{ required: true, errorMessage: '请选择餐次' }],
+    rules: [{ required: true, errorMessage: '请选择午餐或晚餐' }],
   },
   quantity: {
-    rules: [{ required: true, errorMessage: '请输入本次新增份数' }],
+    rules: [{ required: true, errorMessage: '请填写本次新增份数' }],
   },
   payment_mode: {
-    rules: [{ required: true, errorMessage: '请选择支付方式' }],
+    rules: [{ required: true, errorMessage: '请选择收款方式' }],
   },
   money_method: {
-    rules: [{ required: true, errorMessage: '请选择补款方式' }],
+    rules: [{ required: true, errorMessage: '请选择补款用微信还是现金' }],
   },
   meal_card_quantity: {
-    rules: [{ required: true, errorMessage: '请输入次卡次数' }],
+    rules: [{ required: true, errorMessage: '请填写本次使用的次卡次数' }],
   },
   actual_price: {
-    rules: [{ required: true, errorMessage: '请输入实际单价' }],
+    rules: [{ required: true, errorMessage: '请填写本次实际单价' }],
   },
 }
 
@@ -95,12 +98,11 @@ const mealTypeOptions = [
   { text: '午餐', value: 'lunch' },
   { text: '晚餐', value: 'dinner' },
 ]
-const paymentOptions = computed(() => [
+const primaryPaymentOptions = [
   { text: '微信', value: 'wechat' },
   { text: '现金', value: 'cash' },
   { text: '次卡', value: 'meal_card' },
-  { text: '组合支付', value: 'mixed', disabled: form.quantity <= 1 },
-])
+]
 const moneyMethodOptions = [
   { text: '微信', value: 'wechat' },
   { text: '现金', value: 'cash' },
@@ -109,9 +111,23 @@ const moneyMethodOptions = [
 const isMixed = computed(() => form.payment_mode === 'mixed')
 const hasMoney = computed(() => form.payment_mode !== 'meal_card')
 const actualPrice = computed(() => roundMoney(parseMoney(form.actual_price)))
+const hasActualPrice = computed(() => form.actual_price.trim().length > 0)
 const mixedCardQuantity = computed(() => {
   const value = Number(form.meal_card_quantity)
   return Number.isInteger(value) && value > 0 ? value : 0
+})
+const hasMixedCardQuantity = computed(() => mixedCardQuantity.value > 0)
+const mixedPaymentAvailable = computed(() => form.quantity > 1)
+const mixedCardQuantityMax = computed(() => Math.max(1, form.quantity - 1))
+const mixedCardQuantityInput = computed<number>({
+  get: () => mixedCardQuantity.value,
+  set: (value) => {
+    const next = Math.min(
+      mixedCardQuantityMax.value,
+      Math.max(1, Math.floor(toNumber(value))),
+    )
+    form.meal_card_quantity = String(next)
+  },
 })
 const cardQuantity = computed(() => {
   if (form.payment_mode === 'meal_card') return form.quantity
@@ -124,15 +140,44 @@ const requiredCardQuantity = computed(
     (existingOrder.value?.status === 'pending' ? existingOrder.value.meal_card_quantity : 0),
 )
 const cardRequirementLabel = computed(() =>
-  existingOrder.value?.status === 'pending' ? '合并后订单需要' : '订单需要',
+  existingOrder.value?.status === 'pending' ? '合并后共要用' : '本次要用',
 )
 const moneyQuantity = computed(() => Math.max(0, form.quantity - cardQuantity.value))
+function moneyPaymentText(quantity: number): string {
+  const method = isMixed.value
+    ? form.money_method
+    : form.payment_mode === 'cash'
+      ? 'cash'
+      : 'wechat'
+  return `${quantity} 份${paymentText(method)}支付`
+}
+const moneyPaymentSummary = computed(() => moneyPaymentText(moneyQuantity.value))
 const totalAmount = computed(() => multiplyMoney(actualPrice.value, moneyQuantity.value))
 const cardAvailabilityError = computed(() => {
   if (!availability.value || requiredCardQuantity.value === 0) return ''
   if (requiredCardQuantity.value <= availability.value.available) return ''
-  return `当前可用 ${availability.value.available} 次，${cardRequirementLabel.value} ${requiredCardQuantity.value} 次，请减少份数或调整支付方式`
+  return `这次最多还能用 ${availability.value.available} 次次卡，但${cardRequirementLabel.value} ${requiredCardQuantity.value} 次。请减少次卡次数或改用微信 / 现金。`
 })
+const cardErrorMessage = computed(
+  () => cardOperationError.value || cardAvailabilityError.value,
+)
+const submitValue = computed(() => {
+  if (!selectedCustomer.value) return '待选择客户'
+  if (!hasMoney.value) return '次卡支付'
+  return hasActualPrice.value ? formatMoney(totalAmount.value) : '待填写单价'
+})
+const paymentSummaryText = computed(() => {
+  if (isMixed.value) {
+    if (!hasMixedCardQuantity.value) return '请选择次卡次数'
+    return `次卡 ${cardQuantity.value} 次 · ${moneyPaymentSummary.value}`
+  }
+  return hasMoney.value ? moneyPaymentSummary.value : '金额记 ¥0.00'
+})
+const submitMeta = computed(() =>
+  existingOrder.value?.status === 'pending'
+    ? `将合并 · ${paymentSummaryText.value}`
+    : paymentSummaryText.value,
+)
 const canSave = computed(
   () =>
     selectedCustomer.value !== null &&
@@ -141,9 +186,27 @@ const canSave = computed(
     form.quantity > 0 &&
     contextReady.value &&
     !contextLoading.value &&
+    !contextError.value &&
     existingOrder.value?.status !== 'delivered' &&
+    (!isMixed.value || hasMixedCardQuantity.value) &&
+    (!hasMoney.value || (hasActualPrice.value && actualPrice.value >= 0)) &&
+    !cardErrorMessage.value &&
     !saving.value,
 )
+const saveActionLabel = computed(() => {
+  if (saving.value) return '保存中...'
+  if (!selectedCustomer.value) return '先选客户'
+  if (!form.order_date || !form.meal_type) return '补全配送安排'
+  if (contextLoading.value || !contextReady.value) {
+    return contextError.value ? '重新检查订单' : '检查中...'
+  }
+  if (existingOrder.value?.status === 'delivered') return '已配送，不能新增'
+  if (isMixed.value && !hasMixedCardQuantity.value) return '选择次卡次数'
+  if (hasMoney.value && !hasActualPrice.value) return '填写单价'
+  if (hasMoney.value && actualPrice.value < 0) return '单价不能小于 0'
+  if (cardErrorMessage.value) return '次卡不足'
+  return existingOrder.value?.status === 'pending' ? '合并并保存' : '保存订单'
+})
 
 watch(selectedCustomer, (customer) => {
   form.customer_id = customer?.id ?? ''
@@ -159,11 +222,24 @@ watch(
 )
 
 watch(
-  () => form.payment_mode,
-  (mode, previous) => {
-    if (mode === 'mixed' && previous !== 'mixed') {
+  () => form.quantity,
+  (quantity) => {
+    if (!isMixed.value) return
+    if (quantity <= 1) {
+      form.payment_mode = form.money_method
       form.meal_card_quantity = ''
+      return
     }
+    if (mixedCardQuantity.value >= quantity) {
+      form.meal_card_quantity = String(quantity - 1)
+    }
+  },
+)
+
+watch(
+  [() => form.quantity, () => form.payment_mode, () => form.meal_card_quantity],
+  () => {
+    cardOperationError.value = ''
   },
 )
 
@@ -173,6 +249,7 @@ async function refreshOrderContext(): Promise<void> {
   contextLoading.value = false
   contextReady.value = false
   contextError.value = ''
+  cardOperationError.value = ''
   existingOrder.value = null
   availability.value = null
   if (!customer || !form.order_date || !form.meal_type) {
@@ -200,8 +277,8 @@ async function refreshOrderContext(): Promise<void> {
     contextReady.value = true
   } catch {
     if (version !== contextVersion) return
-    contextError.value = '订单信息加载失败，请重试'
-    showToast('订单信息加载失败')
+    contextError.value = '暂时无法确认这餐是否已有订单，请重新检查后再保存。'
+    showToast('暂时无法确认订单信息')
   } finally {
     if (version === contextVersion) contextLoading.value = false
   }
@@ -214,6 +291,17 @@ function onQuantityChange(value: string | number): void {
 function onActualPriceInput(value: string | number): void {
   userEditedPrice.value = true
   form.actual_price = String(value)
+}
+
+function startMixedPayment(): void {
+  if (!mixedPaymentAvailable.value) return
+  form.meal_card_quantity = '1'
+  form.payment_mode = 'mixed'
+}
+
+function exitMixedPayment(): void {
+  form.payment_mode = form.money_method
+  form.meal_card_quantity = ''
 }
 
 function goCreateCustomer(): void {
@@ -231,40 +319,18 @@ async function validateForm(): Promise<boolean> {
   } catch {
     return false
   }
-  if (!selectedCustomer.value) {
-    showToast('请选择客户')
-    return false
-  }
-  if (!Number.isInteger(form.quantity) || form.quantity <= 0) {
-    showToast('本次新增份数必须是正整数')
-    return false
-  }
+  if (!selectedCustomer.value) return false
+  if (!Number.isInteger(form.quantity) || form.quantity <= 0) return false
   if (isMixed.value) {
-    if (!form.meal_card_quantity.trim()) {
-      showToast('请输入次卡次数')
-      return false
-    }
-    if (!Number.isInteger(Number(form.meal_card_quantity))) {
-      showToast('次卡次数必须是整数')
-      return false
-    }
+    if (!form.meal_card_quantity.trim()) return false
+    if (!Number.isInteger(Number(form.meal_card_quantity))) return false
     if (mixedCardQuantity.value <= 0 || mixedCardQuantity.value >= form.quantity) {
-      showToast('组合支付的次卡次数必须大于 0 且小于总份数')
       return false
     }
   }
-  if (hasMoney.value && !form.actual_price.trim()) {
-    showToast('请输入实际单价')
-    return false
-  }
-  if (hasMoney.value && actualPrice.value < 0) {
-    showToast('实际单价不能小于 0')
-    return false
-  }
-  if (cardAvailabilityError.value) {
-    showToast(cardAvailabilityError.value)
-    return false
-  }
+  if (hasMoney.value && !form.actual_price.trim()) return false
+  if (hasMoney.value && actualPrice.value < 0) return false
+  if (cardErrorMessage.value) return false
   return true
 }
 
@@ -294,12 +360,12 @@ async function submitWithPriceConfirmation(): Promise<Order | null> {
   } catch (error) {
     if (!(error instanceof OrderPriceConfirmationError)) throw error
     const confirmed = await confirmDialog(
-      '确认修改合并订单单价？',
-      `旧单价 ${formatMoney(error.oldUnitPrice)}，新单价 ${formatMoney(
+      '确认使用新单价？',
+      `已有订单单价是 ${formatMoney(error.oldUnitPrice)}，本次单价是 ${formatMoney(
         error.newUnitPrice,
-      )}。合并后 ${error.moneyQuantity} 份货币支付将由 ${formatMoney(
+      )}。合并后，${moneyPaymentText(error.moneyQuantity)}将从 ${formatMoney(
         error.oldAmount,
-      )} 重算为 ${formatMoney(error.newAmount)}。`,
+      )} 调整为 ${formatMoney(error.newAmount)}。`,
     )
     if (!confirmed) return null
     return orderStore.create(createInput(true))
@@ -308,19 +374,53 @@ async function submitWithPriceConfirmation(): Promise<Order | null> {
 
 async function handleSaveError(error: unknown): Promise<void> {
   if (error instanceof OrderPaymentConflictError) {
-    const goEdit = await confirmDialog('支付方式冲突', `${error.message}，是否去编辑已有订单？`)
+    const goEdit = await confirmDialog(
+      '已有订单的收款方式不同',
+      `${error.message}。要先去修改已有订单吗？`,
+    )
     if (goEdit) uni.navigateTo({ url: `/pages/order/detail?id=${error.orderId}` })
     return
   }
-  if (
-    error instanceof InsufficientCardError ||
-    error instanceof DeliveredOrderConflictError ||
-    error instanceof LegacyOrderConflictError
-  ) {
-    showToast(error.message)
+  if (error instanceof InsufficientCardError) {
+    cardOperationError.value = error.message
     return
   }
-  showToast('订单保存失败')
+  if (error instanceof DeliveredOrderConflictError || error instanceof LegacyOrderConflictError) {
+    contextError.value = error.message
+    return
+  }
+  showToast('暂时没能保存订单，请稍后重试')
+}
+
+function choosePostSaveAction(merged: boolean): Promise<'continue' | 'finish'> {
+  return new Promise((resolve) => {
+    uni.showModal({
+      title: merged ? '订单已合并' : '订单已保存',
+      content: merged ? '本次新增份数已合入已有订单。还要继续录下一单吗？' : '还要继续录下一单吗？',
+      cancelText: '结束录单',
+      confirmText: '继续下一单',
+      confirmColor: '#0070f3',
+      success: (result) => resolve(result.confirm ? 'continue' : 'finish'),
+      fail: () => resolve('finish'),
+    })
+  })
+}
+
+function resetForNextOrder(): void {
+  contextVersion += 1
+  selectedCustomer.value = null
+  existingOrder.value = null
+  availability.value = null
+  contextLoading.value = false
+  contextReady.value = false
+  contextError.value = ''
+  cardOperationError.value = ''
+  userEditedPrice.value = false
+  form.customer_id = ''
+  form.quantity = 1
+  form.meal_card_quantity = ''
+  form.actual_price = ''
+  form.note = ''
 }
 
 async function save(): Promise<void> {
@@ -330,7 +430,11 @@ async function save(): Promise<void> {
     if (!(await validateForm())) return
     const saved = await submitWithPriceConfirmation()
     if (!saved) return
-    showToast(existingOrder.value?.status === 'pending' ? '已合并到原订单' : '保存成功')
+    const nextAction = await choosePostSaveAction(existingOrder.value?.status === 'pending')
+    if (nextAction === 'continue') {
+      resetForNextOrder()
+      return
+    }
     uni.navigateBack()
   } catch (error) {
     await handleSaveError(error)
@@ -338,227 +442,536 @@ async function save(): Promise<void> {
     saving.value = false
   }
 }
+
+onLoad((query) => {
+  const date = String(query?.date ?? '')
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    form.order_date = date
+  }
+})
 </script>
 
 <template>
-  <scroll-view class="page" scroll-y>
-    <uni-forms
-      ref="formRef"
-      class="form"
-      :model-value="form"
-      :rules="rules"
-      validate-trigger="blur"
-      label-width="88"
-    >
-      <uni-forms-item name="customer_id" label="客户" required>
-        <CustomerPicker v-model="selectedCustomer" show-create @create="goCreateCustomer" />
-      </uni-forms-item>
-
-      <uni-forms-item name="order_date" label="日期" required>
-        <uni-datetime-picker
-          v-model="form.order_date"
-          class="date-picker"
-          type="date"
-          :clear-icon="false"
-        />
-      </uni-forms-item>
-
-      <uni-forms-item name="meal_type" label="餐次" required>
-        <uni-data-checkbox
-          v-model="form.meal_type"
-          class="segmented"
-          mode="button"
-          :localdata="mealTypeOptions"
-          selected-color="#007aff"
-        />
-      </uni-forms-item>
-
-      <view v-if="contextLoading" class="context-box">正在检查本餐次已有订单...</view>
-      <view v-else-if="contextError" class="context-box context-box--danger">
-        {{ contextError }}
-        <button class="link-button" @click="refreshOrderContext">重新加载</button>
-      </view>
-      <view v-else-if="existingOrder?.status === 'pending'" class="context-box context-box--info">
-        <text>本次保存会合并到原订单 #{{ existingOrder.id }}</text>
-        <text class="context-meta">
-          已有 {{ existingOrder.quantity }} 份 · {{ orderPaymentSummary(existingOrder) }}
-        </text>
-        <button class="link-button" @click="goExistingOrder">查看原订单</button>
-      </view>
-      <view
-        v-else-if="existingOrder?.status === 'delivered'"
-        class="context-box context-box--danger"
+  <view class="page">
+    <scroll-view class="form-scroll" scroll-y>
+      <uni-forms
+        ref="formRef"
+        class="form"
+        :model-value="form"
+        :rules="rules"
+        validate-trigger="blur"
+        label-width="88"
       >
-        该客户本餐次已经配送，不能继续新增。
-        <button class="link-button" @click="goExistingOrder">查看已配送订单</button>
-      </view>
+        <view class="order-card">
+          <view class="delivery-strip">
+            <text class="delivery-strip-title">配送安排</text>
+            <view class="schedule-row">
+              <uni-forms-item name="order_date" class="schedule-field schedule-field--date">
+                <view class="schedule-control">
+                  <text class="schedule-label">日期</text>
+                  <uni-datetime-picker
+                    v-model="form.order_date"
+                    class="date-picker"
+                    type="date"
+                    :clear-icon="false"
+                  />
+                </view>
+              </uni-forms-item>
 
-      <uni-forms-item name="quantity" label="新增份数" required>
-        <uni-number-box
-          v-model="form.quantity"
-          class="number-box"
-          :min="1"
-          :max="99"
-          :width="72"
-          @change="onQuantityChange"
-        />
-      </uni-forms-item>
+              <uni-forms-item name="meal_type" class="schedule-field schedule-field--meal">
+                <view class="schedule-control">
+                  <text class="schedule-label">餐次</text>
+                  <uni-data-checkbox
+                    v-model="form.meal_type"
+                    class="meal-choice"
+                    mode="button"
+                    :localdata="mealTypeOptions"
+                    selected-color="#0070f3"
+                  />
+                </view>
+              </uni-forms-item>
+            </view>
+          </view>
 
-      <uni-forms-item name="payment_mode" label="支付" required>
-        <uni-data-checkbox
-          v-model="form.payment_mode"
-          class="payment-grid"
-          mode="button"
-          :localdata="paymentOptions"
-          selected-color="#007aff"
-        />
-      </uni-forms-item>
+          <view class="entry-section entry-section--customer">
+            <uni-forms-item name="customer_id" label="客户" required>
+              <CustomerPicker v-model="selectedCustomer" show-create @create="goCreateCustomer" />
+            </uni-forms-item>
 
-      <template v-if="isMixed">
-        <uni-forms-item name="money_method" label="补款方式" required>
-          <uni-data-checkbox
-            v-model="form.money_method"
-            mode="button"
-            :localdata="moneyMethodOptions"
-            selected-color="#007aff"
-          />
-        </uni-forms-item>
+            <view v-if="contextLoading" class="context-box">正在检查已有订单和次卡余额…</view>
+            <view v-else-if="contextError" class="context-box context-box--danger">
+              <text>{{ contextError }}</text>
+              <button class="link-button" @click="refreshOrderContext">重新检查</button>
+            </view>
+            <view
+              v-else-if="existingOrder?.status === 'pending'"
+              class="context-box context-box--info"
+            >
+              <text>将合并到已有待配送订单 #{{ existingOrder.id }}</text>
+              <text class="context-meta">
+                已有 {{ existingOrder.quantity }} 份 · {{ orderPaymentSummary(existingOrder) }}
+              </text>
+              <button class="link-button" @click="goExistingOrder">查看已有订单</button>
+            </view>
+            <view
+              v-else-if="existingOrder?.status === 'delivered'"
+              class="context-box context-box--danger"
+            >
+              <text>这位客户这餐已经配送完成，不能再追加份数。</text>
+              <button class="link-button" @click="goExistingOrder">查看已配送订单</button>
+            </view>
+          </view>
 
-        <uni-forms-item name="meal_card_quantity" label="次卡次数" required>
-          <uni-easyinput
-            v-model="form.meal_card_quantity"
-            type="number"
-            inputmode="numeric"
-            placeholder="请手动填写"
-            :clearable="true"
-          />
-        </uni-forms-item>
-      </template>
+          <view class="entry-divider" />
 
-      <view v-if="requiredCardQuantity > 0 && availability" class="card-box">
-        <text>实际剩余 {{ availability.actual_remaining }} 次</text>
-        <text>其他订单已预占 {{ availability.reserved_by_others }} 次</text>
-        <text>
-          当前可用 {{ availability.available }} 次，{{ cardRequirementLabel }}
-          {{ requiredCardQuantity }} 次
-        </text>
-        <text v-if="cardAvailabilityError" class="inline-error">
-          {{ cardAvailabilityError }}
-        </text>
-      </view>
+          <view class="entry-section entry-section--order">
+            <uni-forms-item name="quantity" label="新增份数" required>
+              <uni-number-box
+                v-model="form.quantity"
+                class="quantity-box"
+                :min="1"
+                :max="99"
+                :width="72"
+                @change="onQuantityChange"
+              />
+            </uni-forms-item>
 
-      <view v-if="hasMoney" class="hint">
-        {{ priceHint(selectedCustomer, form.meal_type) }}
-      </view>
-      <uni-forms-item v-if="hasMoney" name="actual_price" label="实际单价" required>
-        <view class="amount-control">
-          <text class="amount-prefix">¥</text>
-          <uni-easyinput
-            v-model="form.actual_price"
-            class="amount-input"
-            type="digit"
-            inputmode="decimal"
-            placeholder="请填单价"
-            :clearable="false"
-            :input-border="false"
-            @input="onActualPriceInput"
-          />
+            <uni-forms-item name="payment_mode" label="支付" required>
+              <view class="payment-control">
+                <uni-data-checkbox
+                  v-if="!isMixed"
+                  v-model="form.payment_mode"
+                  class="payment-primary"
+                  mode="button"
+                  :localdata="primaryPaymentOptions"
+                  selected-color="#0070f3"
+                />
+                <view v-else class="mixed-mode-summary">
+                  <view>
+                    <text class="mixed-mode-title">组合支付</text>
+                    <text class="mixed-mode-meta">次卡 + {{ paymentText(form.money_method) }}</text>
+                  </view>
+                  <button class="mixed-exit-button" @click="exitMixedPayment">改为纯支付</button>
+                </view>
+                <button
+                  v-if="mixedPaymentAvailable && !isMixed"
+                  class="mixed-entry-button"
+                  @click="startMixedPayment"
+                >
+                  <text>组合支付</text>
+                  <text class="mixed-entry-meta">次卡 + 微信/现金</text>
+                </button>
+              </view>
+            </uni-forms-item>
+
+            <view v-if="isMixed" class="mixed-payment-panel">
+              <uni-forms-item name="meal_card_quantity" label="次卡次数" required>
+                <uni-number-box
+                  v-model="mixedCardQuantityInput"
+                  class="mixed-count-box"
+                  :min="1"
+                  :max="mixedCardQuantityMax"
+                  :width="72"
+                />
+              </uni-forms-item>
+
+              <uni-forms-item name="money_method" label="补款方式" required>
+                <uni-data-checkbox
+                  v-model="form.money_method"
+                  class="money-method-choice"
+                  mode="button"
+                  :localdata="moneyMethodOptions"
+                  selected-color="#0070f3"
+                />
+              </uni-forms-item>
+
+              <text class="mixed-calculation">
+                次卡 {{ cardQuantity }} 次 · {{ moneyPaymentSummary }} · 补款
+                {{ hasActualPrice ? formatMoney(totalAmount) : '待填写单价' }}
+              </text>
+            </view>
+
+            <view v-if="requiredCardQuantity > 0 && availability" class="card-status">
+              <text class="card-status-main">
+                可用 {{ availability.available }} 次 · {{ cardRequirementLabel }} {{ requiredCardQuantity }} 次
+              </text>
+              <text
+                v-if="availability.reserved_by_others > 0 || cardErrorMessage"
+                class="card-status-detail"
+              >
+                卡内 {{ availability.actual_remaining }} 次 · 已预占
+                {{ availability.reserved_by_others }} 次 · 当前可用 {{ availability.available }} 次
+              </text>
+              <text v-if="cardErrorMessage" class="inline-error">{{ cardErrorMessage }}</text>
+            </view>
+
+            <view v-if="hasMoney && selectedCustomer" class="price-section">
+              <uni-forms-item name="actual_price" label="实际单价" required class="price-editor">
+                <view class="amount-control">
+                  <text class="amount-prefix">¥</text>
+                  <uni-easyinput
+                    v-model="form.actual_price"
+                    class="amount-input"
+                    type="digit"
+                    inputmode="decimal"
+                    placeholder="例如 15.00"
+                    :clearable="false"
+                    :input-border="false"
+                    @input="onActualPriceInput"
+                  />
+                </view>
+                <text class="price-hint">{{ priceHint(selectedCustomer, form.meal_type) }}</text>
+              </uni-forms-item>
+            </view>
+          </view>
+
+          <view class="entry-divider" />
+
+          <view class="entry-section entry-section--note">
+            <uni-forms-item name="note" label="备注">
+              <uni-easyinput
+                v-model="form.note"
+                class="note-input"
+                type="text"
+                placeholder="如：不要葱、送到前台"
+                :clearable="true"
+              />
+            </uni-forms-item>
+          </view>
         </view>
-      </uni-forms-item>
 
-      <view v-if="isMixed" class="calculation-box">
-        货币支付 {{ moneyQuantity }} 份，补款 {{ formatMoney(totalAmount) }}
+        <view class="form-scroll-spacer" />
+      </uni-forms>
+    </scroll-view>
+
+    <view class="submit-bar">
+      <view class="submit-summary">
+        <text class="submit-label">{{ hasMoney ? '本次实际金额' : '本次支付方式' }}</text>
+        <text class="submit-value">{{ submitValue }}</text>
+        <text class="submit-meta">{{ submitMeta }}</text>
       </view>
-
-      <uni-forms-item name="note" label="备注">
-        <uni-easyinput v-model="form.note" class="textarea" type="textarea" placeholder="可不填" />
-      </uni-forms-item>
-
-      <view class="total-row">
-        <text>本次货币金额</text>
-        <text>{{ hasMoney ? formatMoney(totalAmount) : '次卡支付，金额记 0' }}</text>
-      </view>
-
       <button class="save" :disabled="!canSave" @click="save">
-        {{ saving ? '保存中...' : existingOrder?.status === 'pending' ? '保存并合并' : '保存' }}
+        {{ saveActionLabel }}
       </button>
-    </uni-forms>
-  </scroll-view>
+    </view>
+  </view>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .page {
-  min-height: 100vh;
-  background: #f6f7f9;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: $hej-color-canvas;
+  box-sizing: border-box;
+}
+
+.form-scroll {
+  flex: 1;
+  height: 0;
+  min-height: 0;
 }
 
 .form {
   display: block;
-  padding: 24rpx;
+  padding: $hej-space-5;
+}
+
+.order-card {
+  overflow: hidden;
+  border: 1rpx solid $hej-color-border;
+  border-radius: $hej-radius-panel;
+  background: $hej-color-surface;
+  box-shadow: $hej-shadow-panel;
+}
+
+.delivery-strip {
+  padding: $hej-space-4 $hej-space-5 $hej-space-3;
+  border-left: 6rpx solid $hej-color-accent;
+  background: $hej-color-accent-soft;
+}
+
+.delivery-strip-title {
+  display: block;
+  margin-bottom: $hej-space-2;
+  color: $hej-color-accent;
+  font-size: $hej-font-meta;
+  font-weight: 700;
+}
+
+.schedule-row {
+  display: flex;
+  align-items: flex-start;
+  gap: $hej-space-3;
+}
+
+.schedule-field {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.schedule-field--date {
+  flex: 1.05;
+}
+
+.schedule-field :deep(.uni-forms-item__label) {
+  display: none;
+}
+
+.schedule-field :deep(.uni-forms-item__content) {
+  min-width: 0;
+}
+
+.schedule-control {
+  min-width: 0;
+}
+
+.schedule-label {
+  display: block;
+  margin-bottom: $hej-space-1;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-caption;
+}
+
+.meal-choice :deep(.checklist-group),
+.payment-primary :deep(.checklist-group),
+.money-method-choice :deep(.checklist-group) {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: $hej-space-2;
+}
+
+.meal-choice :deep(.checklist-box),
+.payment-primary :deep(.checklist-box),
+.money-method-choice :deep(.checklist-box) {
+  flex: 1;
+  justify-content: center;
+  min-width: 0;
+  margin: 0;
+  padding: $hej-space-2 $hej-space-1;
+  border-color: $hej-color-border;
+  border-radius: $hej-radius-control;
+}
+
+.meal-choice :deep(.checklist-box.is-checked),
+.payment-primary :deep(.checklist-box.is-checked),
+.money-method-choice :deep(.checklist-box.is-checked) {
+  background: $hej-color-accent-soft;
+}
+
+.meal-choice :deep(.checklist-text),
+.payment-primary :deep(.checklist-text),
+.money-method-choice :deep(.checklist-text) {
+  margin-left: 0;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-meta;
+  line-height: 1.3;
+}
+
+.entry-section {
+  padding: $hej-space-5;
+}
+
+.entry-section :deep(.uni-forms-item) {
+  margin-bottom: $hej-space-5;
+}
+
+.entry-section :deep(.uni-forms-item__label) {
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-meta;
+}
+
+.entry-section--customer :deep(.uni-forms-item) {
+  margin-bottom: 0;
+}
+
+.entry-section--customer .context-box {
+  margin-top: $hej-space-4;
+}
+
+.entry-section--note {
+  padding-top: $hej-space-4;
+  padding-bottom: $hej-space-4;
+}
+
+.entry-section--note :deep(.uni-forms-item) {
+  margin-bottom: 0;
+}
+
+.entry-divider {
+  height: 1rpx;
+  margin: 0 $hej-space-5;
+  background: $hej-color-border;
 }
 
 .context-box,
-.card-box,
-.calculation-box,
-.total-row {
-  margin-bottom: 24rpx;
-  padding: 22rpx 24rpx;
-  border-radius: 12rpx;
-  background: #ffffff;
-  color: #333333;
-  font-size: 26rpx;
+.card-status {
+  padding: $hej-space-4 $hej-space-5;
+  border-radius: $hej-radius-control;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-meta;
   line-height: 1.6;
 }
 
+.context-box {
+  background: $hej-color-surface-subtle;
+}
+
 .context-box--info {
-  background: #eef6ff;
-  color: #165d9c;
+  background: $hej-color-accent-soft;
+  color: $hej-color-accent;
 }
 
 .context-box--danger {
-  background: #fff1f0;
-  color: #cf1322;
-}
-
-.context-meta,
-.card-box text {
-  display: block;
+  background: $hej-color-danger-soft;
+  color: $hej-color-danger;
 }
 
 .context-meta {
+  display: block;
   margin-top: 6rpx;
 }
 
 .link-button {
   display: inline-block;
-  margin: 12rpx 0 0;
+  height: 56rpx;
+  margin: $hej-space-2 0 0;
   padding: 0;
+  border: 0;
   background: transparent;
-  color: #007aff;
-  font-size: 26rpx;
+  color: inherit;
+  font-size: $hej-font-meta;
+  font-weight: 600;
+  line-height: 56rpx;
+  text-align: center;
+}
+
+.payment-control {
+  min-width: 0;
+}
+
+.mixed-entry-button,
+.mixed-exit-button {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.mixed-entry-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 64rpx;
+  margin-top: $hej-space-3;
+  padding: 0 $hej-space-3;
+  border: 1rpx dashed $hej-color-border;
+  border-radius: $hej-radius-control;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-meta;
+  line-height: 64rpx;
+  box-sizing: border-box;
+}
+
+.mixed-entry-meta,
+.mixed-mode-meta {
+  color: $hej-color-text-tertiary;
+  font-size: $hej-font-caption;
+}
+
+.mixed-mode-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $hej-space-3;
+  padding: $hej-space-3;
+  border-radius: $hej-radius-control;
+  background: $hej-color-accent-soft;
+}
+
+.mixed-mode-title,
+.mixed-mode-meta {
+  display: block;
+}
+
+.mixed-mode-title {
+  color: $hej-color-accent;
+  font-size: $hej-font-meta;
+  font-weight: 700;
+}
+
+.mixed-exit-button {
+  flex: 0 0 auto;
+  height: 56rpx;
+  color: $hej-color-accent;
+  font-size: $hej-font-caption;
+  font-weight: 600;
+  line-height: 56rpx;
+}
+
+.mixed-payment-panel {
+  margin-bottom: $hej-space-5;
+  padding: $hej-space-4;
+  border-radius: $hej-radius-control;
+  background: $hej-color-surface-subtle;
+}
+
+.mixed-payment-panel :deep(.uni-forms-item) {
+  margin-bottom: $hej-space-4;
+}
+
+.mixed-calculation {
+  display: block;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-caption;
   line-height: 1.5;
 }
 
-.hint {
-  margin: -8rpx 0 20rpx 176rpx;
-  color: #8f8f94;
-  font-size: 24rpx;
+.quantity-box :deep(.uni-numbox-btns),
+.mixed-count-box :deep(.uni-numbox-btns) {
+  background: $hej-color-surface-subtle !important;
+}
+
+.card-status {
+  margin-bottom: $hej-space-5;
+  background: $hej-color-warning-soft;
+}
+
+.card-status-main,
+.card-status-detail {
+  display: block;
+}
+
+.card-status-main {
+  color: $hej-color-text;
+  font-size: $hej-font-meta;
+  font-weight: 600;
+}
+
+.card-status-detail {
+  margin-top: $hej-space-1;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-caption;
 }
 
 .amount-control {
   display: flex;
   align-items: center;
   min-width: 0;
-  padding: 12rpx 18rpx;
-  border: 1rpx solid #e5e5e5;
-  border-radius: 10rpx;
-  background: #ffffff;
+  padding: $hej-space-2 $hej-space-3;
+  border: 1rpx solid $hej-color-border;
+  border-radius: $hej-radius-control;
+  background: $hej-color-surface;
 }
 
 .amount-prefix {
-  margin-right: 8rpx;
-  color: #333333;
-  font-size: 30rpx;
+  margin-right: $hej-space-1;
+  color: $hej-color-text;
+  font-size: $hej-font-body;
   font-weight: 600;
 }
 
@@ -567,33 +980,100 @@ async function save(): Promise<void> {
   min-width: 0;
 }
 
+.price-section {
+  margin-top: 0;
+  padding-top: $hej-space-4;
+  border-top: 1rpx solid $hej-color-border;
+}
+
+.price-editor {
+  margin-bottom: 0 !important;
+}
+
+.price-hint {
+  display: block;
+  margin-top: $hej-space-2;
+  color: $hej-color-text-tertiary;
+  font-size: $hej-font-caption;
+  line-height: 1.4;
+}
+
 .inline-error {
-  margin-top: 10rpx;
-  color: #d93025;
+  display: block;
+  margin-top: $hej-space-2;
+  color: $hej-color-danger;
   font-weight: 600;
 }
 
-.calculation-box {
-  background: #f8f9fb;
+.note-input {
+  min-height: 72rpx;
 }
 
-.textarea {
-  min-height: 150rpx;
+.form-scroll-spacer {
+  height: $hej-space-2;
 }
 
-.total-row {
+.submit-bar {
   display: flex;
-  justify-content: space-between;
-  color: #222222;
-  font-size: 30rpx;
-  font-weight: 600;
+  align-items: center;
+  gap: $hej-space-4;
+  padding: $hej-space-5 $hej-space-7;
+  border-top: 1rpx solid $hej-color-border;
+  background: $hej-color-surface;
+}
+
+.submit-summary {
+  flex: 1;
+  min-width: 0;
+}
+
+.submit-label,
+.submit-meta {
+  display: block;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-caption;
+}
+
+.submit-value {
+  display: block;
+  margin-top: 2rpx;
+  overflow: hidden;
+  color: $hej-color-text;
+  font-size: $hej-font-title;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.submit-meta {
+  margin-top: 2rpx;
 }
 
 .save {
-  margin: 8rpx 0 32rpx;
-  border-radius: 12rpx;
-  background: #007aff;
-  color: #ffffff;
-  font-size: 30rpx;
+  flex: 0 0 254rpx;
+  height: 88rpx;
+  margin: 0;
+  padding: 0;
+  border-radius: $hej-radius-control;
+  background: $hej-color-accent;
+  color: $hej-color-surface;
+  font-size: $hej-font-body;
+  font-weight: 600;
+  line-height: 88rpx;
+  text-align: center;
+}
+
+.save:active {
+  opacity: 0.82;
+}
+
+.save:focus-visible {
+  outline: 2rpx solid $hej-color-text;
+  outline-offset: -4rpx;
+}
+
+.save[disabled] {
+  background: $hej-color-border;
+  color: $hej-color-text-tertiary;
 }
 </style>

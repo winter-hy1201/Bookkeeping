@@ -323,7 +323,7 @@ function handleDateChange(value: string): void {
 }
 
 function goNew(): void {
-  uni.navigateTo({ url: '/pages/order/new' })
+  uni.navigateTo({ url: `/pages/order/new?date=${encodeURIComponent(orderStore.currentDate)}` })
 }
 
 function goDetail(id: number): void {
@@ -349,8 +349,12 @@ onShow(() => {
       <button class="add-button" @click="goNew">+ 新建</button>
     </view>
 
-    <view v-if="orderStore.loading" class="empty">订单加载中...</view>
-    <view v-else-if="orderStore.list.length === 0" class="empty">该日期暂无订单</view>
+    <view v-if="orderStore.loading" class="empty empty--loading">订单加载中...</view>
+    <view v-else-if="orderStore.list.length === 0" class="empty-state">
+      <text class="empty-state-title">这一天还没有订单</text>
+      <text class="empty-state-copy">从第一单开始，后续可按午餐和晚餐集中配送。</text>
+      <button class="empty-state-action" @click="goNew">新建这一天的首单</button>
+    </view>
     <scroll-view
       v-else
       class="list"
@@ -415,13 +419,12 @@ onShow(() => {
   </view>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .page {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  padding: 24rpx;
-  background: #f6f7f9;
+  background: $hej-color-canvas;
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -435,22 +438,37 @@ onShow(() => {
 }
 
 .toolbar {
-  gap: 20rpx;
-  margin-bottom: 20rpx;
+  gap: $hej-space-3;
+  padding: $hej-space-3;
+  border: 1rpx solid $hej-color-border;
+  background: $hej-color-surface;
 }
 
 .date-button {
-  min-width: 260rpx;
-  border-radius: 12rpx;
-  background: #ffffff;
+  flex: 1;
+  min-width: 0;
+  min-height: 80rpx;
+  box-sizing: border-box;
 }
 
 .add-button {
+  flex: 0 0 180rpx;
+  height: 80rpx;
   margin: 0;
-  border-radius: 12rpx;
-  background: #007aff;
-  color: #ffffff;
-  font-size: 28rpx;
+  padding: 0 $hej-space-5;
+  border: 1rpx solid $hej-color-accent;
+  border-radius: $hej-radius-control;
+  background: $hej-color-accent;
+  color: $hej-color-surface;
+  font-size: $hej-font-body;
+  font-weight: 600;
+  line-height: 80rpx;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.add-button::after {
+  border: 0;
 }
 
 .list {
@@ -574,8 +592,59 @@ onShow(() => {
 }
 
 .empty {
-  padding: 120rpx 0;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-body;
   text-align: center;
+}
+
+.empty--loading {
+  flex: 1;
+  padding: 120rpx 0;
+}
+
+.empty-state {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: $hej-space-7 $hej-space-5;
+  border: 1rpx solid $hej-color-border;
+  border-radius: $hej-radius-panel;
+  background: $hej-color-surface;
+  text-align: center;
+}
+
+.empty-state-title {
+  color: $hej-color-text;
+  font-size: $hej-font-title;
+  font-weight: 700;
+}
+
+.empty-state-copy {
+  margin-top: $hej-space-2;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-body;
+  line-height: 1.6;
+}
+
+.empty-state-action {
+  height: 84rpx;
+  margin: $hej-space-5 0 0;
+  padding: 0 $hej-space-5;
+  border-radius: $hej-radius-control;
+  background: $hej-color-accent;
+  color: $hej-color-surface;
+  font-size: $hej-font-body;
+  font-weight: 600;
+  line-height: 84rpx;
+  text-align: center;
+}
+
+.add-button:focus-visible,
+.empty-state-action:focus-visible {
+  outline: 2rpx solid $hej-color-text;
+  outline-offset: 2rpx;
 }
 
 .section-empty {
