@@ -27,7 +27,7 @@ const DB_NAME = 'bookkeeping.db'
 const DB_PATH = `_doc/${DB_NAME}`
 const CALLBACK_TIMEOUT_MS = 8000
 
-let txDepth = 0
+let transactionTail: Promise<void> = Promise.resolve()
 
 /** 5+ API error 对象 */
 interface PlusSqliteError {
@@ -194,14 +194,11 @@ export function close(): Promise<void> {
  *
  * 5+ API 的 transaction 不是函数包裹，而是显式 begin / commit / rollback。
  * 这里允许 fn 内 await 多条 exec/select；失败时回滚并重抛原始错误。
+ * 5+ SQLite 只有一条共享连接，所有顶层事务必须排队，避免并发调用交错进同一事务。
+ * fn 内不要再次调用 tx()；需要复用的事务内逻辑应保持为普通 async helper。
  */
-export async function tx<T>(fn: () => T | Promise<T>): Promise<T> {
-  if (txDepth > 0) {
-    return fn()
-  }
-
+async function executeTransaction<T>(fn: () => T | Promise<T>): Promise<T> {
   await pify<void>('transaction', { name: DB_NAME, operation: 'begin' })
-  txDepth += 1
   try {
     const result = await fn()
     await pify<void>('transaction', { name: DB_NAME, operation: 'commit' })
@@ -213,9 +210,16 @@ export async function tx<T>(fn: () => T | Promise<T>): Promise<T> {
       console.error('[db] rollback failed', rollbackError)
     }
     throw e
-  } finally {
-    txDepth -= 1
   }
+}
+
+export function tx<T>(fn: () => T | Promise<T>): Promise<T> {
+  const operation = transactionTail.then(() => executeTransaction(fn))
+  transactionTail = operation.then(
+    () => undefined,
+    () => undefined,
+  )
+  return operation
 }
 
 /* ───────── 给 api 层用的低层 helpers ───────── */

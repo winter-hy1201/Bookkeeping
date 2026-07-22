@@ -41,16 +41,19 @@ export interface CreateOrderInput {
   unit_price?: number
   amount?: number
   meal_card_id?: number | null
+  meal_card_quantity?: number
   note?: string | null
+  confirm_price_change?: boolean
 }
 
-export type UpdateOrderInput = CreateOrderInput
+export interface UpdateOrderInput extends CreateOrderInput {
+  confirm_merge?: boolean
+}
 
-export interface UpdateOrderPaymentInput {
-  payment_method: Exclude<PaymentMethod, 'meal_card'>
-  unit_price: number
-  amount: number
-  meal_card_id?: null
+export interface MealCardAvailabilityResult {
+  actual_remaining: number
+  reserved_by_others: number
+  available: number
 }
 
 export interface ReorderOrdersInput {

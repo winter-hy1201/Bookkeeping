@@ -2,14 +2,29 @@ import { exec, select, tx, type PlusSqliteRow } from '../db'
 import type {
   CreateOrderInput,
   ListOrdersInput,
+  MealCardAvailabilityResult,
   OrderResult,
   ReorderOrdersInput,
   UpdateOrderInput,
-  UpdateOrderPaymentInput,
 } from '../types/api'
-import type { Customer, MealCard, MealCardUsage, MealType, Order, OrderStatus } from '../types/domain'
+import type { Customer, MealCard, MealCardUsage, MealType, Order } from '../types/domain'
 import { divideMoney, multiplyMoney } from '../utils/format'
-import { AlreadyDeliveredError, InsufficientCardError } from './errors'
+import {
+  calculatePaymentBreakdown,
+  evaluateMealCardAvailability,
+  mergeOrderNotes,
+  mergePaymentBreakdowns,
+  type PaymentBreakdown,
+} from '../utils/order-rules'
+import {
+  AlreadyDeliveredError,
+  DeliveredOrderConflictError,
+  InsufficientCardError,
+  LegacyOrderConflictError,
+  OrderMergeConfirmationError,
+  OrderPaymentConflictError,
+  OrderPriceConfirmationError,
+} from './errors'
 
 type OrderRow = Order & PlusSqliteRow
 type CustomerRow = Customer & PlusSqliteRow
@@ -23,6 +38,34 @@ interface LastInsertRow extends PlusSqliteRow {
 interface MaxSortOrderRow extends PlusSqliteRow {
   max_sort_order: number | null
 }
+
+interface SumRow extends PlusSqliteRow {
+  total: number | null
+}
+
+interface NormalizedOrderInput {
+  breakdown: PaymentBreakdown
+  mealCardId: number | null
+}
+
+const ORDER_COLUMNS = `
+  id,
+  customer_id,
+  order_date,
+  meal_type,
+  quantity,
+  sort_order,
+  unit_price,
+  amount,
+  payment_method,
+  meal_card_id,
+  meal_card_quantity,
+  status,
+  note,
+  created_at,
+  updated_at,
+  cancelled_at
+`
 
 function nowText(): string {
   return new Date().toISOString()
@@ -130,11 +173,225 @@ async function listMealCardUsages(orderId: number): Promise<MealCardUsage[]> {
   return rows as MealCardUsage[]
 }
 
-async function consumeMealCards(order: Order, now: string): Promise<void> {
-  const cards = await listUsableMealCards(order.customer_id)
-  let remainingQuantity = order.quantity
-  let firstCardId: number | null = null
+async function listEffectiveOrdersForKey(
+  customerId: number,
+  orderDate: string,
+  mealType: MealType,
+  excludedIds: number[] = [],
+): Promise<Order[]> {
+  const args: Array<number | string | null> = [customerId, orderDate, mealType]
+  const excludedClause =
+    excludedIds.length === 0 ? '' : `AND id NOT IN (${excludedIds.map(() => '?').join(', ')})`
+  args.push(...excludedIds)
+  const rows = await select<OrderRow>(
+    `SELECT ${ORDER_COLUMNS}
+    FROM orders
+    WHERE customer_id = ?
+      AND order_date = ?
+      AND meal_type = ?
+      AND status <> 'cancelled'
+      ${excludedClause}
+    ORDER BY created_at ASC, id ASC`,
+    args,
+  )
+  return rows as Order[]
+}
 
+function singlePendingOrThrow(rows: Order[]): Order | null {
+  const delivered = rows.find((order) => order.status === 'delivered')
+  if (delivered) {
+    throw new DeliveredOrderConflictError(delivered.id)
+  }
+  const pending = rows.filter((order) => order.status === 'pending')
+  if (pending.length > 1) {
+    throw new LegacyOrderConflictError(pending.map((order) => order.id))
+  }
+  return pending[0] ?? null
+}
+
+export async function findEffectiveOrder(
+  customerId: number,
+  orderDate: string,
+  mealType: MealType,
+  excludedIds: number[] = [],
+): Promise<OrderResult | null> {
+  const rows = await listEffectiveOrdersForKey(customerId, orderDate, mealType, excludedIds)
+  const delivered = rows.find((order) => order.status === 'delivered')
+  return (delivered ??
+    rows.find((order) => order.status === 'pending') ??
+    null) as OrderResult | null
+}
+
+export async function getMealCardAvailability(
+  customerId: number,
+  excludeOrderIds: number[] = [],
+): Promise<MealCardAvailabilityResult> {
+  const actualRows = await select<SumRow>(
+    `SELECT COALESCE(SUM(total_meals - used_meals), 0) AS total
+    FROM meal_cards
+    WHERE customer_id = ? AND status = 'active' AND used_meals < total_meals`,
+    [customerId],
+  )
+
+  const reservationArgs: Array<number | string | null> = [customerId]
+  const excludedClause =
+    excludeOrderIds.length === 0
+      ? ''
+      : `AND id NOT IN (${excludeOrderIds.map(() => '?').join(', ')})`
+  reservationArgs.push(...excludeOrderIds)
+  const reservationRows = await select<SumRow>(
+    `SELECT COALESCE(SUM(meal_card_quantity), 0) AS total
+    FROM orders
+    WHERE customer_id = ?
+      AND status = 'pending'
+      ${excludedClause}`,
+    reservationArgs,
+  )
+
+  const evaluated = evaluateMealCardAvailability({
+    actualRemaining: actualRows[0]?.total ?? 0,
+    reservedByOthers: reservationRows[0]?.total ?? 0,
+    required: 0,
+  })
+  return {
+    actual_remaining: evaluated.actualRemaining,
+    reserved_by_others: evaluated.reservedByOthers,
+    available: evaluated.available,
+  }
+}
+
+async function assertMealCardAvailability(
+  customerId: number,
+  requiredMeals: number,
+  excludeOrderIds: number[],
+): Promise<void> {
+  if (requiredMeals === 0) return
+  const availability = await getMealCardAvailability(customerId, excludeOrderIds)
+  if (requiredMeals > availability.available) {
+    throw new InsufficientCardError(requiredMeals, availability.available)
+  }
+}
+
+function breakdownFromOrder(order: Order): PaymentBreakdown {
+  if (
+    !Number.isInteger(order.meal_card_quantity) ||
+    order.meal_card_quantity < 0 ||
+    order.meal_card_quantity > order.quantity
+  ) {
+    throw new LegacyOrderConflictError([order.id], '历史订单的次卡次数异常，请先编辑该订单')
+  }
+  return {
+    paymentMethod: order.payment_method,
+    mealCardQuantity: order.meal_card_quantity,
+    moneyQuantity: order.quantity - order.meal_card_quantity,
+    unitPrice: order.unit_price,
+    amount: order.amount,
+  }
+}
+
+function moneyMethodOf(breakdown: PaymentBreakdown): 'wechat' | 'cash' | null {
+  if (breakdown.moneyQuantity === 0 || breakdown.paymentMethod === 'meal_card') return null
+  return breakdown.paymentMethod
+}
+
+function mergeOrderPaymentOrThrow(
+  existingOrder: Order,
+  incoming: PaymentBreakdown,
+): ReturnType<typeof mergePaymentBreakdowns> {
+  const existing = breakdownFromOrder(existingOrder)
+  const existingMethod = moneyMethodOf(existing)
+  const incomingMethod = moneyMethodOf(incoming)
+  if (existingMethod != null && incomingMethod != null && existingMethod !== incomingMethod) {
+    throw new OrderPaymentConflictError(existingOrder.id, existingMethod, incomingMethod)
+  }
+  return mergePaymentBreakdowns(existing, incoming)
+}
+
+async function normalizeOrderInput(input: CreateOrderInput): Promise<NormalizedOrderInput> {
+  assertPositiveQuantity(input.quantity)
+  const customer = await getCustomer(input.customer_id)
+  if (!customer) {
+    throw new Error('[orders] customer was not found')
+  }
+
+  const mealCardQuantity =
+    input.meal_card_quantity ?? (input.payment_method === 'meal_card' ? input.quantity : 0)
+  if (!Number.isInteger(mealCardQuantity) || mealCardQuantity < 0) {
+    throw new Error('[orders] meal_card_quantity must be a non-negative integer')
+  }
+  if (mealCardQuantity > input.quantity) {
+    throw new Error('[orders] meal_card_quantity cannot exceed quantity')
+  }
+  if (input.payment_method === 'meal_card' && mealCardQuantity !== input.quantity) {
+    throw new Error('[orders] pure meal-card orders must allocate every portion to the card')
+  }
+  if (input.payment_method !== 'meal_card' && mealCardQuantity === input.quantity) {
+    throw new Error('[orders] money orders must keep at least one monetary portion')
+  }
+
+  const cards = mealCardQuantity > 0 ? await listUsableMealCards(input.customer_id) : []
+  const selectedCard = cards.find((card) => card.id === input.meal_card_id) ?? cards[0] ?? null
+  const defaultPrice =
+    input.meal_type === 'lunch' ? customer.default_lunch_price : customer.default_dinner_price
+  const isPureMealCard = input.payment_method === 'meal_card' && mealCardQuantity === input.quantity
+  const unitPrice =
+    input.unit_price ??
+    (defaultPrice == null ? null : multiplyMoney(defaultPrice, customer.discount_rate)) ??
+    (isPureMealCard && selectedCard != null
+      ? divideMoney(selectedCard.amount, selectedCard.total_meals)
+      : null)
+  if (unitPrice == null) {
+    throw new Error('[orders] unit_price is required when customer default price is empty')
+  }
+  assertNonNegativeAmount(unitPrice, 'unit_price')
+
+  const breakdown = calculatePaymentBreakdown({
+    mode:
+      input.payment_method === 'meal_card'
+        ? 'meal_card'
+        : mealCardQuantity > 0
+          ? 'mixed'
+          : input.payment_method,
+    quantity: input.quantity,
+    mealCardQuantity,
+    moneyMethod: input.payment_method === 'meal_card' ? null : input.payment_method,
+    unitPrice,
+  })
+
+  return {
+    breakdown,
+    mealCardId: breakdown.mealCardQuantity > 0 ? (selectedCard?.id ?? null) : null,
+  }
+}
+
+function assertPriceChangeConfirmed(
+  orderId: number,
+  merged: ReturnType<typeof mergePaymentBreakdowns>,
+  confirmed: boolean | undefined,
+): void {
+  if (!merged.priceChanged || confirmed) return
+  throw new OrderPriceConfirmationError(
+    orderId,
+    merged.oldUnitPrice,
+    merged.unitPrice,
+    merged.moneyQuantity,
+    merged.oldAmount,
+    merged.amount,
+  )
+}
+
+async function consumeMealCards(order: Order, now: string): Promise<void> {
+  const requiredMeals = order.meal_card_quantity
+  if (requiredMeals === 0) return
+
+  const cards = await listUsableMealCards(order.customer_id)
+  const availableMeals = cards.reduce((sum, card) => sum + (card.total_meals - card.used_meals), 0)
+  if (requiredMeals > availableMeals) {
+    throw new InsufficientCardError(requiredMeals, availableMeals)
+  }
+
+  let remainingQuantity = requiredMeals
+  let firstCardId: number | null = null
   for (const card of cards) {
     if (remainingQuantity <= 0) break
     const available = card.total_meals - card.used_meals
@@ -159,9 +416,8 @@ async function consumeMealCards(order: Order, now: string): Promise<void> {
   }
 
   if (remainingQuantity > 0 || firstCardId == null) {
-    throw new InsufficientCardError()
+    throw new InsufficientCardError(requiredMeals, availableMeals)
   }
-
   if (order.meal_card_id !== firstCardId) {
     await exec(
       `UPDATE orders
@@ -175,14 +431,15 @@ async function consumeMealCards(order: Order, now: string): Promise<void> {
 async function rollbackMealCardUsages(order: Order): Promise<void> {
   const usages = await listMealCardUsages(order.id)
   if (usages.length === 0) {
+    if (order.meal_card_quantity === 0) return
     if (order.meal_card_id == null) {
-      throw new Error('[orders] meal_card_id is required for delivered meal card orders')
+      throw new Error('[orders] meal_card_id is required for delivered card allocations')
     }
     const card = await getMealCard(order.meal_card_id)
     if (!card) {
       throw new Error('[orders] meal card was not found')
     }
-    const usedMeals = Math.max(0, card.used_meals - order.quantity)
+    const usedMeals = Math.max(0, card.used_meals - order.meal_card_quantity)
     const status = usedMeals >= card.total_meals ? 'depleted' : 'active'
     await exec(
       `UPDATE meal_cards
@@ -210,66 +467,9 @@ async function rollbackMealCardUsages(order: Order): Promise<void> {
   await exec('DELETE FROM meal_card_usages WHERE order_id = ?', [order.id])
 }
 
-async function resolveOrderPrice(input: CreateOrderInput): Promise<{
-  unitPrice: number
-  amount: number
-  mealCardId: number | null
-}> {
-  assertPositiveQuantity(input.quantity)
-
-  if (input.payment_method === 'meal_card') {
-    if (input.meal_card_id == null) {
-      throw new Error('[orders] meal_card_id is required for meal card orders')
-    }
-    const card = await getMealCard(input.meal_card_id)
-    if (!card) {
-      throw new Error('[orders] meal card was not found')
-    }
-    if (card.customer_id !== input.customer_id) {
-      throw new Error('[orders] meal card does not belong to the customer')
-    }
-    if (card.status !== 'active') {
-      throw new Error('[orders] meal card is not active')
-    }
-    if (card.total_meals <= 0) {
-      throw new Error('[orders] meal card total_meals is invalid')
-    }
-    return {
-      unitPrice: input.unit_price ?? divideMoney(card.amount, card.total_meals),
-      amount: 0,
-      mealCardId: input.meal_card_id,
-    }
-  }
-
-  const customer = await getCustomer(input.customer_id)
-  if (!customer) {
-    throw new Error('[orders] customer was not found')
-  }
-
-  const defaultPrice =
-    input.meal_type === 'lunch' ? customer.default_lunch_price : customer.default_dinner_price
-  const unitPrice =
-    input.unit_price ??
-    (defaultPrice == null ? null : multiplyMoney(defaultPrice, customer.discount_rate))
-  if (unitPrice == null) {
-    throw new Error('[orders] unit_price is required when customer default price is empty')
-  }
-  assertNonNegativeAmount(unitPrice, 'unit_price')
-
-  const amount = input.amount ?? multiplyMoney(unitPrice, input.quantity)
-  assertNonNegativeAmount(amount, 'amount')
-
-  return {
-    unitPrice,
-    amount,
-    mealCardId: null,
-  }
-}
-
 export async function listOrders(input: ListOrdersInput): Promise<OrderResult[]> {
   const where: string[] = []
   const args: Array<number | string | null> = []
-
   if (input.startDate !== undefined) {
     where.push('order_date >= ?')
     args.push(input.startDate)
@@ -278,7 +478,6 @@ export async function listOrders(input: ListOrdersInput): Promise<OrderResult[]>
     where.push('order_date <= ?')
     args.push(input.endDate)
   }
-
   if (input.status !== undefined) {
     where.push('status = ?')
     args.push(input.status)
@@ -289,22 +488,7 @@ export async function listOrders(input: ListOrdersInput): Promise<OrderResult[]>
   }
 
   const rows = await select<OrderRow>(
-    `SELECT
-      id,
-      customer_id,
-      order_date,
-      meal_type,
-      quantity,
-      sort_order,
-      unit_price,
-      amount,
-      payment_method,
-      meal_card_id,
-      status,
-      note,
-      created_at,
-      updated_at,
-      cancelled_at
+    `SELECT ${ORDER_COLUMNS}
     FROM orders
     ${where.length > 0 ? `WHERE ${where.join(' AND ')}` : ''}
     ORDER BY
@@ -320,22 +504,7 @@ export async function listOrders(input: ListOrdersInput): Promise<OrderResult[]>
 
 export async function getOrder(id: number): Promise<OrderResult | null> {
   const rows = await select<OrderRow>(
-    `SELECT
-      id,
-      customer_id,
-      order_date,
-      meal_type,
-      quantity,
-      sort_order,
-      unit_price,
-      amount,
-      payment_method,
-      meal_card_id,
-      status,
-      note,
-      created_at,
-      updated_at,
-      cancelled_at
+    `SELECT ${ORDER_COLUMNS}
     FROM orders
     WHERE id = ?`,
     [id],
@@ -345,10 +514,50 @@ export async function getOrder(id: number): Promise<OrderResult | null> {
 
 export async function createOrder(input: CreateOrderInput): Promise<OrderResult> {
   return tx(async () => {
-    const pricing = await resolveOrderPrice(input)
+    const normalized = await normalizeOrderInput(input)
+    const matches = await listEffectiveOrdersForKey(
+      input.customer_id,
+      input.order_date,
+      input.meal_type,
+    )
+    const existing = singlePendingOrThrow(matches)
+
+    if (existing) {
+      const merged = mergeOrderPaymentOrThrow(existing, normalized.breakdown)
+      await assertMealCardAvailability(input.customer_id, merged.mealCardQuantity, [existing.id])
+      assertPriceChangeConfirmed(existing.id, merged, input.confirm_price_change)
+      const now = nowText()
+      await exec(
+        `UPDATE orders
+        SET quantity = ?,
+          unit_price = ?,
+          amount = ?,
+          payment_method = ?,
+          meal_card_id = ?,
+          meal_card_quantity = ?,
+          note = ?,
+          updated_at = ?
+        WHERE id = ?`,
+        [
+          existing.quantity + input.quantity,
+          merged.unitPrice,
+          merged.amount,
+          merged.paymentMethod,
+          merged.mealCardQuantity > 0 ? (normalized.mealCardId ?? existing.meal_card_id) : null,
+          merged.mealCardQuantity,
+          mergeOrderNotes(existing.note, input.note) || null,
+          now,
+          existing.id,
+        ],
+      )
+      const updated = await getOrder(existing.id)
+      if (!updated) throw new Error('[orders] merged order was not found')
+      return updated
+    }
+
+    await assertMealCardAvailability(input.customer_id, normalized.breakdown.mealCardQuantity, [])
     const sortOrder = await getNextSortOrder(input.order_date, input.meal_type)
     const now = nowText()
-
     await exec(
       `INSERT INTO orders (
         customer_id,
@@ -360,23 +569,25 @@ export async function createOrder(input: CreateOrderInput): Promise<OrderResult>
         amount,
         payment_method,
         meal_card_id,
+        meal_card_quantity,
         status,
         note,
         created_at,
         updated_at,
         cancelled_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, NULL)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, NULL)`,
       [
         input.customer_id,
         input.order_date,
         input.meal_type,
         input.quantity,
         sortOrder,
-        pricing.unitPrice,
-        pricing.amount,
-        input.payment_method,
-        pricing.mealCardId,
-        input.note ?? null,
+        normalized.breakdown.unitPrice,
+        normalized.breakdown.amount,
+        normalized.breakdown.paymentMethod,
+        normalized.mealCardId,
+        normalized.breakdown.mealCardQuantity,
+        input.note?.trim() || null,
         now,
         now,
       ],
@@ -384,9 +595,7 @@ export async function createOrder(input: CreateOrderInput): Promise<OrderResult>
 
     const id = await getLastInsertId()
     const order = await getOrder(id)
-    if (!order) {
-      throw new Error('[orders] inserted order was not found')
-    }
+    if (!order) throw new Error('[orders] inserted order was not found')
     return order
   })
 }
@@ -394,19 +603,62 @@ export async function createOrder(input: CreateOrderInput): Promise<OrderResult>
 export async function updateOrder(id: number, input: UpdateOrderInput): Promise<OrderResult> {
   return tx(async () => {
     const current = await getOrder(id)
-    if (!current) {
-      throw new Error('[orders] order was not found')
-    }
+    if (!current) throw new Error('[orders] order was not found')
     if (current.status !== 'pending') {
       throw new Error('[orders] only pending orders can be edited')
     }
 
-    const pricing = await resolveOrderPrice(input)
+    const normalized = await normalizeOrderInput(input)
+    const matches = await listEffectiveOrdersForKey(
+      input.customer_id,
+      input.order_date,
+      input.meal_type,
+      [id],
+    )
+    const target = singlePendingOrThrow(matches)
+
+    if (target) {
+      if (!input.confirm_merge) {
+        throw new OrderMergeConfirmationError(id, target.id)
+      }
+      const merged = mergeOrderPaymentOrThrow(target, normalized.breakdown)
+      await assertMealCardAvailability(input.customer_id, merged.mealCardQuantity, [id, target.id])
+      assertPriceChangeConfirmed(target.id, merged, input.confirm_price_change)
+      await exec(
+        `UPDATE orders
+        SET quantity = ?,
+          unit_price = ?,
+          amount = ?,
+          payment_method = ?,
+          meal_card_id = ?,
+          meal_card_quantity = ?,
+          note = ?,
+          updated_at = ?
+        WHERE id = ?`,
+        [
+          target.quantity + input.quantity,
+          merged.unitPrice,
+          merged.amount,
+          merged.paymentMethod,
+          merged.mealCardQuantity > 0 ? (normalized.mealCardId ?? target.meal_card_id) : null,
+          merged.mealCardQuantity,
+          mergeOrderNotes(target.note, input.note) || null,
+          nowText(),
+          target.id,
+        ],
+      )
+      await exec('DELETE FROM meal_card_usages WHERE order_id = ?', [id])
+      await exec('DELETE FROM orders WHERE id = ?', [id])
+      const mergedOrder = await getOrder(target.id)
+      if (!mergedOrder) throw new Error('[orders] merged target order was not found')
+      return mergedOrder
+    }
+
+    await assertMealCardAvailability(input.customer_id, normalized.breakdown.mealCardQuantity, [id])
     const sortOrder =
       current.order_date === input.order_date && current.meal_type === input.meal_type
         ? current.sort_order
         : await getNextSortOrder(input.order_date, input.meal_type)
-
     await exec(
       `UPDATE orders
       SET customer_id = ?,
@@ -418,6 +670,7 @@ export async function updateOrder(id: number, input: UpdateOrderInput): Promise<
         amount = ?,
         payment_method = ?,
         meal_card_id = ?,
+        meal_card_quantity = ?,
         note = ?,
         updated_at = ?
       WHERE id = ?`,
@@ -427,58 +680,20 @@ export async function updateOrder(id: number, input: UpdateOrderInput): Promise<
         input.meal_type,
         input.quantity,
         sortOrder,
-        pricing.unitPrice,
-        pricing.amount,
-        input.payment_method,
-        pricing.mealCardId,
-        input.note ?? null,
+        normalized.breakdown.unitPrice,
+        normalized.breakdown.amount,
+        normalized.breakdown.paymentMethod,
+        normalized.mealCardId,
+        normalized.breakdown.mealCardQuantity,
+        input.note?.trim() || null,
         nowText(),
         id,
       ],
     )
 
     const updated = await getOrder(id)
-    if (!updated) {
-      throw new Error('[orders] updated order was not found')
-    }
+    if (!updated) throw new Error('[orders] updated order was not found')
     return updated
-  })
-}
-
-export async function updateOrderStatus(
-  id: number,
-  status: OrderStatus,
-): Promise<OrderResult | null> {
-  return tx(async () => {
-    await exec(
-      `UPDATE orders
-      SET status = ?, updated_at = ?
-      WHERE id = ?`,
-      [status, nowText(), id],
-    )
-    return getOrder(id)
-  })
-}
-
-export async function updateOrderPayment(
-  id: number,
-  input: UpdateOrderPaymentInput,
-): Promise<OrderResult | null> {
-  assertNonNegativeAmount(input.unit_price, 'unit_price')
-  assertNonNegativeAmount(input.amount, 'amount')
-
-  return tx(async () => {
-    await exec(
-      `UPDATE orders
-      SET payment_method = ?,
-        unit_price = ?,
-        amount = ?,
-        meal_card_id = NULL,
-        updated_at = ?
-      WHERE id = ?`,
-      [input.payment_method, input.unit_price, input.amount, nowText(), id],
-    )
-    return getOrder(id)
   })
 }
 
@@ -500,12 +715,8 @@ export async function reorderOrders(input: ReorderOrdersInput): Promise<void> {
 export async function markDelivered(orderId: number): Promise<OrderResult> {
   return tx(async () => {
     const order = await getOrder(orderId)
-    if (!order) {
-      throw new Error('[orders] order was not found')
-    }
-    if (order.status === 'delivered') {
-      return order
-    }
+    if (!order) throw new Error('[orders] order was not found')
+    if (order.status === 'delivered') return order
     if (order.status === 'cancelled') {
       throw new Error('[orders] cancelled order cannot be delivered')
     }
@@ -520,15 +731,10 @@ export async function markDelivered(orderId: number): Promise<OrderResult> {
       WHERE id = ?`,
       [sortOrder, now, orderId],
     )
-
-    if (order.payment_method === 'meal_card') {
-      await consumeMealCards(order, now)
-    }
+    await consumeMealCards(order, now)
 
     const updated = await getOrder(orderId)
-    if (!updated) {
-      throw new Error('[orders] delivered order was not found')
-    }
+    if (!updated) throw new Error('[orders] delivered order was not found')
     return updated
   })
 }
@@ -536,23 +742,17 @@ export async function markDelivered(orderId: number): Promise<OrderResult> {
 export async function cancelOrder(orderId: number): Promise<OrderResult | null> {
   return tx(async () => {
     const order = await getOrder(orderId)
-    if (!order) {
-      return null
-    }
-    if (order.status === 'delivered') {
-      throw new AlreadyDeliveredError()
-    }
-    if (order.status === 'cancelled') {
-      return order
-    }
+    if (!order) return null
+    if (order.status === 'delivered') throw new AlreadyDeliveredError()
+    if (order.status === 'cancelled') return order
 
+    const now = nowText()
     await exec(
       `UPDATE orders
       SET status = 'cancelled', updated_at = ?, cancelled_at = ?
       WHERE id = ?`,
-      [nowText(), nowText(), orderId],
+      [now, now, orderId],
     )
-
     return getOrder(orderId)
   })
 }
@@ -560,14 +760,10 @@ export async function cancelOrder(orderId: number): Promise<OrderResult | null> 
 export async function deleteOrder(orderId: number): Promise<boolean> {
   return tx(async () => {
     const order = await getOrder(orderId)
-    if (!order) {
-      return false
-    }
-
-    if (order.status === 'delivered' && order.payment_method === 'meal_card') {
+    if (!order) return false
+    if (order.status === 'delivered' && order.meal_card_quantity > 0) {
       await rollbackMealCardUsages(order)
     }
-
     await exec('DELETE FROM meal_card_usages WHERE order_id = ?', [orderId])
     await exec('DELETE FROM orders WHERE id = ?', [orderId])
     return true

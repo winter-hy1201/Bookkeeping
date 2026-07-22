@@ -2,7 +2,7 @@
 import { computed, reactive, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getCustomer } from '../../../api/customers'
-import { MealCardTotalTooSmallError } from '../../../api/errors'
+import { MealCardReservationConflictError, MealCardTotalTooSmallError } from '../../../api/errors'
 import { getCard, listCards, openCard, updateCardTotalMeals } from '../../../api/meal-cards'
 import type { Customer, MealCard } from '../../../types/domain'
 import { formatDate } from '../../../utils/date'
@@ -147,6 +147,8 @@ async function save(): Promise<void> {
   } catch (error) {
     if (error instanceof MealCardTotalTooSmallError) {
       showToast(`总次数不能小于已用次数 ${error.usedMeals}`)
+    } else if (error instanceof MealCardReservationConflictError) {
+      showToast(error.message)
     } else {
       showToast(isEditMode.value ? '修改失败' : '开卡失败')
     }

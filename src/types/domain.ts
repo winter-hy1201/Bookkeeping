@@ -50,6 +50,7 @@ export interface Order {
   amount: number
   payment_method: PaymentMethod
   meal_card_id: number | null
+  meal_card_quantity: number
   status: OrderStatus
   note: string | null
   created_at: string

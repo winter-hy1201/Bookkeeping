@@ -1,7 +1,7 @@
 import { exec, select, tx, type PlusSqliteRow } from '../db'
 import type { MealCardResult, OpenMealCardInput, UpdateMealCardTotalInput } from '../types/api'
 import type { MealCard } from '../types/domain'
-import { MealCardTotalTooSmallError } from './errors'
+import { MealCardReservationConflictError, MealCardTotalTooSmallError } from './errors'
 
 type MealCardRow = MealCard & PlusSqliteRow
 
@@ -11,6 +11,10 @@ interface LastInsertRow extends PlusSqliteRow {
 
 interface ActiveCardCustomerRow extends PlusSqliteRow {
   customer_id: number
+}
+
+interface SumRow extends PlusSqliteRow {
+  total: number | null
 }
 
 function nowText(): string {
@@ -138,6 +142,26 @@ export async function updateCardTotalMeals(
     }
     if (input.total_meals < card.used_meals) {
       throw new MealCardTotalTooSmallError(card.used_meals)
+    }
+
+    const otherRemainingRows = await select<SumRow>(
+      `SELECT COALESCE(SUM(total_meals - used_meals), 0) AS total
+      FROM meal_cards
+      WHERE customer_id = ? AND id <> ?
+        AND status = 'active' AND used_meals < total_meals`,
+      [card.customer_id, id],
+    )
+    const reservationRows = await select<SumRow>(
+      `SELECT COALESCE(SUM(meal_card_quantity), 0) AS total
+      FROM orders
+      WHERE customer_id = ? AND status = 'pending'`,
+      [card.customer_id],
+    )
+    const remainingAfterChange =
+      (otherRemainingRows[0]?.total ?? 0) + (input.total_meals - card.used_meals)
+    const reservedMeals = reservationRows[0]?.total ?? 0
+    if (remainingAfterChange < reservedMeals) {
+      throw new MealCardReservationConflictError(reservedMeals, remainingAfterChange)
     }
 
     const status = input.total_meals === card.used_meals ? 'depleted' : 'active'

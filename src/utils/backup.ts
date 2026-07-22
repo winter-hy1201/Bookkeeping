@@ -1,4 +1,5 @@
 import { exec, select, tx, type PlusSqliteRow } from '../db'
+import { reconcileCompatiblePendingOrders } from '../db/migrations'
 import { seedIfEmpty } from '../db/seed'
 import type {
   Customer,
@@ -234,9 +235,16 @@ async function readExternalFileText(absolutePath: string): Promise<string> {
     return await readFileText(`_doc/${tempName}`)
   } finally {
     // 清理临时文件
-    plus.io.resolveLocalFileSystemURL(`_doc/${tempName}`, (entry) => {
-      ;(entry as any).remove(() => {}, () => {})
-    }, () => {})
+    plus.io.resolveLocalFileSystemURL(
+      `_doc/${tempName}`,
+      (entry) => {
+        ;(entry as any).remove(
+          () => {},
+          () => {},
+        )
+      },
+      () => {},
+    )
   }
 }
 
@@ -248,9 +256,7 @@ function resolveUriToPath(
   try {
     const u = uri as any
     plus.android.importClass(uri)
-    const DocumentsContract = plus.android.importClass(
-      'android.provider.DocumentsContract',
-    ) as any
+    const DocumentsContract = plus.android.importClass('android.provider.DocumentsContract') as any
     const MediaStore = plus.android.importClass('android.provider.MediaStore') as any
     const Environment = plus.android.importClass('android.os.Environment') as any
 
@@ -316,7 +322,9 @@ function getDataColumn(
   try {
     const m = main as any
     plus.android.importClass(m.getContentResolver())
-    const cursor = m.getContentResolver().query(uri, ['_data'], selection, selectionArgs, null) as any
+    const cursor = m
+      .getContentResolver()
+      .query(uri, ['_data'], selection, selectionArgs, null) as any
     plus.android.importClass(cursor)
     if (cursor && cursor.moveToFirst()) {
       const idx = cursor.getColumnIndexOrThrow('_data')
@@ -379,10 +387,7 @@ function pickAndroidFileText(): Promise<string> {
       intent.addCategory(Intent.CATEGORY_OPENABLE)
       intent.setType('application/json')
       intent.putExtra(Intent.EXTRA_MIME_TYPES, ['application/json', 'text/plain'])
-      main.startActivityForResult(
-        Intent.createChooser(intent, '选择备份 JSON 文件'),
-        requestCode,
-      )
+      main.startActivityForResult(Intent.createChooser(intent, '选择备份 JSON 文件'), requestCode)
     } catch {
       restoreHandler()
       reject(new Error('打开文件选择器失败'))
@@ -561,11 +566,14 @@ export async function importBackup(payload: BackupPayload): Promise<void> {
 
     for (const item of payload.orders) {
       const sortOrder = item.sort_order ?? 0
+      const mealCardQuantity =
+        item.meal_card_quantity ?? (item.payment_method === 'meal_card' ? item.quantity : 0)
       await exec(
         `INSERT INTO orders (
           id, customer_id, order_date, meal_type, quantity, sort_order, unit_price, amount,
-          payment_method, meal_card_id, status, note, created_at, updated_at, cancelled_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          payment_method, meal_card_id, meal_card_quantity, status, note, created_at, updated_at,
+          cancelled_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           item.id,
           item.customer_id,
@@ -577,6 +585,7 @@ export async function importBackup(payload: BackupPayload): Promise<void> {
           item.amount,
           item.payment_method,
           item.meal_card_id,
+          mealCardQuantity,
           item.status,
           item.note,
           item.created_at,
@@ -589,17 +598,17 @@ export async function importBackup(payload: BackupPayload): Promise<void> {
     const mealCardUsages =
       payload.meal_card_usages ??
       payload.orders
-        .filter(
-          (item) =>
-            item.status === 'delivered' &&
-            item.payment_method === 'meal_card' &&
-            item.meal_card_id != null,
-        )
+        .filter((item) => {
+          const mealCardQuantity =
+            item.meal_card_quantity ?? (item.payment_method === 'meal_card' ? item.quantity : 0)
+          return item.status === 'delivered' && mealCardQuantity > 0 && item.meal_card_id != null
+        })
         .map((item, index) => ({
           id: index + 1,
           order_id: item.id,
           meal_card_id: item.meal_card_id as number,
-          quantity: item.quantity,
+          quantity:
+            item.meal_card_quantity ?? (item.payment_method === 'meal_card' ? item.quantity : 0),
           created_at: item.updated_at,
         }))
 
@@ -628,6 +637,8 @@ export async function importBackup(payload: BackupPayload): Promise<void> {
         ],
       )
     }
+
+    await reconcileCompatiblePendingOrders()
   })
 }
 

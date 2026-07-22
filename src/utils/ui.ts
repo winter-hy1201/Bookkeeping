@@ -70,6 +70,36 @@ export function discountLabel(customer: Customer): string {
 }
 
 export function orderDisplayAmount(order: Order): string {
-  if (order.payment_method === 'meal_card') return '次卡'
+  const moneyQuantity = order.quantity - order.meal_card_quantity
+  if (order.meal_card_quantity > 0 && moneyQuantity > 0) {
+    return `次卡 + ${formatMoney(order.amount)}`
+  }
+  if (order.meal_card_quantity > 0) return '次卡'
   return formatMoney(order.amount)
+}
+
+export function orderPaymentSummary(order: Order): string {
+  const parts: string[] = []
+  if (order.meal_card_quantity > 0) {
+    parts.push(`次卡 ${order.meal_card_quantity}次`)
+  }
+  const moneyQuantity = order.quantity - order.meal_card_quantity
+  if (moneyQuantity > 0 && order.payment_method !== 'meal_card') {
+    parts.push(`${paymentText(order.payment_method)} ${formatMoney(order.amount)}`)
+  }
+  return parts.join(' + ')
+}
+
+export function orderSubtitle(order: Order): string {
+  const parts = [mealTypeText(order.meal_type), `${order.quantity}份`]
+  if (order.meal_card_quantity > 0) {
+    parts.push(`次卡 ${order.meal_card_quantity}次`)
+  }
+  const moneyQuantity = order.quantity - order.meal_card_quantity
+  if (moneyQuantity > 0 && order.payment_method !== 'meal_card') {
+    parts.push(`${paymentText(order.payment_method)} ${formatMoney(order.amount)}`)
+  }
+  const note = order.note?.trim()
+  if (note) parts.push(note)
+  return parts.join(' · ')
 }

@@ -6,7 +6,7 @@ import { useOrderStore } from '../../stores/order'
 import type { MealType, Order, OrderStatus } from '../../types/domain'
 import { today } from '../../utils/date'
 import { addMoney, formatMoney } from '../../utils/format'
-import { mealTypeText, orderDisplayAmount, showToast, statusText } from '../../utils/ui'
+import { mealTypeText, orderSubtitle, showToast, statusText } from '../../utils/ui'
 
 const orderStore = useOrderStore()
 const customerStore = useCustomerStore()
@@ -113,9 +113,7 @@ function statusClass(status: OrderStatus): string {
 }
 
 function orderMetaText(order: Order): string {
-  const note = order.note?.trim()
-  const base = `${mealTypeText(order.meal_type)} × ${order.quantity} · 单价 ${formatMoney(order.unit_price)}`
-  return note ? `${base} · ${note}` : base
+  return orderSubtitle(order)
 }
 
 function touchY(event: TouchEvent): number | null {
@@ -230,7 +228,12 @@ function runEdgeAutoScroll(state: DragState, y: number): void {
   edgeScrollTimer = setTimeout(step, 16)
 }
 
-function onHandleTouchStart(event: TouchEvent, mealType: MealType, index: number, orderId: number): void {
+function onHandleTouchStart(
+  event: TouchEvent,
+  mealType: MealType,
+  index: number,
+  orderId: number,
+): void {
   const orders = sectionOrders(mealType)
   const startY = touchY(event)
   if (orders.length <= 1 || startY == null || dragSaving.value) return
@@ -403,9 +406,6 @@ onShow(() => {
                     {{ orderMetaText(order) }}
                   </text>
                 </view>
-                <view class="order-side">
-                  <text class="order-amount">{{ orderDisplayAmount(order) }}</text>
-                </view>
               </view>
             </view>
           </template>
@@ -527,13 +527,6 @@ onShow(() => {
   min-height: 76rpx;
 }
 
-.order-side {
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-
 .order-name {
   overflow: hidden;
   color: #222222;
@@ -552,12 +545,9 @@ onShow(() => {
 .order-meta {
   display: block;
   margin-top: 10rpx;
-}
-
-.order-amount {
-  color: #222222;
-  font-size: 30rpx;
-  font-weight: 700;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .status {

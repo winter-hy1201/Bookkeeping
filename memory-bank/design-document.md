@@ -1,6 +1,6 @@
 # 盒记 — 产品设计文档
 
-> 基于 PRD v1.0 + 4 项关键决策确认 · 2026-06-09 · 待用户 review
+> 基于 PRD v1.0 持续维护；最近更新：2026-07-22 组合支付 / 一餐一单 / 次卡预占
 
 ---
 
@@ -10,9 +10,9 @@
 
 | # | 决策 | 选项 |
 |---|---|---|
-| D1 | 订单模型 | **1 订单 = 1 餐，可含多份**（加 quantity 字段） |
+| D1 | 订单模型 | **同一客户 + 日期 + 餐次 = 1 张有效订单**；重复新增按增量合入 pending 订单 |
 | D2 | 次卡范围 | **包午餐 + 晚餐**（一次扣次） |
-| D3 | 次卡用完 | **超出部分按单点价另开单** |
+| D3 | 次卡不足 | **同单组合支付**：次卡次数由用户填写，剩余份数只允许微信或现金一种渠道 |
 | D4 | 配送费 | **不收，统一价** |
 
 ### 0.2 设计中采用的默认假设（请用户确认，见 §8）
@@ -131,9 +131,10 @@ CREATE TABLE orders (
   quantity INTEGER NOT NULL DEFAULT 1,    -- 份数
   sort_order INTEGER NOT NULL DEFAULT 0,  -- 当天同餐次内拖拽排序号，0=未手动排序
   unit_price REAL NOT NULL,               -- 单价（按订单记，避免菜单变价影响历史）
-  amount REAL NOT NULL,                   -- 总价 = quantity × unit_price
+  amount REAL NOT NULL,                   -- 仅货币部分金额 = (quantity - meal_card_quantity) × unit_price
   payment_method TEXT NOT NULL,           -- 'wechat' | 'cash' | 'meal_card'
-  meal_card_id INTEGER,                -- payment_method='meal_card' 时记录首张扣次卡 / 兼容旧数据
+  meal_card_id INTEGER,                   -- 参考卡 / 配送时首张实际扣次卡
+  meal_card_quantity INTEGER NOT NULL DEFAULT 0 CHECK (meal_card_quantity >= 0),
   status TEXT NOT NULL DEFAULT 'pending', -- 'pending' | 'delivered' | 'cancelled'
   note TEXT,
   created_at TEXT NOT NULL,
@@ -176,10 +177,13 @@ CREATE INDEX idx_expenses_category ON expenses(category_id);
 ### 2.2 设计点说明
 
 **orders 表**：
-- `quantity × unit_price = amount` 存冗余（查询时不用每次计算）
+- 同一 `customer_id + order_date + meal_type` 只允许一张非 cancelled 有效订单；新写入由事务内查询维护，历史异常数据不加唯一索引强行覆盖
+- `meal_card_quantity` 表示本单承诺使用的次卡次数；货币份数 = `quantity - meal_card_quantity`
+- `amount = 货币份数 × unit_price` 存冗余（查询时不用每次计算）；纯次卡订单为 0
 - `unit_price` 记在订单上 → 菜单调价不影响历史订单
 - `sort_order` 只用于订单列表拖拽排序；按 `order_date + meal_type` 分组生效，不参与金额、统计或状态流转
-- `meal_card_id` + `payment_method='meal_card'` 配对 → 记录本单首张扣次卡 / 兼容 v1-v3 旧数据；精确扣次以 `meal_card_usages` 为准
+- `payment_method='meal_card'` 仅表示纯次卡；组合支付时为唯一的 `wechat` / `cash` 补款渠道
+- `meal_card_id` 记录参考卡 / 本单首张实际扣次卡；精确扣次以 `meal_card_usages` 为准
 - `cancelled_at` 独立字段 → 用于审计 / 排查（不再用于次卡返还，因 A1 后次卡扣次移到配送节点）
 
 **customers 表**（A6 调整后）：
@@ -188,23 +192,23 @@ CREATE INDEX idx_expenses_category ON expenses(category_id);
 - `discount_rate`：折扣率，1.0=无折扣，0.9=9 折，0=免单（用于给指定客户折扣价）
 - 订单录入时的单价优先级：**用户手动输入** > 客户默认价 × 折扣率 > 留空让用户填
 
-**次卡订单的 unit_price 计算（与 A6 脱钩）**：
-- 次卡订单的 `unit_price` = `meal_card.amount / meal_card.total_meals`（即次卡内含的"次均单价"）
-- 例：20 次卡 ¥300 → 次均 ¥15/份
-- **不享受 customer.discount_rate**（次卡已是预付价，再打折会亏损）
-- 普通订单和次卡订单的 `unit_price` 走两条独立计算路径
+**订单的 unit_price 计算**：
+- 一张订单只保留一个实际单价；有货币部分时，全部货币份数共用该单价
+- 默认取客户餐次默认价 × 折扣率，可由用户手动覆盖
+- 纯次卡且客户未配置默认价时，才以最早可用次卡的 `amount / total_meals` 作为参考单价；其 `amount` 仍为 0
+- 重复新增合并时若新旧单价不同，必须二次确认并展示旧单价、新单价、受影响货币份数和重算金额
 
 **meal_cards 表**：
 - `total_meals` 典型 20，亦可 30 / 50；按"次"计费，无有效期
-- `used_meals` 实时维护：**配送完成时** 按客户所有 active 次卡余额池扣次（A1 调整后，创建订单不扣次；pending 取消不返还）
+- `used_meals` 实时维护：**配送完成时** 按客户所有 active 次卡余额池扣 `orders.meal_card_quantity`（创建订单不实扣；pending 取消不返还）
 - `status` 状态机：active → depleted（次数用完）
 - 不存"剩余金额" → 次卡是固定次数模型，不是储值卡
-- 每条 `meal_cards` 都是一笔独立充值记录；允许校正 `total_meals`，但新值不得小于 `used_meals`，且不回溯修改 `amount` / `created_at` / `meal_card_usages`
+- 每条 `meal_cards` 都是一笔独立充值记录；允许校正 `total_meals`，但新值不得小于 `used_meals`，且修改后的客户余额池不得小于全部 pending 订单预占；不回溯修改 `amount` / `created_at` / `meal_card_usages`
 
 **meal_card_usages 表**：
-- 每条记录表示某个已配送次卡订单从某张次卡扣了多少次。
+- 每条记录表示某个已配送订单从某张次卡扣了多少次，包括组合支付中的次卡部分。
 - 支持一单跨多张卡扣次（例如旧卡剩 1 次、新卡剩 18 次、订单 quantity=2 → 两条 usage）。
-- 删除已配送次卡订单时按 usage 精确回滚；旧备份 / 旧库迁移会按历史 `orders.meal_card_id + quantity` 自动补一条 usage。
+- 删除已配送且 `meal_card_quantity > 0` 的订单时按 usage 精确回滚；旧备份 / 旧库迁移会按历史 `orders.meal_card_id + quantity` 自动补一条 usage。
 
 **expense_categories 表**：
 - `is_default=1` 的分类初始化时插入，运行时不可删（防误操作）
@@ -278,26 +282,34 @@ INSERT INTO expense_categories (name, icon, sort_order, is_default) VALUES
 ┌──────────────────────────────────────┐
 │ 客户  [搜索 / 新建 ▼]               │
 │ 餐次  ◉ 午餐  ○ 晚餐                │
-│ 份数  [2]                            │
-│ 单价  [¥15.00]                       │
-│ 合计  ¥30.00（自动）                 │
-│ 支付  ○ 微信  ○ 现金  ◉ 次卡         │
-│ 次卡  [次卡总剩余 20/20]             │
+│ 本次新增份数 [2]                     │
+│ 支付  ○ 微信 ○ 现金 ○ 次卡 ○ 组合    │
+│ 组合  次卡次数[1] + 补款方式[微信]   │
+│ 单价  [¥25.00]                       │
+│ 补款  ¥25.00（自动）                 │
+│ 次卡  实际剩余 / 其他预占 / 当前可用 │
 │ 备注  [____________________]         │
 │         [保存]                       │
 └──────────────────────────────────────┘
    ↓
 事务（一次提交）：
-  1. INSERT INTO orders（payment_method='meal_card' 时记录参考 meal_card_id；最终扣次以配送时余额池为准）
-  2. **不扣次卡次、不检查次卡余额**（A1 调整后，移到配送完成时，见 §4.3）
-  3. COMMIT
+  1. 查询同一 customer_id + order_date + meal_type 的非 cancelled 订单
+  2. delivered 已存在 → 拒绝；pending 已存在 → 进入增量合并
+  3. 校验支付形态与次卡预占：实际剩余 - 其他 pending 预占 >= 保存后所需次数
+  4. 无 pending → INSERT；有 pending → 保留原 ID / sort_order，累加份数与次卡次数并合并备注
+  5. 微信 / 现金渠道冲突 → 拒绝；单价变化 → 返回旧/新价格预览，用户确认后重试
+  6. **不修改 meal_cards.used_meals**，只由 pending 订单字段形成逻辑预占
+  7. COMMIT
    ↓
-提示"保存成功"，回到订单列表
+提示"保存成功"或"已合并到原订单"，回到订单列表
 ```
 
-**次卡余额检查时机**（D3：超出按单点价另开单）：
-- 创建订单时**不检查**次卡余额（避免阻塞下单）
-- 次卡余额检查统一移到"标记已配送"时（见 §4.3），若次卡不足再引导用户改支付方式或取消
+**支付与预占不变量**：
+- 纯微信 / 现金：`meal_card_quantity=0`，`amount=unit_price × quantity`
+- 纯次卡：`meal_card_quantity=quantity`，`payment_method='meal_card'`，`amount=0`
+- 组合支付：`0 < meal_card_quantity < quantity`，`payment_method` 只允许 `wechat` / `cash`
+- 组合支付的次卡次数初始为空，必须由用户填写；系统不默认尽量使用次卡，也不自动切换支付方式
+- 页面先给行内提示，API 仍在事务内重新校验，避免并发 / 缓存绕过
 
 ### 4.2 取消订单
 
@@ -324,9 +336,9 @@ INSERT INTO expense_categories (name, icon, sort_order, is_default) VALUES
 事务：
   1. UPDATE orders SET status='delivered', updated_at=now
   2. UPDATE orders SET sort_order = 同日同餐次最大 sort_order + 1
-  3. 若 payment_method='meal_card'：
+  3. 若 meal_card_quantity > 0：
      - 汇总客户所有 active 次卡剩余次数（余额池）
-     - 若总剩余 < quantity → 走异常分支
+     - 若总剩余 < meal_card_quantity → 整个事务回滚
      - 按 created_at ASC / id ASC 旧卡优先扣次，允许跨卡扣同一单
      - 每张被扣的卡写入 meal_card_usages(order_id, meal_card_id, quantity)
      - UPDATE meal_cards SET used_meals = used_meals + 扣次
@@ -338,12 +350,10 @@ INSERT INTO expense_categories (name, icon, sort_order, is_default) VALUES
 
 注：配送完成后会自动排到订单列表中同日同餐次的最后一位；该行为复用 `orders.sort_order`，不影响金额、统计或次卡扣次口径。
 
-**异常分支（次卡次数不够）**：
-- 弹窗"次卡已用完（或本次份数超剩余），请选择支付方式"
-- 选项：[改为微信 ¥XX] / [改为现金 ¥XX] / [取消标记]
-  - XX = customers.default_lunch_price（或 default_dinner_price）× discount_rate，按订单当前餐次
-- 用户选择后：UPDATE orders SET payment_method=?, unit_price=?, amount=?
-- 然后再次走"标记已配送"流程（按新支付方式走，不再扣次）
+**异常分支（配送时余额意外不足）**：
+- 订单状态、排序、已写 usage 与任何部分扣次全部随事务回滚
+- 弹窗展示“订单需要 N 次，当前可用 M 次”，提供“去编辑支付”入口
+- 不自动把整单改为微信 / 现金，不做部分扣次；用户在编辑页重新分配后再次配送
 
 ### 4.4 备份 / 恢复
 
@@ -355,7 +365,7 @@ INSERT INTO expense_categories (name, icon, sort_order, is_default) VALUES
       {
         "version": "1.0",
         "exported_at": "2026-06-09T22:00:00Z",
-        "schema_version": 1,
+        "schema_version": 5,
         "customers": [...],
         "meal_cards": [...],
         "orders": [...],
@@ -376,10 +386,10 @@ INSERT INTO expense_categories (name, icon, sort_order, is_default) VALUES
       - 粘贴 JSON 文本
       - 从 `_doc/backup_*.json` 已保存备份列表选择
       - 从本地 JSON 文件选择器读取（Android App 端用系统 Intent；其他端 fallback 到 `uni.chooseFile`）
-   2. 解析 JSON + 校验 schema_version（不匹配则报错"备份文件版本不兼容"）
+   2. 解析 JSON + 校验 schema_version：当前 v5 直接导入；v1-v4 补齐缺失字段并按 v5 规则升级；无效或高于当前版本时报错"备份文件版本不兼容"
    3. 二次确认："导入将覆盖所有现有数据，无法恢复。是否继续？"
    4. 事务：
-      DELETE FROM orders / expenses / meal_cards / customers / expense_categories
+      DELETE FROM meal_card_usages / orders / expenses / meal_cards / customers / expense_categories
       INSERT 新数据
    5. 提示"导入成功，请重启 App 刷新缓存"
 ```
@@ -451,9 +461,10 @@ INSERT INTO expense_categories (name, icon, sort_order, is_default) VALUES
 事务：
   1. 读取原次卡
   2. 校验新 total_meals 为正整数且 >= used_meals
-  3. total_meals = used_meals 时 status='depleted'，否则 status='active'
-  4. 只更新 total_meals + status
-  5. COMMIT
+  3. 计算修改后的客户总剩余，并校验 >= 该客户全部 pending 订单的 meal_card_quantity 预占
+  4. total_meals = used_meals 时 status='depleted'，否则 status='active'
+  5. 只更新 total_meals + status
+  6. COMMIT
 ```
 
 修改总次数是对原充值记录的数据校正：不新建充值收入，不修改已用次数和历史扣次明细，不重算历史订单。调大已用完次卡的总次数时，该卡恢复为 active 并重新进入客户余额池。
@@ -483,6 +494,8 @@ INSERT INTO expense_categories (name, icon, sort_order, is_default) VALUES
 | **利润** | 收入 - 支出 |
 | **次卡使用率** | meal_cards.used_meals / meal_cards.total_meals（按卡） |
 | **某客户消费** | Σ(orders.amount) WHERE customer_id=X AND status != 'cancelled' AND order_date IN range |
+
+组合支付不改变统计公式：`orders.amount` 已只包含微信 / 现金部分，次卡收入仍在开卡时通过 `meal_cards.amount` 一次性计入，不能在配送时重复计收。
 
 ### 5.3 金额精度保证
 
@@ -532,14 +545,14 @@ INSERT INTO expense_categories (name, icon, sort_order, is_default) VALUES
 ├────────────────────────────────────┤
 │  客户  [🔍 搜索或新建 ▼ 张三 (9折)]│
 │  餐次  ◉ 午餐  ○ 晚餐              │
-│  份数  [− 2 +]                      │
+│  本次新增份数 [− 2 +]               │
 │  默认价 ¥15.00 × 0.9 = ¥13.50      │
 │  实际价 [¥13.50]                    │
 │  ─────────────────────              │
-│  合计  ¥27.00                      │
-│  ─────────────────────              │
-│  支付  ○ 微信  ○ 现金  ◉ 次卡      │
-│  次卡  [#5 剩 25/30 ▼]             │
+│  支付  ○ 微信 ○ 现金 ○ 次卡 ○ 组合 │
+│  次卡次数 [1]  补款方式 [微信]      │
+│  实际剩余 3 / 其他预占 1 / 可用 2   │
+│  补款  ¥13.50                       │
 │  备注  [____________________]       │
 │                                    │
 │         [保存]                      │
@@ -652,7 +665,8 @@ INSERT INTO expense_categories (name, icon, sort_order, is_default) VALUES
 | 大量订单时统计慢 | 复合索引 (order_date, status) + 量 >10K 时切离线缓存 |
 | 备份 JSON 文件不可见 | 导出同时写 `_doc/` 和 `_downloads/`，toast 展示保存路径；不走系统分享 |
 | App 卸载后数据丢失 | 建议每周导出，v1.1 加定时提醒 |
-| 配送时次卡次数不足 | 弹窗让用户改支付方式，事务回滚已扣次（若部分成功） |
+| 创建 / 编辑时次卡被其他 pending 订单占用 | 页面展示预占明细，API 在事务内按“实际剩余 - 其他预占”二次校验 |
+| 配送时次卡次数意外不足 | 整个事务回滚，弹窗展示所需 / 可用次数并引导去编辑支付，不自动改单 |
 
 ### 8.4 v1.0 明确不做（已记录，留待后续决定）
 

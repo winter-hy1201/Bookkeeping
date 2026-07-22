@@ -1,8 +1,24 @@
 # 盒记 — 实施进度
 
 > v1.0 已发布（2026-06-11）。9 阶段 **61/63** 步完成，2 步按用户决策跳过（9.3 真机性能 / 9.4 Release APK 打包），用 HBuilderX 标准基座 debug APK 侧载替代。
-> 下一步：v1.0 内使用 + 收集真实数据后再规划 v1.1（候选见 `CHANGELOG.md` 已知限制 / v1.1 节）。
+> 下一步：完成 v1.12 的 HBuilderX 真机回归（组合支付、预占、v4 → v5、备份往返）。
 > 完整步骤与里程碑详见 `memory-bank/implementation-plan.md`（已通过 9 阶段实施基线）。
+
+---
+
+## 当前增量（组合支付、次卡预占与一餐一单）
+
+| Step | 内容 | 状态 |
+|---|---|---|
+| 11.1 | 领域规则与缺陷红灯用例 | ✅ 2026-07-22 |
+| 11.2 | schema v5、类型与备份兼容 | ✅ 2026-07-22 |
+| 11.3 | 订单 API 与次卡预占 | ✅ 2026-07-22 |
+| 11.4 | 新增 / 编辑组合支付表单 | ✅ 2026-07-22 |
+| 11.5 | 订单列表与详情展示 | ✅ 2026-07-22 |
+| 11.6 | 长期文档同步 | ✅ 2026-07-22 |
+| 11.7 | 自动化 / CLI / HBuilderX 真机回归 | 🔄 自动化与 CLI 已通过，真机待验证 |
+
+设计基线：`docs/superpowers/specs/2026-07-22-combined-payment-single-order-design.md`
 
 ---
 
@@ -82,3 +98,5 @@
 - 2026-07-14：次卡充值记录与总次数校正：客户详情增加充值记录入口，新增全部历史卡列表；开卡页重构为 uni-forms 并支持修改指定记录总次数；API 禁止新总次数小于已用次数，且按新余额自动切换 `active/depleted`；未改 schema、充值金额或扣次明细。`pnpm type-check` / `pnpm lint` / `pnpm build:h5` 通过（H5 仅有既有 uni-ui Sass 弃用警告），HBuilderX 真机回归待用户执行。
 - 2026-07-14：客户选择器拼音分组索引：`CustomerPicker.vue` 按姓名拼音 A-Z / `#` 分组，右侧 `index-bar` 点击后跳转到对应分组；搜索后索引随匹配分组更新，新建订单与订单详情编辑同时生效。
 - 2026-07-14：客户列表次卡身份头像：`src/api/meal-cards.ts` 新增单次批量查询当前有剩余次数的 active 次卡客户 ID；`src/pages/me/customers/list.vue` 头像区将这类客户显示为“次”，其他客户显示为“普”，不改 schema 和其他页面。`pnpm type-check` / `pnpm lint` / `pnpm build:h5` 通过（H5 仅有既有 uni-ui Sass 弃用警告），HBuilderX 真机待验证。
+- 2026-07-22：一餐一单与组合支付（v1.12）：schema v5 新增 `orders.meal_card_quantity`；订单创建 / 编辑在事务内维护同键唯一有效订单、次卡 pending 预占、支付冲突和改单价 / 目标合并确认，配送 / 删除只处理次卡分配部分；顶层 SQLite 事务改为队列串行，页面状态操作增加 in-flight 锁；新增 / 编辑页改为 uni-forms，列表改为完整支付副标题；备份与充值记录校正同步。`pnpm test` 21 条、`pnpm type-check`、`pnpm lint`、`pnpm build:h5` 通过，HBuilderX 真机待回归。
+- 2026-07-22：客户表单标签统一：新建订单与订单详情编辑均由 `<uni-forms-item label="客户">` 提供字段标签；`CustomerPicker` 移除内部重复标签，保留选择、搜索和拼音分组交互。`pnpm type-check`、`pnpm lint`、`pnpm build:h5` 与 `git diff --check` 通过；H5 仅输出既有 uni-ui Sass 弃用警告。

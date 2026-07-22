@@ -9,8 +9,8 @@
 
 - **项目阶段**：**v1.0 已发布**（Phase 1-9 全部完成；9.3 / 9.4 按用户决策跳过，用 HBuilderX 标准基座 debug APK 侧载；CHANGELOG.md v1.0 节已写好）
 - **已建文件**：`docs/archive/PRD-v1.0.md`、`CLAUDE.md`、`AGENTS.md`、`memory-bank/` 活文档、uni-app Vue 3 + Vite + TS 模板、6 张表 DDL + 迁移 + seed + integrity_check + tx() 工具、domain/api 类型、日期/金额/页面/备份工具、完整 API 层、4 个 Pinia store、3 个通用 UI 组件、uni-ui 表单组件、4 个 Tab 与关键子页、App.vue 全局 onError 兜底
-- **DB 状态**：v0 基线（`memory-bank/bookkeeping-v0.db`，CLI sqlite smoke-test 生成）；v1 阶段基线（`memory-bank/bookkeeping-v1.db`，Phase 8 真机 E2E 通过后归档，`user_version=1`）；当前 schema 版本为 4，新增 `expenses.refund_amount` 退差金额字段、`orders.sort_order` 同餐次拖拽排序字段与 `meal_card_usages` 次卡扣次明细表，真机下次启动会自动迁移
-- **最后更新**：2026-07-14
+- **DB 状态**：v0 基线（`memory-bank/bookkeeping-v0.db`，CLI sqlite smoke-test 生成）；v1 阶段基线（`memory-bank/bookkeeping-v1.db`，Phase 8 真机 E2E 通过后归档，`user_version=1`）；当前 schema 版本为 5，`orders.meal_card_quantity` 支持组合支付与 pending 次卡预占，v4 → v5 真机迁移待回归
+- **最后更新**：2026-07-22
 
 ---
 
@@ -46,10 +46,15 @@
 | `docs/` | `archive/` 保留历史基线；`superpowers/specs/` 保留已批准的增量功能设计 | 新增/归档设计文档时 |
 | `docs/superpowers/specs/2026-07-14-meal-card-recharge-records-design.md` | 次卡充值记录入口与总次数校正的已批准设计、数据边界和验收标准 | 该功能设计变更时 |
 | `docs/superpowers/specs/2026-07-14-customer-picker-pinyin-sort-design.md` | CustomerPicker 按客户姓名拼音分组并支持右侧索引跳转的已批准设计与验收标准 | 该分组索引行为变更时 |
+| `docs/superpowers/specs/2026-07-22-customer-picker-form-label-design.md` | CustomerPicker 的字段标签归属、调用页统一表单标签与验收标准 | 该标签归属或调用方式变更时 |
 | `docs/superpowers/specs/2026-07-14-customer-card-avatar-label-design.md` | 客户列表头像按当前可用次卡显示“次 / 普”的已批准设计与验收标准 | 该身份判定或展示变更时 |
+| `docs/superpowers/specs/2026-07-22-combined-payment-single-order-design.md` | 一餐一单、组合支付、次卡预占、合并改单价确认、schema v5 与备份兼容的已批准设计 | 该订单支付 / 合并规则变更时 |
 | `.gitignore` | git 忽略规则（node_modules、dist、IDE 文件等） | 加新忽略项时 |
 | `index.html` | Vite H5 入口 HTML；`<script type="module" src="/src/main.ts">` | 几乎不改 |
-| `package.json` | 项目元数据 + scripts（dev / build / lint / format / type-check） | 加新脚本/依赖时 |
+| `package.json` | 项目元数据 + scripts（dev / build / test / lint / format / type-check） | 加新脚本/依赖时 |
+| `tests/db-transaction.test.cjs` | Node 内置测试：验证单一 SQLite 连接上的并发顶层事务必须串行，防止双击建单 / 配送交错写入 | `tx()` 并发边界变化时 |
+| `tests/order-rules.test.cjs` | Node 内置测试：覆盖次卡不足、纯 / 组合支付金额、非法次卡次数、备注去重、支付冲突和合并改单价预览 | 订单规则变化时 |
+| `tests/schema-v5.test.cjs` | SQLite CLI 冒烟测试：验证 fresh schema v5 字段约束、v5 迁移追加与旧纯次卡订单回填 | schema / migration 变化时 |
 | `pnpm-lock.yaml` | pnpm 锁定文件（**不要**手动编辑） | pnpm install 后自动 |
 | `tsconfig.json` | TypeScript 配置；extends `@vue/tsconfig`，加 3 个 strict 选项；排除 `src/uni_modules` 第三方 uni-ui 源码 | 调整严格度时 |
 | `vite.config.ts` | Vite 配置；只注册 `uni()` 插件 | 加 Vite 插件时 |
@@ -95,9 +100,9 @@
 | 文件 | 作用 |
 |---|---|
 | `src/pages/index/index.vue` | Tab 1「今日」Dashboard：`onShow` 刷新 stats/order/customer store，展示订单数、收入、支出、利润，以及待配送 / 已配送 / 已取消三组今日订单；三类状态计数卡片和列表分组用主题色展示。 |
-| `src/pages/order/index.vue` | Tab 2「订单」列表：用 `uni-datetime-picker` 按日期筛选 `orderStore.list`，再用 uni-ui `uni-collapse` 分成午餐 / 晚餐两个折叠面板；面板标题展示该餐次有效订单数、份数、金额，列表项展示左侧 `uni-icons bars` 拖拽把手、客户名、餐次、份数、单价、备注、金额和状态；当筛选日期为今天且午餐分组所有订单均为已配送时，午餐面板默认自动折叠；支持跳转新建订单与订单详情；拖拽把手可在当天同餐次内拖拽排序，松手后写回 `orders.sort_order`；v1.6（2026-06-16）改用**动态 `:scroll-y` 开关 + 边缘自动滚屏**修复滚动冲突：触摸事件下沉到 drag-handle、`@touchstart.stop` 记录 dragIntent、`@touchmove` 跨阈值 10px 激活后 `lockScroll()`（`listScrollable=false` 关闭 scroll-view 滚动能力，绕开 JS 层 preventDefault 在 Android 标准基座不生效的死结）、手指拖到顶/底 64px 内用 `setTimeout(16)` 驱动 `:scroll-top` 程序化滚屏（app-plus 逻辑层无 `requestAnimationFrame`，必须用 setTimeout）并反向修正 `dragState.startY` 让 targetIndex 跟随不错位、`@scroll` 回写真实 scrollTop 规避 `:scroll-top` 受控陷阱。 |
-| `src/pages/order/new.vue` | 新建订单表单：CustomerPicker 选客户；日期用 `uni-datetime-picker` 且默认明天，可手动修改；餐次/支付用 `uni-data-checkbox`，份数/备注用 `uni-easyinput`；普通订单按客户默认价 × 折扣率预填，次卡支付时通过 `listCards(customerId)` 汇总所有 active 卡的剩余 / 总次数用于展示，并优先选择一张能覆盖本单份数的 active 卡作为参考 `meal_card_id`，amount=0 且 unit_price=参考卡金额/总次数，创建时不扣次。 |
-| `src/pages/order/detail.vue` | 订单详情：按 id 读取单条订单与客户信息；pending 订单可在详情页进入编辑态，修改客户、日期、餐次、份数、价格、支付方式与备注；编辑次卡支付时展示客户 active 次卡总剩余，并优先选择能覆盖本单份数的卡作为参考；pending 仍可取消或标记已配送；捕获 `InsufficientCardError` 后按客户默认价 × 折扣率整单改微信/现金再配送，客户无默认价时回退订单原单价。只读态支持将客户名、订单份数和备注复制到系统剪贴板，便于发给客户或配送核对。已配送 / 已取消订单保持只读，避免回写次卡扣次或退款状态；所有状态均可删除订单，已配送次卡订单删除时由 API 按扣次明细回滚已扣次数。 |
+| `src/pages/order/index.vue` | Tab 2「订单」列表：按日期筛选并用 `uni-collapse` 分成午餐 / 晚餐；列表项保留拖拽把手、客户名和状态，副标题按“餐次 · 总份数 · 次卡次数 · 微信/现金金额 · 完整备注”组合并自然换行，删除最右侧次卡 / 金额块；今日午餐全部配送后默认折叠。拖拽继续使用 v1.6 的动态 `:scroll-y` 开关 + `setTimeout(16)` 边缘自动滚屏方案并写回 `orders.sort_order`。 |
+| `src/pages/order/new.vue` | `<uni-forms>` 新建订单表单：份数表示“本次增量”；支持微信 / 现金 / 次卡 / 组合支付四个一级选项，组合支付的次卡次数初始为空且由用户填写；查询同键有效订单并提示合并 / 已配送阻断，展示实际剩余、其他 pending 预占、保存后所需次数；切换客户 / 日期 / 餐次后立即清理旧价，只在新上下文查询成功后允许保存；合并改单价时展示旧价、新价、受影响份数与金额后二次确认。 |
+| `src/pages/order/detail.vue` | 订单详情与 `<uni-forms>` 编辑：只读态分别展示总份数、支付摘要、次卡次数、货币份数、实际单价与货币金额；编辑态份数表示整单总量，支持组合支付、预占校验以及改变客户 / 日期 / 餐次后的目标订单合并确认。配送余额不足时整笔回滚并提示“去编辑支付”，不再自动整单改微信 / 现金；保留复制、整单配送 / 取消 / 删除能力。 |
 | `src/pages/stats/index.vue` | Tab 3「统计」：今日/本周/本月/自定义区间切换，自定义日期用 `uni-datetime-picker`；展示收入、支出、利润、订单数、客单价、日趋势 CSS 进度条和支出分类占比。 |
 | `src/pages/me/index.vue` | Tab 4「我的」入口：跳转客户管理、支出管理、备份恢复。 |
 | `src/pages/me/customers/list.vue` | 客户列表：`onShow` 并行刷新 customer store 与当前有剩余次数的 active 次卡客户 ID，头像区按身份显示“次 / 普”；前端用 `uni-easyinput` 按姓名/微信/手机号/姓名拼音/拼音首字母搜索；按 `src/utils/pinyin.ts` 生成拼音首字母分组、右侧索引和滚动定位；展示折扣角标，支持新建和详情跳转。 |
@@ -117,7 +122,7 @@
 | `src/components/.gitkeep` | 占位文件，让空目录被 git 跟踪 |
 | `src/components/StatCard.vue` | 通用数字卡片；props 为 `label` / `value` / `color?: 'normal' \| 'positive' \| 'negative'` / `hint?`；上方展示 label，下方展示大号 value，可选 hint；利润 label 在未显式传 color 时按数值正负自动映射绿色/红色。 |
 | `src/components/AmountInput.vue` | 金额输入组件；props 为 `modelValue: number` / `label` / `placeholder?`；事件 `update:modelValue`；内部用 `uni-easyinput` 保留字符串输入态，使用 `parseMoney()` 将输入解析为 number 回传，模板提供 `¥` 前缀。 |
-| `src/components/CustomerPicker.vue` | 客户选择组件；props 为 `modelValue: Customer \| null` / `showCreate?`；事件 `update:modelValue` / `create`；点击输入区打开底部选择弹层，内部用 `uni-easyinput` 支持按姓名、微信、手机号前端搜索；列表复用 `src/utils/pinyin.ts` 按姓名拼音排序和首字母分组，右侧 `index-bar` 可跳转到对应分组，并展示客户名和折扣角标。 |
+| `src/components/CustomerPicker.vue` | 客户选择组件；props 为 `modelValue: Customer \| null` / `showCreate?`；事件 `update:modelValue` / `create`；字段标签由外层 `<uni-forms-item>` 负责，组件只展示已选客户或占位和选择入口；点击输入区打开底部选择弹层，内部用 `uni-easyinput` 支持按姓名、微信、手机号前端搜索；列表复用 `src/utils/pinyin.ts` 按姓名拼音排序和首字母分组，右侧 `index-bar` 可跳转到对应分组，并展示客户名和折扣角标。 |
 
 ### stores/ — Pinia 状态
 
@@ -132,19 +137,19 @@
 
 | 文件 | 作用 |
 |---|---|
-| `src/db/schema.ts` | 6 张表 DDL 字符串（`SCHEMA_CUSTOMERS` / `SCHEMA_MEAL_CARDS` / `SCHEMA_ORDERS` / `SCHEMA_MEAL_CARD_USAGES` / `SCHEMA_EXPENSE_CATEGORIES` / `SCHEMA_EXPENSES`）+ `CURRENT_SCHEMA_VERSION=4`。字段 / 索引 / CHECK 约束严格对齐 `design-document.md §2.1`；`expenses.refund_amount` 默认 0 并用于冲减统计支出，`orders.sort_order` 用于当天同餐次内拖拽排序，`meal_card_usages` 记录每个已配送次卡订单实际扣了哪些卡；**`meal_cards` 表无 end_date**。 |
-| `src/db/migrations.ts` | 迁移引擎：`MIGRATIONS` 数组（每项一段可独立 SQL）/ `getCurrentVersion()`（读 PRAGMA user_version）/ `setVersion(v)` / `runMigrations()`（从 current 到 MIGRATIONS.length 顺序执行）。当前 v2 迁移追加 `expenses.refund_amount`，v3 迁移追加 `orders.sort_order` 和排序索引，v4 迁移新增 `meal_card_usages` 并按旧有已配送次卡订单补历史扣次明细；新库建表已包含新字段时，重复 `ADD COLUMN` 会按列存在检查跳过；**改字段必须新加一段**，不在原段改。 |
+| `src/db/schema.ts` | 6 张表 DDL 字符串 + `CURRENT_SCHEMA_VERSION=5`。`orders.meal_card_quantity` 保存次卡支付次数，`amount` 只保存货币部分；其余退差、排序与 usage 字段继续对齐 `design-document.md §2.1`；**`meal_cards` 表无 end_date**。 |
+| `src/db/migrations.ts` | 迁移引擎与 v2-v5 追加迁移。v5 只在数组末尾追加 `orders.meal_card_quantity`，旧纯次卡订单按 `quantity` 回填；`reconcileCompatiblePendingOrders()` 仅合并同客户 / 日期 / 餐次且支付渠道、单价兼容的历史 pending 重复单，冲突数据保留并输出诊断。新库重复 `ADD COLUMN` 继续按列存在检查跳过；**不修改已发布迁移段**。 |
 | `src/db/seed.ts` | 首次启动 seed：`seedIfEmpty()` 写入 5 个默认支出分类（菜品 🥬 / 工具 🔧 / 耗材 📦 / 配送 🛵 / 其他 💰），is_default=1。仅在 `expense_categories` 行数为 0 时插入，不强制覆盖用户数据。 |
-| `src/db/index.ts` | 数据层入口：`init()` 启动序列（openDatabase → PRAGMA foreign_keys=ON → runMigrations → seedIfEmpty → PRAGMA integrity_check(1)，逐步 await；integrity_check 失败抛错让 `App.vue` 提示用备份恢复）/ `close()` / `tx<T>(fn)`（用 5+ `transaction` 的 begin/commit/rollback 包裹 + 嵌套防护）/ `exec()` / `select()`。5+ 官方 `executeSql` 不支持 args 数组，参数在本文件统一转义；`pify()` 动态调用 SQLite 方法时必须用 `fn.call(sqlite, options)` 保留 `this`；callback 静默不返回时 8 秒超时报错，便于识别 native bridge 缺失。**所有多表写入**（建单 / 取消 / 配送 / 开次卡）必须走 `tx()`。 |
+| `src/db/index.ts` | 数据层入口：`init()` 启动序列（openDatabase → PRAGMA foreign_keys=ON → runMigrations → seedIfEmpty → PRAGMA integrity_check(1)，逐步 await；integrity_check 失败抛错让 `App.vue` 提示用备份恢复）/ `close()` / `tx<T>(fn)`（用 5+ `transaction` 的 begin/commit/rollback 包裹，并用 Promise 队列串行单连接上的顶层事务；`fn` 内不嵌套 `tx()`）/ `exec()` / `select()`。5+ 官方 `executeSql` 不支持 args 数组，参数在本文件统一转义；`pify()` 动态调用 SQLite 方法时必须用 `fn.call(sqlite, options)` 保留 `this`；callback 静默不返回时 8 秒超时报错，便于识别 native bridge 缺失。**所有多表写入**（建单 / 取消 / 配送 / 开次卡）必须走 `tx()`。 |
 
 ### api/ — 数据访问
 
 | 文件 | 作用 |
 |---|---|
 | `src/api/customers.ts` | customers 表 CRUD：`listCustomers()` / `getCustomer(id)` / `createCustomer(input)` / `updateCustomer(id, input)` / `deleteCustomer(id)`。`createCustomer` 与 `updateCustomer` 返回最新客户记录；创建/改名时按 trim 后姓名判重；`deleteCustomer` 在客户存在次卡或订单依赖时返回 `false` 并保留数据，避免外键失败。 |
-| `src/api/meal-cards.ts` | meal_cards 表基础 API：`getActiveCard()` / `listCards()` / `listActiveMealCardCustomerIds()` / `openCard()` / `getCard()` / `updateCardTotalMeals()`。批量身份查询只返回 `status='active' AND used_meals < total_meals` 的客户 ID；`openCard` 用 `tx()` 写入 `used_meals=0`、`status='active'`；`updateCardTotalMeals` 事务内禁止总次数小于已用次数，并按剩余次数同步 `active/depleted`。 |
-| `src/api/orders.ts` | orders 表与订单流程 API：`listOrders(input: ListOrdersInput): Promise<OrderResult[]>` / `getOrder(id): Promise<OrderResult \| null>` / `createOrder(input: CreateOrderInput): Promise<OrderResult>` / `updateOrder(id, input): Promise<OrderResult>` / `updateOrderStatus(id, status): Promise<OrderResult \| null>` / `updateOrderPayment(id, input): Promise<OrderResult \| null>` / `reorderOrders(input): Promise<void>` / `markDelivered(orderId): Promise<OrderResult>` / `cancelOrder(orderId): Promise<OrderResult \| null>` / `deleteOrder(orderId): Promise<boolean>`。`listOrders` 的 `startDate/endDate` 可选，页面可用 `customerId` 查询客户历史订单，并按 `sort_order` 展示当天同餐次拖拽顺序；`createOrder` 不扣次卡且自动排到同日同餐次末尾；`updateOrder` 仅允许 pending 订单修改订单字段，次卡仍不在编辑时扣次；`reorderOrders` 只更新同日同餐次订单排序号；`markDelivered` 在配送完成时按客户所有 active 次卡余额池旧卡优先扣次，支持一单跨卡扣次并写入 `meal_card_usages`，总剩余不足时回滚，成功配送后自动把订单排到同日同餐次末尾；`cancelOrder` 不返还次卡次；`deleteOrder` 硬删除订单，若已配送次卡订单则按 `meal_card_usages` 回滚 `meal_cards.used_meals` 与状态。 |
-| `src/api/errors.ts` | API 层业务异常：`InsufficientCardError`（次卡次数不足）/ `AlreadyDeliveredError`（已配送订单禁止取消）/ `DuplicateCustomerNameError`（客户姓名重复）/ `MealCardTotalTooSmallError`（充值记录总次数小于已用次数）。 |
+| `src/api/meal-cards.ts` | meal_cards 表基础 API。`updateCardTotalMeals()` 除校验新总次数不小于已用次数外，还校验修改后客户余额池足以覆盖全部 pending `meal_card_quantity` 预占，再同步 `active/depleted`。 |
+| `src/api/orders.ts` | orders 表与订单流程 API：新增 `findEffectiveOrder()` / `getMealCardAvailability()`；`createOrder()` 在事务内维护“一客户一日期一餐次一张有效订单”，重复新增按增量合入原 pending ID / 排序；`updateOrder()` 支持目标 pending 合并确认；两者统一校验支付形态、货币渠道、改单价确认和 pending 次卡预占。`markDelivered()` 仅 FIFO 扣 `meal_card_quantity` 并写 usage，不足时整笔回滚；取消自然释放预占，删除 delivered 组合订单按 usage 精确回滚。 |
+| `src/api/errors.ts` | API 层可辨识业务异常：次卡所需 / 可用次数、已配送同键冲突、支付渠道冲突、合并改单价确认、编辑目标合并确认、充值记录侵占预占次数、历史重复单诊断，以及既有取消 / 重名 / 总次数下限错误。 |
 | `src/api/expense-categories.ts` | expense_categories 只读 API：`listCategories(): Promise<ExpenseCategoryResult[]>` / `getCategory(id): Promise<ExpenseCategoryResult \| null>`。v1.0 不暴露分类增删改。 |
 | `src/api/expenses.ts` | expenses 表 CRUD：`listExpenses(input: ListExpensesInput): Promise<ExpenseResult[]>` / `getExpense(id): Promise<ExpenseResult \| null>` / `createExpense(input: CreateExpenseInput): Promise<ExpenseResult>` / `updateExpense(id, input): Promise<ExpenseResult \| null>` / `deleteExpense(id): Promise<boolean>`。`createExpense` / `updateExpense` 用 `tx()` 包裹，`amount <= 0` 拒绝，`refund_amount` 默认为 0 且不可为负或超过 `amount`；`deleteExpense` 硬删除支出。 |
 | `src/api/stats.ts` | 统计聚合 API：`getDashboardSummary(date): Promise<StatsSummary>` / `getRangeSummary(input: DateRangeInput): Promise<StatsSummary>` / `getDailyTrend(input: DateRangeInput): Promise<DailyTrendPoint[]>` / `getCategoryBreakdown(input: DateRangeInput): Promise<CategoryBreakdown[]>`。收入口径 = 非 cancelled 订单金额 + 开次卡金额；支出口径 = `expenses.amount - expenses.refund_amount`；利润 = 收入 - 支出。 |
@@ -155,16 +160,17 @@
 |---|---|
 | `src/utils/date.ts` | dayjs 本地时区日期工具：`today()` / `tomorrow()` 返回 `YYYY-MM-DD`；`weekRange(d)` 返回自然周周一到周日；`monthRange(d)` 返回自然月 1 号到月底；`formatDate(d)` 按当前年份显示 `MM-DD` 或 `YYYY-MM-DD`；`daysBetween(a, b)` 返回自然日整数差。 |
 | `src/utils/format.ts` | 金额/百分比格式化与精确计算工具（基于 big.js，全局 `Big.RM = roundHalfUp`，所有 helper 输出强制 `toFixed(2)` 保证 2 位小数）：`formatMoney(n)` 输出 `¥1,234.50`（空值/非法值为 `¥—`）；`parseMoney(s)` 接受普通数字、`¥`、`￥`、千分位并解析为 number（非法为 0）；`formatPercent(n)` 四舍五入输出整数百分比；`roundMoney/addMoney/subtractMoney/multiplyMoney/divideMoney` 提供按分精确运算，所有金额计算（订单单价、份数、统计累加/差值、次卡均摊）必须走这些 helper，禁止原生 `+ - * /` |
-| `src/utils/ui.ts` | 页面层小工具：toast、confirm/actionSheet Promise 化、数值转换、餐次/支付/状态文案、客户默认价 × 折扣率提示（基于 `multiplyMoney`，避免原生 `*` 精度问题）、订单金额展示。 |
-| `src/utils/backup.ts` | JSON 备份恢复工具：全表导出 payload、写 `_doc/backup_*.json` 并复制到 `_downloads/`、列出 / 读取沙盒内备份文件、通过 Android 系统文件选择器读取本地 JSON（其他端 fallback 到 `uni.chooseFile`）、解析校验备份 JSON 与 `schema_version`、事务内全量覆盖导入；允许旧 v1-v3 备份导入到 v4 时补 `refund_amount=0` / `sort_order=0`，并按旧已配送次卡订单自动生成 `meal_card_usages`；危险清空会删除业务数据后调用 `seedIfEmpty()` 恢复默认支出分类，避免支出录入页无分类可选。 |
+| `src/utils/order-rules.ts` | 订单纯规则模块：支付拆分、次卡可用判断、备注合并去重、支付兼容与合并改单价预览；API 与 Node 测试共享，金额计算只走 big.js helper。 |
+| `src/utils/ui.ts` | 页面层小工具：toast / confirm / actionSheet、数值与状态文案、客户默认价提示，以及组合支付摘要和列表副标题拼接。 |
+| `src/utils/backup.ts` | JSON 全量备份恢复；v5 随 orders 导入导出 `meal_card_quantity`，导入 v1-v4 时按旧 `payment_method` 推导，组合 delivered usage 继续精确恢复，并在导入后执行兼容 pending 重复单合并。 |
 | `src/utils/pinyin.ts` | 客户姓名拼音工具：基于纯 JS `pinyin-pro`，使用姓氏优先模式把中文姓名转为无声调拼音 key、拼音首字母串和 A-Z / `#` 分组字母，并提供客户姓名排序函数；用于 Android App 端客户列表分组、索引和拼音搜索。 |
 
 ### types/ — TS 类型
 
 | 文件 | 作用 |
 |---|---|
-| `src/types/domain.ts` | 与 schema snake_case 字段严格对齐的核心领域类型：`Customer` / `MealCard` / `MealCardUsage` / `Order` / `ExpenseCategory` / `Expense`，以及枚举联合类型 `MealType` / `PaymentMethod` / `OrderStatus` / `MealCardStatus`。可空 DB 字段统一为 `T \| null`。 |
-| `src/types/api.ts` | API 层复用的入参/出参契约：客户创建/更新、开次卡、`UpdateMealCardTotalInput`、订单创建/更新/支付与列表筛选、支出创建/筛选、统计范围及各结果类型。`ListOrdersInput.startDate/endDate` 为可选，支持客户详情历史订单查询。 |
+| `src/types/domain.ts` | 与 schema snake_case 字段严格对齐的领域类型；`Order` 新增必填 `meal_card_quantity`。 |
+| `src/types/api.ts` | API 入参 / 出参契约；订单创建 / 编辑增加次卡次数与价格 / 合并确认标志，新增 `MealCardAvailabilityResult`。 |
 | `src/types/pinia.d.ts` | 本地类型声明：在不手动安装 npm `pinia` 的前提下，让 `vue-tsc` 能识别 uni-app/HBuilderX 内置 Pinia 的 `createPinia` / `defineStore`。仅提供类型，不提供运行时代码。 |
 
 ---
@@ -173,7 +179,7 @@
 
 | 决策 | 位置 | 影响范围 |
 |---|---|---|
-| 5 张表结构 | `memory-bank/design-document.md §2.1` | 所有 db / api / store |
+| 6 张表结构 | `memory-bank/design-document.md §2.1` | 所有 db / api / store |
 | 次卡扣次 = 配送完成（A1），按客户余额池旧卡优先扣次 | `memory-bank/design-document.md §3.2 §4.3` | orders API、UI 流程 |
 | 客户默认价 + 折扣率（A6） | `memory-bank/design-document.md §2.1 §4.1` | customers API、订单录入 UI |
 | 1 订单 = 1 餐 + 多份（D1） | `memory-bank/design-document.md §2.1` | orders schema |
@@ -183,7 +189,7 @@
 | 多表写入必走 tx() | `memory-bank/design-document.md §4` | db/index.ts 提供 tx() 工具 |
 | 删除 = 硬删除 + 回滚已产生副作用 | `memory-bank/design-document.md §4.6` | orders / expenses / customers API 与详情页删除入口 |
 | PRAGMA foreign_keys = ON | db/index.ts init() | 维护 customer_id / meal_card_id / category_id 外键完整性 |
-| `user_version` 驱动迁移 | db/migrations.ts | 首次建表=v1；未来加字段在 MIGRATIONS 末尾追加 |
+| `user_version` 驱动迁移 | db/migrations.ts | 首次建表=v1，当前=v5；未来加字段在 MIGRATIONS 末尾追加 |
 | 客户姓名应用层判重 | `src/api/customers.ts` / `src/pages/me/customers/new.vue` | 重复姓名不可新增；编辑时允许保持原姓名 |
 | 表单控件统一使用 uni-ui | `src/uni_modules` + 各表单页 | 业务页面不直接使用原生 `input` / `textarea` / `picker` / `radio-group` / `slider`，改用 easycom 的 uni-ui 表单组件 |
 
@@ -283,3 +289,5 @@
 - 2026-07-14：次卡充值记录与总次数校正 — 客户详情增加充值记录入口，新增 `card-records.vue` 展示全部历史卡；`open-card.vue` 重构为 uni-forms 并兼容编辑模式；`updateCardTotalMeals()` 禁止总次数小于已用次数，并自动切换 `active/depleted`；不改 schema、充值金额或历史扣次明细。
 - 2026-07-14：客户选择器拼音分组索引 — `CustomerPicker.vue` 复用 `compareCustomerName()` / `getCustomerInitial()` 按客户姓名拼音排序和分组，右侧 `index-bar` 点击后通过 `scroll-into-view` 跳转；新建订单与订单详情编辑同时生效。
 - 2026-07-14：客户列表次卡身份头像 — `src/api/meal-cards.ts` 新增单次批量查询当前有剩余次数的 active 次卡客户 ID；`src/pages/me/customers/list.vue` 头像区将这类客户显示为“次”，其他客户显示为“普”，不改 schema 和其他页面。
+- 2026-07-22：一餐一单与组合支付（v1.12）—— schema 升至 v5，`orders` 新增 `meal_card_quantity`；新增 `src/utils/order-rules.ts` 与三组 Node / SQLite CLI 测试。订单 API 在事务内合并同客户 / 日期 / 餐次 pending 增量、校验次卡预占、支付渠道和改单价确认，配送 / 删除只处理次卡分配部分；`tx()` 串行顶层事务，详情状态操作增加 in-flight 锁，防止双击 / 多页并发重复扣次或建单；新增 / 编辑页重构为 uni-forms，列表改为完整组合支付副标题；备份与充值记录校正同步 v5 口径。静态门禁与 H5 构建结果见 `CHANGELOG.md v1.12`，HBuilderX 真机回归待执行。
+- 2026-07-22：客户表单标签统一 — 新建订单与订单详情编辑均由 `<uni-forms-item label="客户">` 提供字段标签；`CustomerPicker` 移除内部重复标签，保留选择、搜索和拼音分组交互。

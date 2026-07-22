@@ -114,12 +114,9 @@ function discountLabel(customer: Customer): string {
 <template>
   <view class="customer-picker">
     <view class="picker-input" @click="openSheet">
-      <view class="picker-main">
-        <text class="picker-label">客户</text>
-        <text class="picker-value" :class="{ 'picker-value--empty': !modelValue }">
-          {{ selectedText }}
-        </text>
-      </view>
+      <text class="picker-value" :class="{ 'picker-value--empty': !modelValue }">
+        {{ selectedText }}
+      </text>
       <text class="picker-arrow">›</text>
     </view>
 
@@ -205,19 +202,6 @@ function discountLabel(customer: Customer): string {
   border: 1rpx solid #e5e5e5;
   border-radius: 12rpx;
   background: #ffffff;
-}
-
-.picker-main {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  min-width: 0;
-}
-
-.picker-label {
-  flex: 0 0 96rpx;
-  color: #333333;
-  font-size: 28rpx;
 }
 
 .picker-value {

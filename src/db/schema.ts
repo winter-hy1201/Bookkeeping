@@ -1,5 +1,5 @@
 /**
- * 数据库 schema — 5 张表 DDL 字符串
+ * 数据库 schema — 6 张表 DDL 字符串
  *
  * 数据来源：memory-bank/design-document.md §2.1
  * 字段、类型、NOT NULL、DEFAULT、CHECK 约束、索引必须严格对齐设计文档。
@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS orders (
   amount REAL NOT NULL,
   payment_method TEXT NOT NULL CHECK (payment_method IN ('wechat', 'cash', 'meal_card')),
   meal_card_id INTEGER,
+  meal_card_quantity INTEGER NOT NULL DEFAULT 0 CHECK (meal_card_quantity >= 0),
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'delivered', 'cancelled')),
   note TEXT,
   created_at TEXT NOT NULL,
@@ -111,4 +112,4 @@ CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category_id);
  *   1. 在 MIGRATIONS 数组末尾追加新的一段 SQL
  *   2. CURRENT_SCHEMA_VERSION += 1
  */
-export const CURRENT_SCHEMA_VERSION = 4
+export const CURRENT_SCHEMA_VERSION = 5
