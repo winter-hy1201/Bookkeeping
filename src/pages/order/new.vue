@@ -433,7 +433,6 @@ async function save(): Promise<void> {
     saving.value = false
   }
 }
-
 </script>
 
 <template>
@@ -788,7 +787,7 @@ async function save(): Promise<void> {
   height: 64rpx;
   margin: $hej-space-2 0 0;
   padding: 0 $hej-space-5;
-  border: 0;
+  border: 2rpx solid $hej-color-border;
   border-radius: $hej-radius-control;
   background: transparent;
   box-sizing: border-box;
