@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
 import CustomerPicker from '../../components/CustomerPicker.vue'
 import {
   DeliveredOrderConflictError,
@@ -122,10 +121,7 @@ const mixedCardQuantityMax = computed(() => Math.max(1, form.quantity - 1))
 const mixedCardQuantityInput = computed<number>({
   get: () => mixedCardQuantity.value,
   set: (value) => {
-    const next = Math.min(
-      mixedCardQuantityMax.value,
-      Math.max(1, Math.floor(toNumber(value))),
-    )
+    const next = Math.min(mixedCardQuantityMax.value, Math.max(1, Math.floor(toNumber(value))))
     form.meal_card_quantity = String(next)
   },
 })
@@ -158,9 +154,7 @@ const cardAvailabilityError = computed(() => {
   if (requiredCardQuantity.value <= availability.value.available) return ''
   return `这次最多还能用 ${availability.value.available} 次次卡，但${cardRequirementLabel.value} ${requiredCardQuantity.value} 次。请减少次卡次数或改用微信 / 现金。`
 })
-const cardErrorMessage = computed(
-  () => cardOperationError.value || cardAvailabilityError.value,
-)
+const cardErrorMessage = computed(() => cardOperationError.value || cardAvailabilityError.value)
 const submitValue = computed(() => {
   if (!selectedCustomer.value) return '待选择客户'
   if (!hasMoney.value) return '次卡支付'
@@ -236,12 +230,9 @@ watch(
   },
 )
 
-watch(
-  [() => form.quantity, () => form.payment_mode, () => form.meal_card_quantity],
-  () => {
-    cardOperationError.value = ''
-  },
-)
+watch([() => form.quantity, () => form.payment_mode, () => form.meal_card_quantity], () => {
+  cardOperationError.value = ''
+})
 
 async function refreshOrderContext(): Promise<void> {
   const version = ++contextVersion
@@ -443,12 +434,6 @@ async function save(): Promise<void> {
   }
 }
 
-onLoad((query) => {
-  const date = String(query?.date ?? '')
-  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    form.order_date = date
-  }
-})
 </script>
 
 <template>
@@ -460,38 +445,32 @@ onLoad((query) => {
         :model-value="form"
         :rules="rules"
         validate-trigger="blur"
-        label-width="88"
+        label-width="80px"
+        label-align="left"
       >
         <view class="order-card">
-          <view class="delivery-strip">
-            <text class="delivery-strip-title">配送安排</text>
-            <view class="schedule-row">
-              <uni-forms-item name="order_date" class="schedule-field schedule-field--date">
-                <view class="schedule-control">
-                  <text class="schedule-label">日期</text>
-                  <uni-datetime-picker
-                    v-model="form.order_date"
-                    class="date-picker"
-                    type="date"
-                    :clear-icon="false"
-                  />
-                </view>
-              </uni-forms-item>
+          <view class="entry-section entry-section--schedule">
+            <uni-forms-item name="order_date" label="日期" required>
+              <uni-datetime-picker
+                v-model="form.order_date"
+                class="date-picker"
+                type="date"
+                :clear-icon="false"
+              />
+            </uni-forms-item>
 
-              <uni-forms-item name="meal_type" class="schedule-field schedule-field--meal">
-                <view class="schedule-control">
-                  <text class="schedule-label">餐次</text>
-                  <uni-data-checkbox
-                    v-model="form.meal_type"
-                    class="meal-choice"
-                    mode="button"
-                    :localdata="mealTypeOptions"
-                    selected-color="#0070f3"
-                  />
-                </view>
-              </uni-forms-item>
-            </view>
+            <uni-forms-item name="meal_type" label="餐次" required>
+              <uni-data-checkbox
+                v-model="form.meal_type"
+                class="meal-choice"
+                mode="button"
+                :localdata="mealTypeOptions"
+                selected-color="#0070f3"
+              />
+            </uni-forms-item>
           </view>
+
+          <view class="entry-divider" />
 
           <view class="entry-section entry-section--customer">
             <uni-forms-item name="customer_id" label="客户" required>
@@ -593,7 +572,8 @@ onLoad((query) => {
 
             <view v-if="requiredCardQuantity > 0 && availability" class="card-status">
               <text class="card-status-main">
-                可用 {{ availability.available }} 次 · {{ cardRequirementLabel }} {{ requiredCardQuantity }} 次
+                可用 {{ availability.available }} 次 · {{ cardRequirementLabel }}
+                {{ requiredCardQuantity }} 次
               </text>
               <text
                 v-if="availability.reserved_by_others > 0 || cardErrorMessage"
@@ -620,8 +600,8 @@ onLoad((query) => {
                     @input="onActualPriceInput"
                   />
                 </view>
-                <text class="price-hint">{{ priceHint(selectedCustomer, form.meal_type) }}</text>
               </uni-forms-item>
+              <text class="price-hint">{{ priceHint(selectedCustomer, form.meal_type) }}</text>
             </view>
           </view>
 
@@ -665,6 +645,7 @@ onLoad((query) => {
   overflow: hidden;
   background: $hej-color-canvas;
   box-sizing: border-box;
+  padding: 0 $hej-space-1;
 }
 
 .form-scroll {
@@ -674,65 +655,26 @@ onLoad((query) => {
 }
 
 .form {
+  --order-label-width: 80px;
   display: block;
-  padding: $hej-space-5;
+}
+
+.form :deep(.uni-forms-item) {
+  align-items: center;
+}
+
+.form :deep(.uni-forms-item__content) {
+  min-width: 0;
 }
 
 .order-card {
   overflow: hidden;
-  border: 1rpx solid $hej-color-border;
-  border-radius: $hej-radius-panel;
   background: $hej-color-surface;
-  box-shadow: $hej-shadow-panel;
 }
 
-.delivery-strip {
-  padding: $hej-space-4 $hej-space-5 $hej-space-3;
-  border-left: 6rpx solid $hej-color-accent;
-  background: $hej-color-accent-soft;
-}
-
-.delivery-strip-title {
+.date-picker {
   display: block;
-  margin-bottom: $hej-space-2;
-  color: $hej-color-accent;
-  font-size: $hej-font-meta;
-  font-weight: 700;
-}
-
-.schedule-row {
-  display: flex;
-  align-items: flex-start;
-  gap: $hej-space-3;
-}
-
-.schedule-field {
-  flex: 1;
-  min-width: 0;
-  margin-bottom: 0;
-}
-
-.schedule-field--date {
-  flex: 1.05;
-}
-
-.schedule-field :deep(.uni-forms-item__label) {
-  display: none;
-}
-
-.schedule-field :deep(.uni-forms-item__content) {
-  min-width: 0;
-}
-
-.schedule-control {
-  min-width: 0;
-}
-
-.schedule-label {
-  display: block;
-  margin-bottom: $hej-space-1;
-  color: $hej-color-text-secondary;
-  font-size: $hej-font-caption;
+  width: 100%;
 }
 
 .meal-choice :deep(.checklist-group),
@@ -768,6 +710,7 @@ onLoad((query) => {
   color: $hej-color-text-secondary;
   font-size: $hej-font-meta;
   line-height: 1.3;
+  white-space: nowrap;
 }
 
 .entry-section {
@@ -781,6 +724,10 @@ onLoad((query) => {
 .entry-section :deep(.uni-forms-item__label) {
   color: $hej-color-text-secondary;
   font-size: $hej-font-meta;
+}
+
+.entry-section--schedule :deep(.uni-forms-item:last-child) {
+  margin-bottom: 0;
 }
 
 .entry-section--customer :deep(.uni-forms-item) {
@@ -836,16 +783,25 @@ onLoad((query) => {
 
 .link-button {
   display: inline-block;
-  height: 56rpx;
+  width: auto;
+  min-width: 200rpx;
+  height: 64rpx;
   margin: $hej-space-2 0 0;
-  padding: 0;
+  padding: 0 $hej-space-5;
   border: 0;
+  border-radius: $hej-radius-control;
   background: transparent;
+  box-sizing: border-box;
   color: inherit;
   font-size: $hej-font-meta;
   font-weight: 600;
-  line-height: 56rpx;
+  line-height: 64rpx;
   text-align: center;
+  white-space: nowrap;
+}
+
+.link-button::after {
+  border: 0;
 }
 
 .payment-control {
@@ -906,18 +862,29 @@ onLoad((query) => {
 
 .mixed-exit-button {
   flex: 0 0 auto;
-  height: 56rpx;
+  width: auto;
+  min-width: 200rpx;
+  height: 64rpx;
+  padding: 0 $hej-space-5;
+  border-radius: $hej-radius-control;
+  background: $hej-color-surface;
+  box-sizing: border-box;
   color: $hej-color-accent;
   font-size: $hej-font-caption;
   font-weight: 600;
-  line-height: 56rpx;
+  line-height: 64rpx;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.mixed-exit-button::after {
+  border: 0;
 }
 
 .mixed-payment-panel {
-  margin-bottom: $hej-space-5;
-  padding: $hej-space-4;
-  border-radius: $hej-radius-control;
-  background: $hej-color-surface-subtle;
+  margin: 0 (-$hej-space-5) $hej-space-5;
+  padding: $hej-space-4 $hej-space-5;
+  background: $hej-color-surface;
 }
 
 .mixed-payment-panel :deep(.uni-forms-item) {
@@ -992,7 +959,7 @@ onLoad((query) => {
 
 .price-hint {
   display: block;
-  margin-top: $hej-space-2;
+  margin: $hej-space-2 0 0 var(--order-label-width);
   color: $hej-color-text-tertiary;
   font-size: $hej-font-caption;
   line-height: 1.4;

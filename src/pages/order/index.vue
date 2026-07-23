@@ -323,7 +323,7 @@ function handleDateChange(value: string): void {
 }
 
 function goNew(): void {
-  uni.navigateTo({ url: `/pages/order/new?date=${encodeURIComponent(orderStore.currentDate)}` })
+  uni.navigateTo({ url: '/pages/order/new' })
 }
 
 function goDetail(id: number): void {
@@ -352,8 +352,6 @@ onShow(() => {
     <view v-if="orderStore.loading" class="empty empty--loading">订单加载中...</view>
     <view v-else-if="orderStore.list.length === 0" class="empty-state">
       <text class="empty-state-title">这一天还没有订单</text>
-      <text class="empty-state-copy">从第一单开始，后续可按午餐和晚餐集中配送。</text>
-      <button class="empty-state-action" @click="goNew">新建这一天的首单</button>
     </view>
     <scroll-view
       v-else
@@ -445,6 +443,9 @@ onShow(() => {
 }
 
 .date-button {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   flex: 1;
   min-width: 0;
   min-height: 80rpx;

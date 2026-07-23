@@ -15,7 +15,7 @@
 | 任务 | 必读来源 | 入口 / 硬边界 |
 |---|---|---|
 | 数据模型、订单、次卡、统计、备份 | `memory-bank/design-document.md`、`memory-bank/CHANGELOG.md` | 先确认已有业务决策和兼容边界 |
-| 页面视觉、交互、样式 token | `docs/design.md` | 沿用 `$hej-*` token；使用它们的样式块必须 `lang="scss"` |
+| 页面视觉、交互、样式 token | `docs/design.md` | 沿用 `$hej-*` token；业务表单遵守其中的 §4 |
 | 新增或重做 UI 交互 | `docs/uni-modules-ai-index.md` | 先查本地组件；满足条件才优先复用 |
 | SQLite / 原生桥 / Android 异常 | `debug-docs/DEBUG-HANDOFF.md`、`src/db/index.ts` | 不依据 CLI 结果判断原生 SQLite 成败 |
 | 文件职责、路由、依赖、现状 | `memory-bank/architecture.md` | 新建、删除或改变职责后必须同步它 |
@@ -61,6 +61,7 @@
 - 新增或重做 UI 先查 `docs/uni-modules-ai-index.md`：本地存在、交互匹配、支持 Android App、符合设计/表单规则且不引入多余行为时，优先使用本地组件。
 - 索引是选型路由，不是 API 副本。选中后读取本地 README 与项目内用例；未验证组件首次使用要做对应 Android 回归。
 - 业务表单必须由 `<uni-forms>` + `<uni-forms-item name="...">` 承载；禁止原生 `input` / `textarea` / `picker` / `radio-group` / `slider`，也禁止散用 uni-ui 输入组件。提交走 `formRef.validate()`。
+- 业务表单的视觉基准、结构、尺寸、间距、状态和迁移边界统一维护在 `docs/design.md §4`；本文件只保留组件与验证硬约束，不复制视觉参数。新增、重做或修改表单布局时必须先读该节。
 - 不因为本地已有组件批量替换既有实现；纯 CSS 微调、业务逻辑和数据层变更无需触发组件检索。
 - 本地组件确实不满足时先做最小自定义；新增第三方依赖前说明缺口、替代方案和影响，并等待用户同意。
 

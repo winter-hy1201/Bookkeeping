@@ -52,7 +52,9 @@ const categoryOptions = computed(() =>
 )
 const amountValue = computed(() => parseMoney(form.amount))
 const refundAmountValue = computed(() => parseMoney(form.refund_amount))
-const netAmount = computed(() => Math.max(0, subtractMoney(amountValue.value, refundAmountValue.value)))
+const netAmount = computed(() =>
+  Math.max(0, subtractMoney(amountValue.value, refundAmountValue.value)),
+)
 const canSave = computed(
   () =>
     Boolean(form.expense_date) &&
@@ -100,13 +102,9 @@ onShow(() => {
 
 <template>
   <scroll-view class="page" scroll-y>
-    <uni-forms ref="formRef" class="form" :model-value="form" :rules="rules" label-width="88">
+    <uni-forms ref="formRef" class="form" :model-value="form" :rules="rules" label-width="80px">
       <uni-forms-item name="expense_date" label="日期" required>
-        <uni-datetime-picker
-          v-model="form.expense_date"
-          type="date"
-          :clear-icon="false"
-        />
+        <uni-datetime-picker v-model="form.expense_date" type="date" :clear-icon="false" />
       </uni-forms-item>
 
       <uni-forms-item name="category_id" label="分类" required>
@@ -169,14 +167,22 @@ onShow(() => {
   </scroll-view>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .page {
   min-height: 100vh;
-  background: #f6f7f9;
+  background: $hej-color-canvas;
 }
 
 .form {
   padding: 24rpx;
+}
+
+.form :deep(.uni-forms-item) {
+  align-items: center;
+}
+
+.form :deep(.uni-forms-item__content) {
+  min-width: 0;
 }
 
 .amount-control {

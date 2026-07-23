@@ -556,151 +556,160 @@ onLoad((query) => {
             :model-value="form"
             :rules="rules"
             validate-trigger="blur"
-            label-width="88"
+            label-width="80px"
+            label-align="left"
           >
-            <view class="form-section">
-              <view class="form-section-header">
-                <text class="form-section-title">订单对象</text>
-                <text class="form-section-meta">确认客户与配送时间</text>
-              </view>
-              <uni-forms-item name="customer_id" label="客户" required>
-                <CustomerPicker v-model="selectedCustomer" show-create @create="goCreateCustomer" />
-              </uni-forms-item>
+            <view class="order-card">
+              <view class="entry-section entry-section--schedule">
+                <uni-forms-item name="order_date" label="日期" required>
+                  <uni-datetime-picker
+                    v-model="form.order_date"
+                    class="date-picker"
+                    type="date"
+                    :clear-icon="false"
+                  />
+                </uni-forms-item>
 
-              <uni-forms-item name="order_date" label="日期" required>
-                <uni-datetime-picker
-                  v-model="form.order_date"
-                  class="date-picker"
-                  type="date"
-                  :clear-icon="false"
-                />
-              </uni-forms-item>
-
-              <uni-forms-item name="meal_type" label="餐次" required>
-                <uni-data-checkbox
-                  v-model="form.meal_type"
-                  class="segmented"
-                  mode="button"
-                  :localdata="mealTypeOptions"
-                  selected-color="#0070f3"
-                />
-              </uni-forms-item>
-            </view>
-
-            <view v-if="editContextLoading" class="context-box">正在检查目标餐次...</view>
-            <view
-              v-else-if="editTargetOrder?.status === 'pending'"
-              class="context-box context-box--info"
-            >
-              保存时会先询问是否与订单 #{{ editTargetOrder.id }} 合并，并保留目标排序。
-              <button class="link-button" @click="goTargetOrder">查看目标订单</button>
-            </view>
-            <view
-              v-else-if="editTargetOrder?.status === 'delivered'"
-              class="context-box context-box--danger"
-            >
-              目标客户本餐次已经配送，不能修改到该餐次。
-              <button class="link-button" @click="goTargetOrder">查看已配送订单</button>
-            </view>
-
-            <view class="form-section">
-              <view class="form-section-header">
-                <text class="form-section-title">配送与支付</text>
-                <text class="form-section-meta">调整总份数与支付方式</text>
-              </view>
-              <uni-forms-item name="quantity" label="总份数" required>
-                <uni-number-box
-                  v-model="form.quantity"
-                  class="number-box"
-                  :min="1"
-                  :max="99"
-                  :width="72"
-                  @change="onQuantityChange"
-                />
-              </uni-forms-item>
-
-              <uni-forms-item name="payment_mode" label="支付" required>
-                <uni-data-checkbox
-                  v-model="form.payment_mode"
-                  class="payment-grid"
-                  mode="button"
-                  :localdata="paymentOptions"
-                  selected-color="#0070f3"
-                />
-              </uni-forms-item>
-
-              <template v-if="isMixed">
-                <uni-forms-item name="money_method" label="补款方式" required>
+                <uni-forms-item name="meal_type" label="餐次" required>
                   <uni-data-checkbox
-                    v-model="form.money_method"
+                    v-model="form.meal_type"
+                    class="meal-choice"
                     mode="button"
-                    :localdata="moneyMethodOptions"
+                    :localdata="mealTypeOptions"
+                    selected-color="#0070f3"
+                  />
+                </uni-forms-item>
+              </view>
+
+              <view class="entry-divider" />
+
+              <view class="entry-section entry-section--customer">
+                <uni-forms-item name="customer_id" label="客户" required>
+                  <CustomerPicker
+                    v-model="selectedCustomer"
+                    show-create
+                    @create="goCreateCustomer"
+                  />
+                </uni-forms-item>
+
+                <view v-if="editContextLoading" class="context-box">正在检查目标餐次...</view>
+                <view
+                  v-else-if="editTargetOrder?.status === 'pending'"
+                  class="context-box context-box--info"
+                >
+                  保存时会先询问是否与订单 #{{ editTargetOrder.id }} 合并，并保留目标排序。
+                  <button class="link-button" @click="goTargetOrder">查看目标订单</button>
+                </view>
+                <view
+                  v-else-if="editTargetOrder?.status === 'delivered'"
+                  class="context-box context-box--danger"
+                >
+                  目标客户本餐次已经配送，不能修改到该餐次。
+                  <button class="link-button" @click="goTargetOrder">查看已配送订单</button>
+                </view>
+              </view>
+
+              <view class="entry-divider" />
+
+              <view class="entry-section entry-section--order">
+                <uni-forms-item name="quantity" label="总份数" required>
+                  <uni-number-box
+                    v-model="form.quantity"
+                    class="quantity-box"
+                    :min="1"
+                    :max="99"
+                    :width="72"
+                    @change="onQuantityChange"
+                  />
+                </uni-forms-item>
+
+                <uni-forms-item name="payment_mode" label="支付" required>
+                  <uni-data-checkbox
+                    v-model="form.payment_mode"
+                    class="payment-grid"
+                    mode="button"
+                    :localdata="paymentOptions"
                     selected-color="#0070f3"
                   />
                 </uni-forms-item>
 
-                <uni-forms-item name="meal_card_quantity" label="次卡次数" required>
+                <view v-if="isMixed" class="mixed-payment-panel">
+                  <uni-forms-item name="meal_card_quantity" label="次卡次数" required>
+                    <uni-easyinput
+                      v-model="form.meal_card_quantity"
+                      type="number"
+                      inputmode="numeric"
+                      placeholder="请手动填写"
+                      :clearable="true"
+                    />
+                  </uni-forms-item>
+
+                  <uni-forms-item name="money_method" label="补款方式" required>
+                    <uni-data-checkbox
+                      v-model="form.money_method"
+                      class="money-method-choice"
+                      mode="button"
+                      :localdata="moneyMethodOptions"
+                      selected-color="#0070f3"
+                    />
+                  </uni-forms-item>
+                </view>
+
+                <view
+                  v-if="requiredCardQuantity > 0 && editAvailability"
+                  class="card-status"
+                >
+                  <text class="card-status-main">
+                    当前可用 {{ editAvailability.available }} 次 · {{ cardRequirementLabel }}
+                    {{ requiredCardQuantity }} 次
+                  </text>
+                  <text class="card-status-detail">
+                    卡内 {{ editAvailability.actual_remaining }} 次 · 已预占
+                    {{ editAvailability.reserved_by_others }} 次
+                  </text>
+                  <text v-if="cardAvailabilityError" class="inline-error">
+                    {{ cardAvailabilityError }}
+                  </text>
+                </view>
+
+                <view v-if="hasMoney" class="price-section">
+                  <uni-forms-item
+                    name="actual_price"
+                    label="实际单价"
+                    required
+                    class="price-editor"
+                  >
+                    <view class="amount-control">
+                      <text class="amount-prefix">¥</text>
+                      <uni-easyinput
+                        v-model="form.actual_price"
+                        class="amount-input"
+                        type="digit"
+                        inputmode="decimal"
+                        placeholder="请填单价"
+                        :clearable="false"
+                        :input-border="false"
+                      />
+                    </view>
+                  </uni-forms-item>
+                  <text class="price-hint">{{ priceHint(selectedCustomer, form.meal_type) }}</text>
+                </view>
+              </view>
+
+              <view class="entry-divider" />
+
+              <view class="entry-section entry-section--note">
+                <uni-forms-item name="note" label="备注">
                   <uni-easyinput
-                    v-model="form.meal_card_quantity"
-                    type="number"
-                    inputmode="numeric"
-                    placeholder="请手动填写"
-                    :clearable="true"
+                    v-model="form.note"
+                    class="note-input"
+                    type="textarea"
+                    placeholder="可不填"
                   />
                 </uni-forms-item>
-              </template>
-
-              <view v-if="requiredCardQuantity > 0 && editAvailability" class="card-box">
-                <text>实际剩余 {{ editAvailability.actual_remaining }} 次</text>
-                <text>其他订单已预占 {{ editAvailability.reserved_by_others }} 次</text>
-                <text>
-                  当前可用 {{ editAvailability.available }} 次，{{ cardRequirementLabel }}
-                  {{ requiredCardQuantity }} 次
-                </text>
-                <text v-if="cardAvailabilityError" class="inline-error">
-                  {{ cardAvailabilityError }}
-                </text>
-              </view>
-
-              <view v-if="hasMoney" class="form-subsection">
-                <view class="form-section-header form-subsection-header">
-                  <text class="form-subsection-title">金额</text>
-                  <text class="form-section-meta">按实际单价计算</text>
-                </view>
-                <view class="hint">
-                  {{ priceHint(selectedCustomer, form.meal_type) }}
-                </view>
-                <uni-forms-item name="actual_price" label="实际单价" required>
-                  <view class="amount-control">
-                    <text class="amount-prefix">¥</text>
-                    <uni-easyinput
-                      v-model="form.actual_price"
-                      class="amount-input"
-                      type="digit"
-                      inputmode="decimal"
-                      placeholder="请填单价"
-                      :clearable="false"
-                      :input-border="false"
-                    />
-                  </view>
-                </uni-forms-item>
               </view>
             </view>
 
-            <view class="form-section form-section--note">
-              <view class="form-section-header">
-                <text class="form-section-title">备注</text>
-                <text class="form-section-meta">可选</text>
-              </view>
-              <uni-forms-item name="note" label="备注">
-                <uni-easyinput
-                  v-model="form.note"
-                  class="textarea"
-                  type="textarea"
-                  placeholder="可不填"
-                />
-              </uni-forms-item>
-            </view>
             <view class="form-bottom-spacer" />
           </uni-forms>
 
@@ -821,6 +830,7 @@ onLoad((query) => {
   overflow: hidden;
   background: $hej-color-canvas;
   box-sizing: border-box;
+  padding: 0 $hej-space-1;
 }
 
 .page-scroll {
@@ -830,17 +840,14 @@ onLoad((query) => {
 }
 
 .page-content {
-  padding: $hej-space-5;
+  padding: 0;
 }
 
 .hero,
 .panel {
-  margin-bottom: $hej-space-5;
+  margin-bottom: $hej-space-2;
   padding: $hej-space-5;
-  border: 1rpx solid $hej-color-border;
-  border-radius: $hej-radius-panel;
   background: $hej-color-surface;
-  box-shadow: $hej-shadow-panel;
 }
 
 .hero {
@@ -882,83 +889,140 @@ onLoad((query) => {
 
 .edit-button {
   flex: 0 0 auto;
-  height: 72rpx;
+  width: auto;
+  min-width: 200rpx;
+  height: 64rpx;
   margin: 0;
-  padding: 0 $hej-space-4;
+  padding: 0 $hej-space-5;
+  border: 0;
   border-radius: $hej-radius-control;
   background: $hej-color-accent-soft;
+  box-sizing: border-box;
   color: $hej-color-accent;
   font-size: $hej-font-meta;
   font-weight: 600;
-  line-height: 72rpx;
+  line-height: 64rpx;
   text-align: center;
+  white-space: nowrap;
+}
+
+.edit-button::after {
+  border: 0;
 }
 
 .form {
+  --order-label-width: 80px;
   display: block;
 }
 
-.form-section {
-  margin-bottom: $hej-space-5;
-  padding: $hej-space-5;
-  border: 1rpx solid $hej-color-border;
-  border-radius: $hej-radius-panel;
+.form :deep(.uni-forms-item) {
+  align-items: center;
+}
+
+.form :deep(.uni-forms-item__content) {
+  min-width: 0;
+}
+
+.order-card {
+  overflow: hidden;
   background: $hej-color-surface;
-  box-shadow: $hej-shadow-panel;
 }
 
-.form-section-header,
-.panel-header {
+.date-picker {
+  display: block;
+  width: 100%;
+}
+
+.meal-choice :deep(.checklist-group),
+.money-method-choice :deep(.checklist-group) {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: $hej-space-3;
-  margin-bottom: $hej-space-4;
+  flex-wrap: nowrap;
+  gap: $hej-space-2;
 }
 
-.form-section-title,
-.panel-title {
-  color: $hej-color-text;
-  font-size: $hej-font-body;
-  font-weight: 700;
+.payment-grid :deep(.checklist-group) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $hej-space-2;
 }
 
-.form-section-meta,
-.panel-meta {
-  color: $hej-color-text-tertiary;
-  font-size: $hej-font-caption;
-  text-align: right;
+.meal-choice :deep(.checklist-box),
+.payment-grid :deep(.checklist-box),
+.money-method-choice :deep(.checklist-box) {
+  justify-content: center;
+  min-width: 0;
+  margin: 0;
+  padding: $hej-space-2 $hej-space-1;
+  border-color: $hej-color-border;
+  border-radius: $hej-radius-control;
 }
 
-.form-subsection {
-  margin-top: $hej-space-5;
-  padding-top: $hej-space-5;
-  border-top: 1rpx solid $hej-color-border;
+.meal-choice :deep(.checklist-box),
+.money-method-choice :deep(.checklist-box) {
+  flex: 1;
 }
 
-.card-box + .form-subsection {
-  margin-top: 0;
+.meal-choice :deep(.checklist-box.is-checked),
+.payment-grid :deep(.checklist-box.is-checked),
+.money-method-choice :deep(.checklist-box.is-checked) {
+  background: $hej-color-accent-soft;
 }
 
-.form-subsection-header {
-  margin-bottom: $hej-space-3;
-}
-
-.form-subsection-title {
-  color: $hej-color-text;
+.meal-choice :deep(.checklist-text),
+.payment-grid :deep(.checklist-text),
+.money-method-choice :deep(.checklist-text) {
+  margin-left: 0;
+  color: $hej-color-text-secondary;
   font-size: $hej-font-meta;
-  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.entry-section {
+  padding: $hej-space-5;
+}
+
+.entry-section :deep(.uni-forms-item) {
+  margin-bottom: $hej-space-5;
+}
+
+.entry-section :deep(.uni-forms-item__label) {
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-meta;
+}
+
+.entry-section--schedule :deep(.uni-forms-item:last-child),
+.entry-section--customer :deep(.uni-forms-item),
+.entry-section--note :deep(.uni-forms-item) {
+  margin-bottom: 0;
+}
+
+.entry-section--customer .context-box {
+  margin-top: $hej-space-4;
+}
+
+.entry-section--note {
+  padding-top: $hej-space-4;
+  padding-bottom: $hej-space-4;
+}
+
+.entry-divider {
+  height: 1rpx;
+  margin: 0 $hej-space-5;
+  background: $hej-color-border;
 }
 
 .context-box,
-.card-box {
-  margin-bottom: $hej-space-5;
+.card-status {
   padding: $hej-space-4 $hej-space-5;
   border-radius: $hej-radius-control;
-  background: $hej-color-surface-subtle;
   color: $hej-color-text-secondary;
   font-size: $hej-font-meta;
   line-height: 1.6;
+}
+
+.context-box {
+  background: $hej-color-surface-subtle;
 }
 
 .context-box--info {
@@ -973,25 +1037,77 @@ onLoad((query) => {
 
 .link-button {
   display: inline-block;
-  height: 56rpx;
+  width: auto;
+  min-width: 200rpx;
+  height: 64rpx;
   margin: $hej-space-2 0 0;
-  padding: 0;
+  padding: 0 $hej-space-5;
   border: 0;
+  border-radius: $hej-radius-control;
   background: transparent;
+  box-sizing: border-box;
   color: inherit;
   font-size: $hej-font-meta;
   font-weight: 600;
-  line-height: 56rpx;
+  line-height: 64rpx;
   text-align: center;
+  white-space: nowrap;
 }
 
-.card-box text {
+.link-button::after {
+  border: 0;
+}
+
+.mixed-payment-panel {
+  margin: 0 (-$hej-space-5) $hej-space-5;
+  padding: $hej-space-4 $hej-space-5;
+  background: $hej-color-surface;
+}
+
+.mixed-payment-panel :deep(.uni-forms-item) {
+  margin-bottom: $hej-space-4;
+}
+
+.card-status {
+  margin-bottom: $hej-space-5;
+  background: $hej-color-warning-soft;
+}
+
+.card-status-main,
+.card-status-detail {
   display: block;
 }
 
-.hint {
-  margin: 0 0 $hej-space-3;
+.card-status-main {
+  color: $hej-color-text;
+  font-size: $hej-font-meta;
+  font-weight: 600;
+}
+
+.card-status-detail {
+  margin-top: $hej-space-1;
   color: $hej-color-text-secondary;
+  font-size: $hej-font-caption;
+}
+
+.quantity-box :deep(.uni-numbox-btns) {
+  background: $hej-color-surface-subtle !important;
+}
+
+.price-section {
+  margin-top: 0;
+  padding-top: $hej-space-4;
+  border-top: 1rpx solid $hej-color-border;
+}
+
+.price-editor {
+  margin-bottom: 0 !important;
+}
+
+.price-hint {
+  display: block;
+  margin: $hej-space-2 0 0 var(--order-label-width);
+  color: $hej-color-text-tertiary;
   font-size: $hej-font-caption;
   line-height: 1.5;
 }
@@ -1019,13 +1135,34 @@ onLoad((query) => {
 }
 
 .inline-error {
+  display: block;
   margin-top: $hej-space-2;
   color: $hej-color-danger;
   font-weight: 600;
 }
 
-.textarea {
-  min-height: 150rpx;
+.note-input {
+  min-height: 72rpx;
+}
+
+.panel-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: $hej-space-3;
+  margin-bottom: $hej-space-4;
+}
+
+.panel-title {
+  color: $hej-color-text;
+  font-size: $hej-font-body;
+  font-weight: 700;
+}
+
+.panel-meta {
+  color: $hej-color-text-tertiary;
+  font-size: $hej-font-caption;
+  text-align: right;
 }
 
 .row {
@@ -1057,6 +1194,7 @@ onLoad((query) => {
 .actions {
   display: flex;
   gap: $hej-space-3;
+  padding: 0 $hej-space-5;
 }
 
 .actions button {
@@ -1095,6 +1233,7 @@ onLoad((query) => {
 
 .danger-zone {
   margin-top: $hej-space-4;
+  padding: 0 $hej-space-5 $hej-space-5;
 }
 
 .danger-outline {
@@ -1109,14 +1248,18 @@ onLoad((query) => {
 }
 
 .edit-submit-bar {
+  display: flex;
+  align-items: center;
+  gap: $hej-space-4;
   flex: 0 0 auto;
-  padding: $hej-space-3 $hej-space-5 $hej-space-4;
+  padding: $hej-space-5 $hej-space-7;
   border-top: 1rpx solid $hej-color-border;
   background: $hej-color-surface;
 }
 
 .submit-summary {
-  margin-bottom: $hej-space-3;
+  flex: 1;
+  min-width: 0;
 }
 
 .submit-label,
@@ -1143,7 +1286,13 @@ onLoad((query) => {
 
 .edit-submit-actions {
   display: flex;
+  flex: 0 0 auto;
   gap: $hej-space-3;
+}
+
+.edit-submit-actions .primary,
+.edit-submit-actions .secondary {
+  flex: 0 0 176rpx;
 }
 
 .primary:active,
