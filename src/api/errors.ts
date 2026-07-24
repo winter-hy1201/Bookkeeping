@@ -103,3 +103,20 @@ export class MealCardTotalTooSmallError extends Error {
     this.name = 'MealCardTotalTooSmallError'
   }
 }
+
+export class MealCardAlreadyUsedError extends Error {
+  constructor(
+    public readonly usedMeals: number,
+    message = `该次卡已扣 ${usedMeals} 次，不能删除充值记录`,
+  ) {
+    super(message)
+    this.name = 'MealCardAlreadyUsedError'
+  }
+}
+
+export class MealCardDeleteIntegrityError extends Error {
+  constructor(message = '该次卡仍有历史扣次或已配送订单引用，不能删除') {
+    super(message)
+    this.name = 'MealCardDeleteIntegrityError'
+  }
+}

@@ -2,16 +2,22 @@
 import { ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getCustomer } from '../../../api/customers'
-import { listCards } from '../../../api/meal-cards'
+import {
+  MealCardAlreadyUsedError,
+  MealCardDeleteIntegrityError,
+  MealCardReservationConflictError,
+} from '../../../api/errors'
+import { deleteCard, listCards } from '../../../api/meal-cards'
 import type { Customer, MealCard } from '../../../types/domain'
 import { formatDate } from '../../../utils/date'
 import { formatMoney } from '../../../utils/format'
-import { showToast } from '../../../utils/ui'
+import { confirmDialog, showToast } from '../../../utils/ui'
 
 const customerId = ref<number | null>(null)
 const customer = ref<Customer | null>(null)
 const cards = ref<MealCard[]>([])
 const loading = ref(false)
+const deletingCardId = ref<number | null>(null)
 
 function remainingMeals(card: MealCard): number {
   return card.total_meals - card.used_meals
@@ -39,10 +45,52 @@ async function refresh(): Promise<void> {
 }
 
 function goEdit(card: MealCard): void {
-  if (customerId.value === null) return
+  if (customerId.value === null || deletingCardId.value !== null) return
   uni.navigateTo({
     url: `/pages/me/customers/open-card?customerId=${customerId.value}&cardId=${card.id}`,
   })
+}
+
+function showDeleteError(title: string, content: string): void {
+  uni.showModal({ title, content, showCancel: false })
+}
+
+async function deleteRecord(card: MealCard): Promise<void> {
+  if (deletingCardId.value !== null || card.used_meals > 0) return
+  const confirmed = await confirmDialog(
+    '删除次卡记录？',
+    `将删除 ${card.created_at.slice(0, 10)} 的 ${formatMoney(
+      card.amount,
+    )} 开卡收入，并减少该客户 ${card.total_meals} 次可用余额。删除后无法恢复。`,
+  )
+  if (!confirmed) return
+
+  deletingCardId.value = card.id
+  try {
+    const deleted = await deleteCard(card.id)
+    if (!deleted) {
+      showToast('次卡记录不存在')
+      await refresh()
+      return
+    }
+    await refresh()
+    showToast('次卡记录已删除')
+  } catch (error) {
+    if (error instanceof MealCardAlreadyUsedError) {
+      showDeleteError('不能删除次卡记录', error.message)
+    } else if (error instanceof MealCardReservationConflictError) {
+      showDeleteError(
+        '不能删除次卡记录',
+        `删除后剩余 ${error.remainingAfterChange} 次，但待配送订单已预占 ${error.reservedMeals} 次。请先修改或删除相关待配送订单。`,
+      )
+    } else if (error instanceof MealCardDeleteIntegrityError) {
+      showDeleteError('不能删除次卡记录', error.message)
+    } else {
+      showToast('次卡记录删除失败')
+    }
+  } finally {
+    deletingCardId.value = null
+  }
 }
 
 onLoad((query) => {
@@ -98,12 +146,28 @@ onShow(() => {
           <text>记录 #{{ card.id }}</text>
           <text class="edit-hint">修改总次数 ›</text>
         </view>
+
+        <view class="danger-zone" @click.stop>
+          <button
+            class="delete-button"
+            :disabled="deletingCardId !== null || card.used_meals > 0"
+            @click.stop="deleteRecord(card)"
+          >
+            {{
+              deletingCardId === card.id
+                ? '删除中…'
+                : card.used_meals > 0
+                  ? '已扣次，不能删除'
+                  : '删除记录'
+            }}
+          </button>
+        </view>
       </view>
     </view>
   </scroll-view>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .page {
   min-height: 100vh;
   padding: 24rpx;
@@ -226,6 +290,40 @@ onShow(() => {
 
 .edit-hint {
   color: #007aff;
+}
+
+.danger-zone {
+  margin-top: 18rpx;
+  padding-top: 18rpx;
+  border-top: 1rpx solid $hej-color-border;
+}
+
+.delete-button {
+  width: 100%;
+  height: 88rpx;
+  margin: 0;
+  border: 1rpx solid $hej-color-danger;
+  border-radius: $hej-radius-md;
+  background: $hej-color-danger-soft;
+  color: $hej-color-danger;
+  font-size: 28rpx;
+  line-height: 88rpx;
+  text-align: center;
+}
+
+.delete-button::after {
+  border: 0;
+}
+
+.delete-button:active:not([disabled]) {
+  opacity: 0.78;
+}
+
+.delete-button[disabled] {
+  border-color: $hej-color-border;
+  background: $hej-color-surface-subtle;
+  color: $hej-color-text-tertiary;
+  opacity: 1;
 }
 
 .empty {

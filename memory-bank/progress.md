@@ -6,6 +6,15 @@
 
 ---
 
+## 当前增量（次卡收入本地日期）
+
+| Step | 内容 | 状态 |
+|---|---|---|
+| 13.1 | 首页次卡收入与日趋势改为按设备本地日期统计 | ✅ 2026-07-24 |
+| 13.2 | 凌晨 UTC 时间戳回归、test / type-check / lint / H5 build / HBuilderX 回归 | 🔄 自动化、CLI 与 H5 已通过，真机待验证 |
+
+---
+
 ## 当前增量（订单与对账 UI 基线）
 
 | Step | 内容 | 状态 |
@@ -132,3 +141,4 @@
 - 2026-07-23：根目录 `AGENTS.md` 新增表单标签占位规则：同一业务表单统一在 `<uni-forms>` 设置带单位的 `label-width`，右侧控件左对齐，标签与控件垂直对齐；不改任何应用代码或业务行为。
 - 2026-07-23：订单页顶部操作区视觉居中修复——`src/pages/order/index.vue` 将日期组件根节点改为纵向 flex 并居中内部固定 35px 高的可见输入框，消除其与 80rpx 新建按钮的可见中心偏移；未改日期选择、新建跳转或订单数据逻辑。375 × 812 H5 测量中两个可见控件中心偏差与日期控件宽度差均为 0px；`pnpm test`（22 条）、`pnpm type-check`、`pnpm lint`、`pnpm build:h5` 通过，HBuilderX 真机视觉待验证。
 - 2026-07-23：根目录 `AGENTS.md` 的表单规则补充页面背景约束：统一使用 `$hej-color-canvas`，并为引用该 token 的样式块声明 `lang="scss"`；不改任何应用代码或业务行为。
+- 2026-07-24：次卡收入本地日期修复（v1.16）—— `src/api/stats.ts` 不再直接截取 UTC `created_at`，改用 SQLite `date(created_at, 'localtime')` 按设备本地日期过滤和分组，修复凌晨 00:00–07:59 开卡金额误归前一日的问题；新增 `tests/stats-timezone.test.cjs` 覆盖首页与日趋势。`pnpm test`（24 条）、`pnpm type-check`、`pnpm lint`、`pnpm build:h5` 通过，Android 原生 SQLite 本地时区待 HBuilderX 真机验证。

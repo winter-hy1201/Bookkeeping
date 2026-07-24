@@ -1,7 +1,12 @@
 import { exec, select, tx, type PlusSqliteRow } from '../db'
 import type { MealCardResult, OpenMealCardInput, UpdateMealCardTotalInput } from '../types/api'
 import type { MealCard } from '../types/domain'
-import { MealCardReservationConflictError, MealCardTotalTooSmallError } from './errors'
+import {
+  MealCardAlreadyUsedError,
+  MealCardDeleteIntegrityError,
+  MealCardReservationConflictError,
+  MealCardTotalTooSmallError,
+} from './errors'
 
 type MealCardRow = MealCard & PlusSqliteRow
 
@@ -15,6 +20,14 @@ interface ActiveCardCustomerRow extends PlusSqliteRow {
 
 interface SumRow extends PlusSqliteRow {
   total: number | null
+}
+
+interface CountRow extends PlusSqliteRow {
+  count: number
+}
+
+interface CardIdRow extends PlusSqliteRow {
+  id: number
 }
 
 function nowText(): string {
@@ -172,5 +185,81 @@ export async function updateCardTotalMeals(
       [input.total_meals, status, id],
     )
     return getCard(id)
+  })
+}
+
+export async function deleteCard(id: number): Promise<boolean> {
+  return tx(async () => {
+    const card = await getCard(id)
+    if (!card) return false
+    if (card.used_meals > 0) {
+      throw new MealCardAlreadyUsedError(card.used_meals)
+    }
+
+    const usageRows = await select<CountRow>(
+      'SELECT COUNT(*) AS count FROM meal_card_usages WHERE meal_card_id = ?',
+      [id],
+    )
+    const deliveredReferenceRows = await select<CountRow>(
+      `SELECT COUNT(*) AS count
+      FROM orders
+      WHERE meal_card_id = ? AND status = 'delivered'`,
+      [id],
+    )
+    if ((usageRows[0]?.count ?? 0) > 0 || (deliveredReferenceRows[0]?.count ?? 0) > 0) {
+      throw new MealCardDeleteIntegrityError()
+    }
+
+    const remainingRows = await select<SumRow>(
+      `SELECT COALESCE(SUM(total_meals - used_meals), 0) AS total
+      FROM meal_cards
+      WHERE customer_id = ? AND id <> ?
+        AND status = 'active' AND used_meals < total_meals`,
+      [card.customer_id, id],
+    )
+    const reservationRows = await select<SumRow>(
+      `SELECT COALESCE(SUM(meal_card_quantity), 0) AS total
+      FROM orders
+      WHERE customer_id = ? AND status = 'pending'`,
+      [card.customer_id],
+    )
+    const remainingAfterDelete = remainingRows[0]?.total ?? 0
+    const reservedMeals = reservationRows[0]?.total ?? 0
+    if (remainingAfterDelete < reservedMeals) {
+      throw new MealCardReservationConflictError(
+        reservedMeals,
+        remainingAfterDelete,
+        `删除后仅剩 ${remainingAfterDelete} 次，但待配送订单已预占 ${reservedMeals} 次`,
+      )
+    }
+
+    const replacementRows = await select<CardIdRow>(
+      `SELECT id
+      FROM meal_cards
+      WHERE customer_id = ? AND id <> ?
+        AND status = 'active' AND used_meals < total_meals
+      ORDER BY created_at ASC, id ASC
+      LIMIT 1`,
+      [card.customer_id, id],
+    )
+    const replacementId = replacementRows[0]?.id
+    const now = nowText()
+    if (replacementId !== undefined) {
+      await exec(
+        `UPDATE orders
+        SET meal_card_id = ?, updated_at = ?
+        WHERE meal_card_id = ? AND status = 'pending' AND meal_card_quantity > 0`,
+        [replacementId, now, id],
+      )
+    }
+    await exec(
+      `UPDATE orders
+      SET meal_card_id = NULL, updated_at = ?
+      WHERE meal_card_id = ?
+        AND (status = 'cancelled' OR (status = 'pending' AND meal_card_quantity = 0))`,
+      [now, id],
+    )
+    await exec('DELETE FROM meal_cards WHERE id = ?', [id])
+    return true
   })
 }

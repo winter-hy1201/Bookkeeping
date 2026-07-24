@@ -11,7 +11,7 @@
 - **已建文件**：`docs/archive/PRD-v1.0.md`、`CLAUDE.md`、`AGENTS.md`、`memory-bank/` 活文档、uni-app Vue 3 + Vite + TS 模板、6 张表 DDL + 迁移 + seed + integrity_check + tx() 工具、domain/api 类型、日期/金额/页面/备份工具、完整 API 层、4 个 Pinia store、3 个通用 UI 组件、uni-ui 表单组件、4 个 Tab 与关键子页、App.vue 全局 onError 兜底
 - **DB 状态**：v0 基线（`memory-bank/bookkeeping-v0.db`，CLI sqlite smoke-test 生成）；v1 阶段基线（`memory-bank/bookkeeping-v1.db`，Phase 8 真机 E2E 通过后归档，`user_version=1`）；当前 schema 版本为 5，`orders.meal_card_quantity` 支持组合支付与 pending 次卡预占，v4 → v5 真机迁移待回归
 - **UI 基线**：v1.13 新增 `docs/design.md` 与 `$hej-*` 语义 token，并由样式预处理检查保护；订单空态、新建 / 编辑确认区和统计对账趋势已按该基线改造；今日页按用户反馈保留既有布局，HBuilderX 视觉回归待执行
-- **最后更新**：2026-07-23
+- **最后更新**：2026-07-24
 
 ---
 
@@ -58,6 +58,7 @@
 | `tests/db-transaction.test.cjs` | Node 内置测试：验证单一 SQLite 连接上的并发顶层事务必须串行，防止双击建单 / 配送交错写入 | `tx()` 并发边界变化时 |
 | `tests/order-rules.test.cjs` | Node 内置测试：覆盖次卡不足、纯 / 组合支付金额、非法次卡次数、备注去重、支付冲突和合并改单价预览 | 订单规则变化时 |
 | `tests/schema-v5.test.cjs` | SQLite CLI 冒烟测试：验证 fresh schema v5 字段约束、v5 迁移追加与旧纯次卡订单回填 | schema / migration 变化时 |
+| `tests/stats-timezone.test.cjs` | Node 内置回归测试：在 `Asia/Shanghai` 时区下验证 UTC 凌晨时间戳按设备本地日期计入首页次卡收入与日趋势 | 统计时区或次卡收入口径变化时 |
 | `tests/ui-style-preprocess.test.cjs` | Node 静态测试：扫描业务 Vue 样式块，使用 `$hej-*` token 时必须声明 `lang="scss"`，避免 token 原样输出使 App 回退默认样式 | token 样式页面变化时 |
 | `pnpm-lock.yaml` | pnpm 锁定文件（**不要**手动编辑） | pnpm install 后自动 |
 | `tsconfig.json` | TypeScript 配置；extends `@vue/tsconfig`，加 3 个 strict 选项；排除 `src/uni_modules` 第三方 uni-ui 源码 | 调整严格度时 |
@@ -156,7 +157,7 @@
 | `src/api/errors.ts` | API 层可辨识业务异常：次卡所需 / 可用次数、已配送同键冲突、支付渠道冲突、合并改单价确认、编辑目标合并确认、充值记录侵占预占次数、历史重复单诊断，以及既有取消 / 重名 / 总次数下限错误。 |
 | `src/api/expense-categories.ts` | expense_categories 只读 API：`listCategories(): Promise<ExpenseCategoryResult[]>` / `getCategory(id): Promise<ExpenseCategoryResult \| null>`。v1.0 不暴露分类增删改。 |
 | `src/api/expenses.ts` | expenses 表 CRUD：`listExpenses(input: ListExpensesInput): Promise<ExpenseResult[]>` / `getExpense(id): Promise<ExpenseResult \| null>` / `createExpense(input: CreateExpenseInput): Promise<ExpenseResult>` / `updateExpense(id, input): Promise<ExpenseResult \| null>` / `deleteExpense(id): Promise<boolean>`。`createExpense` / `updateExpense` 用 `tx()` 包裹，`amount <= 0` 拒绝，`refund_amount` 默认为 0 且不可为负或超过 `amount`；`deleteExpense` 硬删除支出。 |
-| `src/api/stats.ts` | 统计聚合 API：`getDashboardSummary(date): Promise<StatsSummary>` / `getRangeSummary(input: DateRangeInput): Promise<StatsSummary>` / `getDailyTrend(input: DateRangeInput): Promise<DailyTrendPoint[]>` / `getCategoryBreakdown(input: DateRangeInput): Promise<CategoryBreakdown[]>`。收入口径 = 非 cancelled 订单金额 + 开次卡金额；支出口径 = `expenses.amount - expenses.refund_amount`；利润 = 收入 - 支出。 |
+| `src/api/stats.ts` | 统计聚合 API：`getDashboardSummary(date): Promise<StatsSummary>` / `getRangeSummary(input: DateRangeInput): Promise<StatsSummary>` / `getDailyTrend(input: DateRangeInput): Promise<DailyTrendPoint[]>` / `getCategoryBreakdown(input: DateRangeInput): Promise<CategoryBreakdown[]>`。收入口径 = 非 cancelled 订单金额 + 开次卡金额；次卡 UTC `created_at` 通过 SQLite `date(created_at, 'localtime')` 按设备本地日期筛选和分组；支出口径 = `expenses.amount - expenses.refund_amount`；利润 = 收入 - 支出。 |
 
 ### utils/ — 工具函数
 
@@ -308,3 +309,4 @@
 - 2026-07-23：表单标签占位规则——根目录 `AGENTS.md` 新增项目级约束：同一业务表单在 `<uni-forms>` 层统一设置带单位的 `label-width`，禁止无单位字符串与字段级分散宽度，并保持右侧控件左边界一致、标签与控件垂直对齐。
 - 2026-07-23：订单页顶部操作区视觉居中修复——`src/pages/order/index.vue` 将日期组件根节点改为纵向 flex 并居中内部固定 35px 高的可见输入框，消除其与 80rpx 新建按钮的可见中心偏移；未改日期选择、新建跳转或订单数据逻辑。375 × 812 H5 测量中两个可见控件中心偏差与日期控件宽度差均为 0px；`pnpm test`（22 条）、`pnpm type-check`、`pnpm lint`、`pnpm build:h5` 通过，HBuilderX 真机视觉待验证。
 - 2026-07-23：表单页面背景规则——根目录 `AGENTS.md` 的表单约束补充：表单页面背景统一使用 `$hej-color-canvas`，引用该 token 的 Vue 样式块必须声明 `lang="scss"`。
+- 2026-07-24：次卡收入本地日期修复（v1.16）—— `src/api/stats.ts` 用 SQLite `date(created_at, 'localtime')` 将 UTC 开卡时间按设备本地日期过滤和分组，避免凌晨开卡收入误归前一日；新增 `tests/stats-timezone.test.cjs` 保护首页收入 / 利润和日趋势。`pnpm test`（24 条）、`pnpm type-check`、`pnpm lint`、`pnpm build:h5` 通过，Android 真机待验证。

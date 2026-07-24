@@ -82,8 +82,8 @@ export async function getRangeSummary(input: DateRangeInput): Promise<StatsSumma
       (
         SELECT SUM(amount)
         FROM meal_cards
-        WHERE substr(created_at, 1, 10) >= ?
-          AND substr(created_at, 1, 10) <= ?
+        WHERE date(created_at, 'localtime') >= ?
+          AND date(created_at, 'localtime') <= ?
       ) AS cardIncome,
       (
         SELECT SUM(amount - refund_amount)
@@ -136,12 +136,12 @@ export async function getDailyTrend(input: DateRangeInput): Promise<DailyTrendPo
   )
   const cardRows = await select<DailyCardRow>(
     `SELECT
-      substr(created_at, 1, 10) AS date,
+      date(created_at, 'localtime') AS date,
       SUM(amount) AS income
     FROM meal_cards
-    WHERE substr(created_at, 1, 10) >= ?
-      AND substr(created_at, 1, 10) <= ?
-    GROUP BY substr(created_at, 1, 10)`,
+    WHERE date(created_at, 'localtime') >= ?
+      AND date(created_at, 'localtime') <= ?
+    GROUP BY date(created_at, 'localtime')`,
     [input.startDate, input.endDate],
   )
   const expenseRows = await select<DailyExpenseRow>(
