@@ -56,6 +56,7 @@
 | `index.html` | Vite H5 入口 HTML；`<script type="module" src="/src/main.ts">` | 几乎不改 |
 | `package.json` | 项目元数据 + scripts（dev / build / test / lint / format / type-check） | 加新脚本/依赖时 |
 | `tests/db-transaction.test.cjs` | Node 内置测试：验证单一 SQLite 连接上的并发顶层事务必须串行，防止双击建单 / 配送交错写入 | `tx()` 并发边界变化时 |
+| `tests/meal-card-delete.test.cjs` | Node 内置回归测试：验证未扣次充值记录删除、pending 订单 FIFO 改绑、预占冲突回滚与 usage / delivered 历史保护 | 次卡记录删除边界变化时 |
 | `tests/order-rules.test.cjs` | Node 内置测试：覆盖次卡不足、纯 / 组合支付金额、非法次卡次数、备注去重、支付冲突和合并改单价预览 | 订单规则变化时 |
 | `tests/schema-v5.test.cjs` | SQLite CLI 冒烟测试：验证 fresh schema v5 字段约束、v5 迁移追加与旧纯次卡订单回填 | schema / migration 变化时 |
 | `tests/stats-timezone.test.cjs` | Node 内置回归测试：在 `Asia/Shanghai` 时区下验证 UTC 凌晨时间戳按设备本地日期计入首页次卡收入与日趋势 | 统计时区或次卡收入口径变化时 |
@@ -113,7 +114,7 @@
 | `src/pages/me/customers/list.vue` | 客户列表：`onShow` 并行刷新 customer store 与当前有剩余次数的 active 次卡客户 ID，头像区按身份显示“次 / 普”；前端用 `uni-easyinput` 按姓名/微信/手机号/姓名拼音/拼音首字母搜索；按 `src/utils/pinyin.ts` 生成拼音首字母分组、右侧索引和滚动定位；展示折扣角标，支持新建和详情跳转。 |
 | `src/pages/me/customers/new.vue` | 客户新建/编辑共用页：用 uni-ui 表单组件维护姓名、手机、微信、午餐/晚餐默认价、折扣率、备注；默认价未触碰时保存为 null；保存时捕获客户姓名重复错误并提示不可重复。 |
 | `src/pages/me/customers/detail.vue` | 客户详情：展示基础信息、active 次卡汇总进度、历史订单；支持编辑、删除、开次卡和进入充值记录。删除走 `customerStore.remove()`，客户存在订单或次卡依赖时保持数据并提示不可删除。次卡区通过 `listCards(customerId)` 汇总所有 active 卡的剩余 / 总次数，避免新开卡后只显示最新一张而像是覆盖旧卡。历史订单通过 `listOrders({ customerId })` 查询。 |
-| `src/pages/me/customers/card-records.vue` | 客户次卡充值记录列表：按时间倒序展示所有 `meal_cards` 的充值日期、金额、总/已用/剩余次数和状态；点击记录进入总次数修改。 |
+| `src/pages/me/customers/card-records.vue` | 客户次卡充值记录列表：按时间倒序展示所有 `meal_cards` 的充值日期、金额、总/已用/剩余次数和状态；点击记录进入总次数修改。每条记录底部独立展示删除操作，已扣次时禁用；删除前展示收入 / 次数影响，执行期间用页面级锁防止编辑或重复删除。 |
 | `src/pages/me/customers/open-card.vue` | 次卡开卡/充值记录修改共用页：用 `<uni-forms>` + `<uni-forms-item>` 统一承载校验；开卡模式默认 20 次且金额允许为 0，已有 active 次卡时先汇总确认；带 `cardId` 时只允许修改该记录总次数，下限为已用次数。 |
 | `src/pages/me/expenses/list.vue` | 支出列表：用 `uni-datetime-picker` 按日期读取 expense store，展示分类 emoji/名称、实际支出金额和备注；有退差时补充展示原支出金额与退差金额；点击卡片进入支出详情，长按仍可快捷删除。 |
 | `src/pages/me/expenses/new.vue` | 新建支出页：使用 `<uni-forms>` + `<uni-forms-item>` 承载日期、分类、支出金额、退差金额、备注；全部字段共享 88px 标签列，标签与右侧控件垂直居中，页面背景使用 `$hej-color-canvas`；金额 > 0、分类已选、退差金额不超过支出金额才可保存，实际支出按 `amount - refund_amount` 预览。 |
@@ -152,9 +153,9 @@
 | 文件 | 作用 |
 |---|---|
 | `src/api/customers.ts` | customers 表 CRUD：`listCustomers()` / `getCustomer(id)` / `createCustomer(input)` / `updateCustomer(id, input)` / `deleteCustomer(id)`。`createCustomer` 与 `updateCustomer` 返回最新客户记录；创建/改名时按 trim 后姓名判重；`deleteCustomer` 在客户存在次卡或订单依赖时返回 `false` 并保留数据，避免外键失败。 |
-| `src/api/meal-cards.ts` | meal_cards 表基础 API。`updateCardTotalMeals()` 除校验新总次数不小于已用次数外，还校验修改后客户余额池足以覆盖全部 pending `meal_card_quantity` 预占，再同步 `active/depleted`。 |
+| `src/api/meal-cards.ts` | meal_cards 表基础 API。`updateCardTotalMeals()` 除校验新总次数不小于已用次数外，还校验修改后客户余额池足以覆盖全部 pending `meal_card_quantity` 预占，再同步 `active/depleted`。`deleteCard()` 只删除未扣次且无 usage / delivered 引用的记录，事务内校验删除后的 pending 预占，把引用改绑到最早可用卡或清空后再硬删除。 |
 | `src/api/orders.ts` | orders 表与订单流程 API：新增 `findEffectiveOrder()` / `getMealCardAvailability()`；`createOrder()` 在事务内维护“一客户一日期一餐次一张有效订单”，重复新增按增量合入原 pending ID / 排序；`updateOrder()` 支持目标 pending 合并确认；两者统一校验支付形态、货币渠道、改单价确认和 pending 次卡预占。`markDelivered()` 仅 FIFO 扣 `meal_card_quantity` 并写 usage，不足时整笔回滚；取消自然释放预占，删除 delivered 组合订单按 usage 精确回滚。 |
-| `src/api/errors.ts` | API 层可辨识业务异常：次卡所需 / 可用次数、已配送同键冲突、支付渠道冲突、合并改单价确认、编辑目标合并确认、充值记录侵占预占次数、历史重复单诊断，以及既有取消 / 重名 / 总次数下限错误。 |
+| `src/api/errors.ts` | API 层可辨识业务异常：次卡所需 / 可用次数、已配送同键冲突、支付渠道冲突、合并改单价确认、编辑目标合并确认、充值记录侵占预占次数、未扣次记录删除的已使用 / 历史引用冲突、历史重复单诊断，以及既有取消 / 重名 / 总次数下限错误。 |
 | `src/api/expense-categories.ts` | expense_categories 只读 API：`listCategories(): Promise<ExpenseCategoryResult[]>` / `getCategory(id): Promise<ExpenseCategoryResult \| null>`。v1.0 不暴露分类增删改。 |
 | `src/api/expenses.ts` | expenses 表 CRUD：`listExpenses(input: ListExpensesInput): Promise<ExpenseResult[]>` / `getExpense(id): Promise<ExpenseResult \| null>` / `createExpense(input: CreateExpenseInput): Promise<ExpenseResult>` / `updateExpense(id, input): Promise<ExpenseResult \| null>` / `deleteExpense(id): Promise<boolean>`。`createExpense` / `updateExpense` 用 `tx()` 包裹，`amount <= 0` 拒绝，`refund_amount` 默认为 0 且不可为负或超过 `amount`；`deleteExpense` 硬删除支出。 |
 | `src/api/stats.ts` | 统计聚合 API：`getDashboardSummary(date): Promise<StatsSummary>` / `getRangeSummary(input: DateRangeInput): Promise<StatsSummary>` / `getDailyTrend(input: DateRangeInput): Promise<DailyTrendPoint[]>` / `getCategoryBreakdown(input: DateRangeInput): Promise<CategoryBreakdown[]>`。收入口径 = 非 cancelled 订单金额 + 开次卡金额；次卡 UTC `created_at` 通过 SQLite `date(created_at, 'localtime')` 按设备本地日期筛选和分组；支出口径 = `expenses.amount - expenses.refund_amount`；利润 = 收入 - 支出。 |
@@ -310,3 +311,4 @@
 - 2026-07-23：订单页顶部操作区视觉居中修复——`src/pages/order/index.vue` 将日期组件根节点改为纵向 flex 并居中内部固定 35px 高的可见输入框，消除其与 80rpx 新建按钮的可见中心偏移；未改日期选择、新建跳转或订单数据逻辑。375 × 812 H5 测量中两个可见控件中心偏差与日期控件宽度差均为 0px；`pnpm test`（22 条）、`pnpm type-check`、`pnpm lint`、`pnpm build:h5` 通过，HBuilderX 真机视觉待验证。
 - 2026-07-23：表单页面背景规则——根目录 `AGENTS.md` 的表单约束补充：表单页面背景统一使用 `$hej-color-canvas`，引用该 token 的 Vue 样式块必须声明 `lang="scss"`。
 - 2026-07-24：次卡收入本地日期修复（v1.16）—— `src/api/stats.ts` 用 SQLite `date(created_at, 'localtime')` 将 UTC 开卡时间按设备本地日期过滤和分组，避免凌晨开卡收入误归前一日；新增 `tests/stats-timezone.test.cjs` 保护首页收入 / 利润和日趋势。`pnpm test`（24 条）、`pnpm type-check`、`pnpm lint`、`pnpm build:h5` 通过，Android 真机待验证。
+- 2026-07-24：次卡开卡记录删除（v1.17）——只允许删除从未扣次的记录；`deleteCard()` 在同一事务内保护 usage / delivered 历史、pending 预占和外键引用，必要时把 pending 订单改绑到最早可用卡。充值记录页新增带明确影响确认的危险按钮，已扣次记录禁用。`pnpm test`（30 条）、`pnpm type-check`、`pnpm lint`、`pnpm build:h5` 通过，Android 真机待验证。

@@ -17,6 +17,7 @@ const customerId = ref<number | null>(null)
 const customer = ref<Customer | null>(null)
 const cards = ref<MealCard[]>([])
 const loading = ref(false)
+const operatingCardId = ref<number | null>(null)
 const deletingCardId = ref<number | null>(null)
 
 function remainingMeals(card: MealCard): number {
@@ -45,7 +46,7 @@ async function refresh(): Promise<void> {
 }
 
 function goEdit(card: MealCard): void {
-  if (customerId.value === null || deletingCardId.value !== null) return
+  if (customerId.value === null || operatingCardId.value !== null) return
   uni.navigateTo({
     url: `/pages/me/customers/open-card?customerId=${customerId.value}&cardId=${card.id}`,
   })
@@ -56,17 +57,18 @@ function showDeleteError(title: string, content: string): void {
 }
 
 async function deleteRecord(card: MealCard): Promise<void> {
-  if (deletingCardId.value !== null || card.used_meals > 0) return
-  const confirmed = await confirmDialog(
-    '删除次卡记录？',
-    `将删除 ${card.created_at.slice(0, 10)} 的 ${formatMoney(
-      card.amount,
-    )} 开卡收入，并减少该客户 ${card.total_meals} 次可用余额。删除后无法恢复。`,
-  )
-  if (!confirmed) return
-
-  deletingCardId.value = card.id
+  if (operatingCardId.value !== null || card.used_meals > 0) return
+  operatingCardId.value = card.id
   try {
+    const confirmed = await confirmDialog(
+      '删除次卡记录？',
+      `将删除 ${card.created_at.slice(0, 10)} 的 ${formatMoney(
+        card.amount,
+      )} 开卡收入，并减少该客户 ${card.total_meals} 次可用余额。删除后无法恢复。`,
+    )
+    if (!confirmed) return
+
+    deletingCardId.value = card.id
     const deleted = await deleteCard(card.id)
     if (!deleted) {
       showToast('次卡记录不存在')
@@ -90,6 +92,7 @@ async function deleteRecord(card: MealCard): Promise<void> {
     }
   } finally {
     deletingCardId.value = null
+    operatingCardId.value = null
   }
 }
 
@@ -150,15 +153,17 @@ onShow(() => {
         <view class="danger-zone" @click.stop>
           <button
             class="delete-button"
-            :disabled="deletingCardId !== null || card.used_meals > 0"
+            :disabled="operatingCardId !== null || card.used_meals > 0"
             @click.stop="deleteRecord(card)"
           >
             {{
               deletingCardId === card.id
                 ? '删除中…'
-                : card.used_meals > 0
-                  ? '已扣次，不能删除'
-                  : '删除记录'
+                : operatingCardId === card.id
+                  ? '等待确认…'
+                  : card.used_meals > 0
+                    ? '已扣次，不能删除'
+                    : '删除记录'
             }}
           </button>
         </view>
@@ -303,7 +308,7 @@ onShow(() => {
   height: 88rpx;
   margin: 0;
   border: 1rpx solid $hej-color-danger;
-  border-radius: $hej-radius-md;
+  border-radius: $hej-radius-control;
   background: $hej-color-danger-soft;
   color: $hej-color-danger;
   font-size: 28rpx;

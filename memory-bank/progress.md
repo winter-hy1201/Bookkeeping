@@ -6,6 +6,16 @@
 
 ---
 
+## 当前增量（次卡开卡记录删除）
+
+| Step | 内容 | 状态 |
+|---|---|---|
+| 14.1 | 未扣次记录原子删除、pending 预占保护与引用改绑 | ✅ 2026-07-24 |
+| 14.2 | 充值记录页危险按钮、确认摘要、禁用态与操作锁 | ✅ 2026-07-24 |
+| 14.3 | 删除分支回归、长期文档、CLI / H5 / HBuilderX 回归 | 🔄 30 条自动化、CLI 与 H5 已通过，真机待验证 |
+
+---
+
 ## 当前增量（次卡收入本地日期）
 
 | Step | 内容 | 状态 |
@@ -142,3 +152,4 @@
 - 2026-07-23：订单页顶部操作区视觉居中修复——`src/pages/order/index.vue` 将日期组件根节点改为纵向 flex 并居中内部固定 35px 高的可见输入框，消除其与 80rpx 新建按钮的可见中心偏移；未改日期选择、新建跳转或订单数据逻辑。375 × 812 H5 测量中两个可见控件中心偏差与日期控件宽度差均为 0px；`pnpm test`（22 条）、`pnpm type-check`、`pnpm lint`、`pnpm build:h5` 通过，HBuilderX 真机视觉待验证。
 - 2026-07-23：根目录 `AGENTS.md` 的表单规则补充页面背景约束：统一使用 `$hej-color-canvas`，并为引用该 token 的样式块声明 `lang="scss"`；不改任何应用代码或业务行为。
 - 2026-07-24：次卡收入本地日期修复（v1.16）—— `src/api/stats.ts` 不再直接截取 UTC `created_at`，改用 SQLite `date(created_at, 'localtime')` 按设备本地日期过滤和分组，修复凌晨 00:00–07:59 开卡金额误归前一日的问题；新增 `tests/stats-timezone.test.cjs` 覆盖首页与日趋势。`pnpm test`（24 条）、`pnpm type-check`、`pnpm lint`、`pnpm build:h5` 通过，Android 原生 SQLite 本地时区待 HBuilderX 真机验证。
+- 2026-07-24：次卡开卡记录删除（v1.17）——只允许删除从未扣次的记录；删除前保护 usage / delivered 历史和 pending 预占，引用该卡的 pending 订单按 FIFO 改绑，cancelled 订单清空引用，全部写入在同一事务内完成。充值记录页新增危险操作区、收入 / 次数影响确认、已扣次禁用态和页面级操作锁。`pnpm test`（30 条）、`pnpm type-check`、`pnpm lint`、`pnpm build:h5` 通过，Android 真机待验证。

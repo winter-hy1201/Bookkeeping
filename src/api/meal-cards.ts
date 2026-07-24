@@ -206,7 +206,18 @@ export async function deleteCard(id: number): Promise<boolean> {
       WHERE meal_card_id = ? AND status = 'delivered'`,
       [id],
     )
-    if ((usageRows[0]?.count ?? 0) > 0 || (deliveredReferenceRows[0]?.count ?? 0) > 0) {
+    const mismatchedPendingRows = await select<CountRow>(
+      `SELECT COUNT(*) AS count
+      FROM orders
+      WHERE meal_card_id = ? AND customer_id <> ?
+        AND status = 'pending' AND meal_card_quantity > 0`,
+      [id, card.customer_id],
+    )
+    if (
+      (usageRows[0]?.count ?? 0) > 0 ||
+      (deliveredReferenceRows[0]?.count ?? 0) > 0 ||
+      (mismatchedPendingRows[0]?.count ?? 0) > 0
+    ) {
       throw new MealCardDeleteIntegrityError()
     }
 

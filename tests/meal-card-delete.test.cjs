@@ -43,6 +43,19 @@ async function select(sql, args = []) {
       },
     ]
   }
+  if (normalized.includes('meal_card_id = ? AND customer_id <> ?')) {
+    return [
+      {
+        count: state.orders.filter(
+          (order) =>
+            order.meal_card_id === args[0] &&
+            order.customer_id !== args[1] &&
+            order.status === 'pending' &&
+            order.meal_card_quantity > 0,
+        ).length,
+      },
+    ]
+  }
   if (normalized.startsWith('SELECT COALESCE(SUM(total_meals - used_meals), 0)')) {
     const [customerId, excludedId] = args
     const total = state.cards
@@ -243,6 +256,18 @@ test('rejects deletion when a delivered order still references an unused card', 
   state = {
     cards: [card(2, 10, 0, '2026-02-01T00:00:00.000Z')],
     orders: [order(11, 'delivered', 2, 1)],
+    usages: [],
+  }
+
+  await assert.rejects(deleteCard(2), MealCardDeleteIntegrityError)
+})
+
+test('rejects deletion instead of rebinding another customer pending order', async () => {
+  const mismatchedOrder = order(11, 'pending', 2, 1)
+  mismatchedOrder.customer_id = 2
+  state = {
+    cards: [card(1, 10, 0, '2026-01-01T00:00:00.000Z'), card(2, 10, 0, '2026-02-01T00:00:00.000Z')],
+    orders: [mismatchedOrder],
     usages: [],
   }
 

@@ -205,6 +205,7 @@ CREATE INDEX idx_expenses_category ON expenses(category_id);
 - `status` 状态机：active → depleted（次数用完）
 - 不存"剩余金额" → 次卡是固定次数模型，不是储值卡
 - 每条 `meal_cards` 都是一笔独立充值记录；允许校正 `total_meals`，但新值不得小于 `used_meals`，且修改后的客户余额池不得小于全部 pending 订单预占；不回溯修改 `amount` / `created_at` / `meal_card_usages`
+- 误开的充值记录只有在 `used_meals = 0`、无 `meal_card_usages` 且无 delivered 订单引用时才可硬删除；删除后的客户余额池必须继续覆盖全部 pending 预占。引用该记录的 pending 订单改绑最早且仍有余额的次卡，cancelled 订单清空引用；检查、改绑与删除必须在同一事务内完成
 
 **meal_card_usages 表**：
 - 每条记录表示某个已配送订单从某张次卡扣了多少次，包括组合支付中的次卡部分。
@@ -469,6 +470,8 @@ INSERT INTO expense_categories (name, icon, sort_order, is_default) VALUES
 ```
 
 修改总次数是对原充值记录的数据校正：不新建充值收入，不修改已用次数和历史扣次明细，不重算历史订单。调大已用完次卡的总次数时，该卡恢复为 active 并重新进入客户余额池。
+
+删除充值记录用于撤销“误开且从未扣次”的数据，不是退款流程。页面只启用 `used_meals = 0` 记录的删除按钮；API 仍须在事务内复查 `used_meals`、usage、delivered 引用与 pending 预占。成功后该笔开卡收入和可用次数一并移除；任一校验、订单改绑或外键写入失败时，整笔删除回滚。
 
 ---
 
