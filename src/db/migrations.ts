@@ -23,12 +23,16 @@ import {
   SCHEMA_ORDERS,
   SCHEMA_EXPENSE_CATEGORIES,
   SCHEMA_EXPENSES,
+  SCHEMA_DAILY_MENUS,
+  SCHEMA_MESSAGE_TEMPLATES,
+  SCHEMA_TEMPLATE_VERSIONS,
   CURRENT_SCHEMA_VERSION,
 } from './schema'
 import { exec, select, tx } from './index'
 import type { PlusSqliteRow } from './index'
 import type { OrderStatus, PaymentMethod } from '../types/domain'
 import { roundMoney } from '../utils/format'
+import { DEFAULT_MENU_TEMPLATE_BODY, DEFAULT_MENU_TEMPLATE_NAME } from '../utils/menu-template'
 import {
   mergeOrderNotes,
   mergePaymentBreakdowns,
@@ -93,6 +97,7 @@ export const MIGRATIONS: string[] = [
       SET meal_card_quantity = quantity
       WHERE payment_method = 'meal_card'`,
   ].join(';\n'),
+  [SCHEMA_DAILY_MENUS, SCHEMA_MESSAGE_TEMPLATES, SCHEMA_TEMPLATE_VERSIONS].join('\n'),
   // 未来迁移示例（不要启用）：
   // "ALTER TABLE customers ADD COLUMN wechat_openid TEXT;",
 ]
@@ -273,6 +278,17 @@ export async function runMigrations(): Promise<void> {
       }
       if (i + 1 === 5) {
         await reconcileCompatiblePendingOrders()
+      }
+      if (i + 1 === 6) {
+        const rows = await select<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM message_templates')
+        if ((rows[0]?.cnt ?? 0) === 0) {
+          const now = new Date().toISOString()
+          await exec(
+            `INSERT INTO message_templates (name, body, is_default, created_at, updated_at)
+            VALUES (?, ?, 1, ?, ?)`,
+            [DEFAULT_MENU_TEMPLATE_NAME, DEFAULT_MENU_TEMPLATE_BODY, now, now],
+          )
+        }
       }
       await setVersion(i + 1)
     })

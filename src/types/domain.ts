@@ -75,3 +75,29 @@ export interface Expense {
   note: string | null
   created_at: string
 }
+
+export interface DailyMenu {
+  id: number
+  menu_date: string
+  lunch_text: string | null
+  dinner_text: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface MessageTemplate {
+  id: number
+  name: string
+  body: string
+  is_default: BooleanInt
+  created_at: string
+  updated_at: string
+}
+
+export interface TemplateVersion {
+  id: number
+  template_id: number
+  name: string
+  body: string
+  created_at: string
+}

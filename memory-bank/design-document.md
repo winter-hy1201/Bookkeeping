@@ -36,6 +36,7 @@
 
 ```
 [Tab 1] 今日 Dashboard（默认首页）
+   ├─ 社群菜单快捷入口 → 每日菜单
    ├─ 今日概览（订单数/收入/支出/利润）
    ├─ 今日订餐明细（待配送 / 已配送 / 已取消 分组）
    └─ 即将用完的次卡提醒（remaining <= 3）
@@ -53,6 +54,8 @@
    └─ 支出分类占比（条形图）
 
 [Tab 4] 我的
+   ├─ 菜单管理 → 当前 / 未来菜单、历史菜单、新增 / 编辑 / 删除 / 复制
+   ├─ 文案模板 → 默认模板、编辑、删除、历史版本与恢复
    ├─ 客户管理
    │   ├─ 客户列表
    │   ├─ [+] 新建客户
@@ -173,6 +176,38 @@ CREATE TABLE expenses (
 );
 CREATE INDEX idx_expenses_date ON expenses(expense_date);
 CREATE INDEX idx_expenses_category ON expenses(category_id);
+
+-- 每日菜单
+CREATE TABLE daily_menus (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  menu_date TEXT NOT NULL UNIQUE,
+  lunch_text TEXT,
+  dinner_text TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+-- 社群文案模板
+CREATE TABLE message_templates (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL UNIQUE,
+  body TEXT NOT NULL,
+  is_default INTEGER NOT NULL DEFAULT 0 CHECK (is_default IN (0, 1)),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX idx_message_templates_single_default
+  ON message_templates(is_default) WHERE is_default = 1;
+
+-- 模板编辑前快照
+CREATE TABLE template_versions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  template_id INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  body TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (template_id) REFERENCES message_templates(id) ON DELETE CASCADE
+);
 ```
 
 ### 2.2 设计点说明
@@ -221,6 +256,13 @@ CREATE INDEX idx_expenses_category ON expenses(category_id);
 - `refund_amount` 记录退差 / 退款金额，默认 0，允许等于 `amount`，但不可大于 `amount`。
 - 统计口径统一使用 `amount - refund_amount` 作为实际支出；列表和详情页也展示实际支出，避免与统计页对不上。
 
+**每日菜单与模板**：
+- `daily_menus.menu_date` 数据库唯一；午餐、晚餐至少一个非空由 API 校验，历史菜单只是过去日期的同表视图，不是编辑版本。
+- `message_templates.name` 唯一，部分唯一索引保证至多一个默认模板；菜单复制只读取当前默认模板。
+- `template_versions` 保存每次实际编辑前的名称和正文，不保存默认状态；恢复旧版本前先快照当前内容。
+- 菜单和模板均硬删除；模板删除通过 `ON DELETE CASCADE` 同步删除版本历史。
+- 完整模板语法、缺餐区块渲染、导航和验收见 `docs/superpowers/specs/2026-07-28-daily-menu-message-template-design.md`。
+
 ### 2.3 初始化数据（首次启动 seed）
 
 ```sql
@@ -231,6 +273,8 @@ INSERT INTO expense_categories (name, icon, sort_order, is_default) VALUES
   ('配送', '🛵', 4, 1),
   ('其他', '💰', 5, 1);
 ```
+
+schema v6 迁移时若模板表为空，插入“日常午晚餐”默认模板。该动作只发生在迁移或危险清空，不在每次启动时重复执行，用户可以主动删除最后一个模板。
 
 ---
 
@@ -367,13 +411,16 @@ INSERT INTO expense_categories (name, icon, sort_order, is_default) VALUES
       {
         "version": "1.0",
         "exported_at": "2026-06-09T22:00:00Z",
-        "schema_version": 5,
+        "schema_version": 6,
         "customers": [...],
         "meal_cards": [...],
         "orders": [...],
         "meal_card_usages": [...],
         "expense_categories": [...],
-        "expenses": [...]
+        "expenses": [...],
+        "daily_menus": [...],
+        "message_templates": [...],
+        "template_versions": [...]
       }
    2. plus.io 写入应用沙盒：`_doc/backup_YYYYMMDD_HHmmss.json`
    3. 复制一份到 `_downloads/backup_YYYYMMDD_HHmmss.json`
@@ -388,10 +435,10 @@ INSERT INTO expense_categories (name, icon, sort_order, is_default) VALUES
       - 粘贴 JSON 文本
       - 从 `_doc/backup_*.json` 已保存备份列表选择
       - 从本地 JSON 文件选择器读取（Android App 端用系统 Intent；其他端 fallback 到 `uni.chooseFile`）
-   2. 解析 JSON + 校验 schema_version：当前 v5 直接导入；v1-v4 补齐缺失字段并按 v5 规则升级；无效或高于当前版本时报错"备份文件版本不兼容"
+   2. 解析 JSON + 校验 schema_version：当前 v6 直接导入；v1-v5 补齐缺失字段并按 v6 规则升级；无效或高于当前版本时报错"备份文件版本不兼容"
    3. 二次确认："导入将覆盖所有现有数据，无法恢复。是否继续？"
    4. 事务：
-      DELETE FROM meal_card_usages / orders / expenses / meal_cards / customers / expense_categories
+      DELETE FROM template_versions / message_templates / daily_menus / meal_card_usages / orders / expenses / meal_cards / customers / expense_categories
       INSERT 新数据
    5. 提示"导入成功，请重启 App 刷新缓存"
 ```
@@ -402,12 +449,12 @@ INSERT INTO expense_categories (name, icon, sort_order, is_default) VALUES
    ↓
    1. 三次确认
    2. 事务：
-      DELETE orders / expenses / meal_cards / customers / expense_categories
-      重新 seed 5 个默认支出分类
+      DELETE menus / templates / orders / expenses / meal_cards / customers / expense_categories
+      重新 seed 内置文案模板和 5 个默认支出分类
    3. 提示"已清空"
 ```
 
-注：默认支出分类是系统参考数据。清空后要恢复 5 个默认分类，保证下一次进入"新增支出"仍可直接选择分类。
+注：默认支出分类和内置文案模板是系统参考数据。清空后恢复二者；普通启动不会重新生成用户主动删除的最后一个模板。
 
 ### 4.5 开次卡
 

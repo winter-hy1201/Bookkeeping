@@ -1,5 +1,5 @@
 /**
- * 数据库 schema — 6 张表 DDL 字符串
+ * 数据库 schema — 9 张表 DDL 字符串
  *
  * 数据来源：memory-bank/design-document.md §2.1
  * 字段、类型、NOT NULL、DEFAULT、CHECK 约束、索引必须严格对齐设计文档。
@@ -106,10 +106,48 @@ CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(expense_date);
 CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category_id);
 `
 
+export const SCHEMA_DAILY_MENUS = `
+CREATE TABLE IF NOT EXISTS daily_menus (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  menu_date TEXT NOT NULL UNIQUE,
+  lunch_text TEXT,
+  dinner_text TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_daily_menus_date ON daily_menus(menu_date);
+`
+
+export const SCHEMA_MESSAGE_TEMPLATES = `
+CREATE TABLE IF NOT EXISTS message_templates (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL UNIQUE,
+  body TEXT NOT NULL,
+  is_default INTEGER NOT NULL DEFAULT 0 CHECK (is_default IN (0, 1)),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_message_templates_single_default
+  ON message_templates(is_default) WHERE is_default = 1;
+`
+
+export const SCHEMA_TEMPLATE_VERSIONS = `
+CREATE TABLE IF NOT EXISTS template_versions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  template_id INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  body TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (template_id) REFERENCES message_templates(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_template_versions_template
+  ON template_versions(template_id, created_at DESC, id DESC);
+`
+
 /**
  * 当前 schema 版本。migrations.ts 用此值与 PRAGMA user_version 对比。
  * 每次新增 DDL 段（加表 / 加字段）必须：
  *   1. 在 MIGRATIONS 数组末尾追加新的一段 SQL
  *   2. CURRENT_SCHEMA_VERSION += 1
  */
-export const CURRENT_SCHEMA_VERSION = 5
+export const CURRENT_SCHEMA_VERSION = 6

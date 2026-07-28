@@ -22,11 +22,11 @@
 
 | 本地包 / 可用标签 | 状态 | 可优先考虑的场景 | 关键边界 | 项目内用例 |
 |---|---|---|---|---|
-| [uni-forms](../src/uni_modules/uni-forms/readme.md) v1.4.13<br>`uni-forms`、`uni-forms-item` | 已验证 | 所有业务表单的容器、校验与提交 | 输入控件必须放入 item；字段 `name`、form key、rules 一一对应 | `src/pages/order/new.vue` |
-| [uni-easyinput](../src/uni_modules/uni-easyinput/readme.md) v1.1.22<br>`uni-easyinput` | 已验证 | 文本、数字、金额、备注输入 | 业务表单中须套 forms；`@input` 返回字符串，金额走现有解析 helper | `src/components/AmountInput.vue` |
+| [uni-forms](../src/uni_modules/uni-forms/readme.md) v1.4.13<br>`uni-forms`、`uni-forms-item` | 已验证 | 所有业务表单的容器、校验与提交 | 输入控件必须放入 item；字段 `name`、form key、rules 一一对应 | `src/pages/order/new.vue`、`src/pages/me/menus/edit.vue` |
+| [uni-easyinput](../src/uni_modules/uni-easyinput/readme.md) v1.1.22<br>`uni-easyinput` | 已验证 | 文本、数字、金额、备注输入 | 业务表单中须套 forms；`@input` 返回字符串，金额走现有解析 helper | `src/components/AmountInput.vue`、`src/pages/me/menu-templates/edit.vue` |
 | [uni-data-checkbox](../src/uni_modules/uni-data-checkbox/readme.md) v1.0.6<br>`uni-data-checkbox` | 已验证 | 固定选项的单选 / 多选 | 业务表单中须套 forms；确认单选/多选与数据模型一致 | `src/pages/order/new.vue` |
 | [uni-data-select](../src/uni_modules/uni-data-select/readme.md) v1.1.0<br>`uni-data-select` | 已验证 | 扁平选项下拉选择 | 业务表单中须套 forms；复杂级联改查 data-picker | `src/pages/me/expenses/new.vue` |
-| [uni-datetime-picker](../src/uni_modules/uni-datetime-picker/readme.md) v2.2.42<br>`uni-datetime-picker` | 已验证 | 日期、时间、日期范围 | 业务表单中须套 forms；确认返回格式与 `src/utils/date.ts` 一致 | `src/pages/order/new.vue` |
+| [uni-datetime-picker](../src/uni_modules/uni-datetime-picker/readme.md) v2.2.42<br>`uni-datetime-picker` | 已验证 | 日期、时间、日期范围 | 业务表单中须套 forms；确认返回格式与 `src/utils/date.ts` 一致 | `src/pages/order/new.vue`、`src/pages/me/menus/edit.vue` |
 | [uni-number-box](../src/uni_modules/uni-number-box/readme.md) v1.2.8<br>`uni-number-box` | 已验证 | 小范围整数 / 小数步进 | 业务表单中须套 forms；金额不能绕过 big.js 计算规则 | `src/pages/order/new.vue` |
 | [uni-combox](../src/uni_modules/uni-combox/readme.md) v1.0.2<br>`uni-combox` | 已安装待验证 | 可输入也可从候选项选择 | 业务表单中须套 forms；先确认 Android 键盘与候选交互 | 暂无项目内用例 |
 | [uni-data-picker](../src/uni_modules/uni-data-picker/readme.md) v2.0.2<br>`uni-data-picker`、`uni-data-pickerview` | 已安装待验证 | 多列或级联数据选择 | 业务表单中须套 forms；扁平选项优先 data-select | 暂无项目内用例 |

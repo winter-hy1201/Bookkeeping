@@ -37,6 +37,10 @@ function customerName(id: number): string {
   return customerStore.list.find((customer) => customer.id === id)?.name ?? `客户 #${id}`
 }
 
+function goDailyMenus(): void {
+  uni.navigateTo({ url: '/pages/me/menus/list' })
+}
+
 async function refresh(): Promise<void> {
   try {
     await Promise.all([
@@ -59,6 +63,14 @@ onShow(() => {
     <view class="header">
       <text class="title">今日 · {{ formatDate(todayText) }}</text>
       <text class="subtitle">订单、收支和配送状态</text>
+    </view>
+
+    <view class="menu-shortcut" @click="goDailyMenus">
+      <view>
+        <text class="menu-shortcut__eyebrow">社群菜单</text>
+        <text class="menu-shortcut__title">维护每日菜单并复制文案</text>
+      </view>
+      <text class="menu-shortcut__arrow">›</text>
     </view>
 
     <view class="stats-grid">
@@ -179,6 +191,42 @@ onShow(() => {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20rpx;
   padding: 0 24rpx;
+}
+
+.menu-shortcut {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 112rpx;
+  margin: 0 24rpx 20rpx;
+  padding: 20rpx 24rpx;
+  border: 1rpx solid $hej-color-accent-soft;
+  border-radius: $hej-radius-panel;
+  background: $hej-color-accent-soft;
+  box-sizing: border-box;
+}
+
+.menu-shortcut__eyebrow,
+.menu-shortcut__title {
+  display: block;
+}
+
+.menu-shortcut__eyebrow {
+  color: $hej-color-accent;
+  font-size: $hej-font-caption;
+  font-weight: 600;
+}
+
+.menu-shortcut__title {
+  margin-top: 4rpx;
+  color: $hej-color-text;
+  font-size: $hej-font-body;
+  font-weight: 600;
+}
+
+.menu-shortcut__arrow {
+  color: $hej-color-accent;
+  font-size: 44rpx;
 }
 
 .section {

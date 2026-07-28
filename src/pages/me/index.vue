@@ -8,10 +8,18 @@ function go(url: string): void {
   <view class="page">
     <view class="hero">
       <text class="title">我的</text>
-      <text class="subtitle">客户、支出和数据备份</text>
+      <text class="subtitle">菜单、客户、支出和数据备份</text>
     </view>
 
     <view class="menu">
+      <view class="menu-item" @click="go('/pages/me/menus/list')">
+        <view><text class="menu-title">菜单管理</text><text class="menu-sub">每日菜单、复制文案、历史记录</text></view>
+        <text class="arrow">›</text>
+      </view>
+      <view class="menu-item" @click="go('/pages/me/menu-templates/list')">
+        <view><text class="menu-title">文案模板</text><text class="menu-sub">默认模板、条件区块、历史版本</text></view>
+        <text class="arrow">›</text>
+      </view>
       <view class="menu-item" @click="go('/pages/me/customers/list')">
         <view><text class="menu-title">客户管理</text><text class="menu-sub">客户档案、历史订单、次卡</text></view>
         <text class="arrow">›</text>

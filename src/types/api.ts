@@ -77,6 +77,17 @@ export interface CreateExpenseInput {
   note?: string | null
 }
 
+export interface SaveDailyMenuInput {
+  menu_date: string
+  lunch_text?: string | null
+  dinner_text?: string | null
+}
+
+export interface SaveMessageTemplateInput {
+  name: string
+  body: string
+}
+
 export type UpdateExpenseInput = CreateExpenseInput
 
 export interface ListExpensesInput {

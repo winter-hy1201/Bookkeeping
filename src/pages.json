@@ -86,6 +86,36 @@
       }
     },
     {
+      "path": "pages/me/menus/list",
+      "style": {
+        "navigationBarTitleText": "每日菜单"
+      }
+    },
+    {
+      "path": "pages/me/menus/edit",
+      "style": {
+        "navigationBarTitleText": "新建菜单"
+      }
+    },
+    {
+      "path": "pages/me/menu-templates/list",
+      "style": {
+        "navigationBarTitleText": "文案模板"
+      }
+    },
+    {
+      "path": "pages/me/menu-templates/edit",
+      "style": {
+        "navigationBarTitleText": "新建模板"
+      }
+    },
+    {
+      "path": "pages/me/menu-templates/history",
+      "style": {
+        "navigationBarTitleText": "模板历史"
+      }
+    },
+    {
       "path": "pages/me/settings/backup",
       "style": {
         "navigationBarTitleText": "备份恢复"

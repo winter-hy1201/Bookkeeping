@@ -8,10 +8,10 @@
 ## 当前状态
 
 - **项目阶段**：**v1.0 已发布**（Phase 1-9 全部完成；9.3 / 9.4 按用户决策跳过，用 HBuilderX 标准基座 debug APK 侧载；CHANGELOG.md v1.0 节已写好）
-- **已建文件**：`docs/archive/PRD-v1.0.md`、`CLAUDE.md`、`AGENTS.md`、`memory-bank/` 活文档、uni-app Vue 3 + Vite + TS 模板、6 张表 DDL + 迁移 + seed + integrity_check + tx() 工具、domain/api 类型、日期/金额/页面/备份工具、完整 API 层、4 个 Pinia store、3 个通用 UI 组件、uni-ui 表单组件、4 个 Tab 与关键子页、App.vue 全局 onError 兜底
-- **DB 状态**：v0 基线（`memory-bank/bookkeeping-v0.db`，CLI sqlite smoke-test 生成）；v1 阶段基线（`memory-bank/bookkeeping-v1.db`，Phase 8 真机 E2E 通过后归档，`user_version=1`）；当前 schema 版本为 5，`orders.meal_card_quantity` 支持组合支付与 pending 次卡预占，v4 → v5 真机迁移待回归
+- **已建文件**：`docs/archive/PRD-v1.0.md`、`CLAUDE.md`、`AGENTS.md`、`memory-bank/` 活文档、uni-app Vue 3 + Vite + TS 模板、9 张表 DDL + 迁移 + seed + integrity_check + tx() 工具、domain/api 类型、日期/金额/菜单模板/页面/备份工具、完整 API 层、4 个 Pinia store、3 个通用 UI 组件、uni-ui 表单组件、4 个 Tab 与关键子页、App.vue 全局 onError 兜底
+- **DB 状态**：v0 基线（`memory-bank/bookkeeping-v0.db`，CLI sqlite smoke-test 生成）；v1 阶段基线（`memory-bank/bookkeeping-v1.db`，Phase 8 真机 E2E 通过后归档，`user_version=1`）；当前 schema 版本为 6，新增每日菜单、文案模板和模板版本历史，v5 → v6 真机迁移待回归
 - **UI 基线**：v1.13 新增 `docs/design.md` 与 `$hej-*` 语义 token，并由样式预处理检查保护；订单空态、新建 / 编辑确认区和统计对账趋势已按该基线改造；今日页按用户反馈保留既有布局，HBuilderX 视觉回归待执行
-- **最后更新**：2026-07-24
+- **最后更新**：2026-07-28
 
 ---
 
@@ -52,13 +52,16 @@
 | `docs/superpowers/specs/2026-07-22-customer-picker-form-label-design.md` | CustomerPicker 的字段标签归属、调用页统一表单标签与验收标准 | 该标签归属或调用方式变更时 |
 | `docs/superpowers/specs/2026-07-14-customer-card-avatar-label-design.md` | 客户列表头像按当前可用次卡显示“次 / 普”的已批准设计与验收标准 | 该身份判定或展示变更时 |
 | `docs/superpowers/specs/2026-07-22-combined-payment-single-order-design.md` | 一餐一单、组合支付、次卡预占、合并改单价确认、schema v5 与备份兼容的已批准设计 | 该订单支付 / 合并规则变更时 |
+| `docs/superpowers/specs/2026-07-28-daily-menu-message-template-design.md` | 每日菜单、条件模板语法、版本历史、默认模板、备份与验收的已批准设计 | 菜单或社群文案工作流变更时 |
 | `.gitignore` | git 忽略规则（node_modules、dist、IDE 文件等） | 加新忽略项时 |
 | `index.html` | Vite H5 入口 HTML；`<script type="module" src="/src/main.ts">` | 几乎不改 |
 | `package.json` | 项目元数据 + scripts（dev / build / test / lint / format / type-check） | 加新脚本/依赖时 |
 | `tests/db-transaction.test.cjs` | Node 内置测试：验证单一 SQLite 连接上的并发顶层事务必须串行，防止双击建单 / 配送交错写入 | `tx()` 并发边界变化时 |
 | `tests/meal-card-delete.test.cjs` | Node 内置回归测试：验证未扣次充值记录删除、pending 订单 FIFO 改绑、预占冲突回滚与 usage / delivered 历史保护 | 次卡记录删除边界变化时 |
 | `tests/order-rules.test.cjs` | Node 内置测试：覆盖次卡不足、纯 / 组合支付金额、非法次卡次数、备注去重、支付冲突和合并改单价预览 | 订单规则变化时 |
-| `tests/schema-v5.test.cjs` | SQLite CLI 冒烟测试：验证 fresh schema v5 字段约束、v5 迁移追加与旧纯次卡订单回填 | schema / migration 变化时 |
+| `tests/schema-v6.test.cjs` | SQLite CLI 冒烟测试：保留 v5 订单字段回归，并验证 fresh schema v6 的菜单日期、模板名称 / 默认唯一和 v6 迁移追加 | schema / migration 变化时 |
+| `tests/menu-template.test.cjs` | Node 纯函数测试：模板条件区块、缺餐删除、日期格式、多行 / `$` 字符保真、空行整理和语法错误 | 模板语法或复制文案变化时 |
+| `tests/backup-v6.test.cjs` | Node 备份兼容测试：v5 无菜单数组仍可解析，v6 必须显式携带菜单、模板和版本数组（含空数组状态） | schema 或备份格式变化时 |
 | `tests/stats-timezone.test.cjs` | Node 内置回归测试：在 `Asia/Shanghai` 时区下验证 UTC 凌晨时间戳按设备本地日期计入首页次卡收入与日趋势 | 统计时区或次卡收入口径变化时 |
 | `tests/ui-style-preprocess.test.cjs` | Node 静态测试：扫描业务 Vue 样式块，使用 `$hej-*` token 时必须声明 `lang="scss"`，避免 token 原样输出使 App 回退默认样式 | token 样式页面变化时 |
 | `pnpm-lock.yaml` | pnpm 锁定文件（**不要**手动编辑） | pnpm install 后自动 |
@@ -105,12 +108,12 @@
 
 | 文件 | 作用 |
 |---|---|
-| `src/pages/index/index.vue` | Tab 1「今日」Dashboard：`onShow` 刷新 stats/order/customer store，展示订单数、收入、支出、利润，以及待配送 / 已配送 / 已取消三组今日订单；三类状态计数卡片和列表分组用主题色展示。 |
+| `src/pages/index/index.vue` | Tab 1「今日」Dashboard：增加社群菜单快捷入口；`onShow` 仍刷新 stats/order/customer store并展示订单、收支与三组今日订单，不改变配送流程。 |
 | `src/pages/order/index.vue` | Tab 2「订单」列表：按日期筛选并用 `uni-collapse` 分成午餐 / 晚餐；顶部日期 / 新建区使用有内边距的操作区，日期控件根节点纵向居中内部固定高度输入框，与新建按钮保持可见中心对齐；日期控件保持弱表面，新建按钮使用 `$hej-color-accent` 主动作蓝，页面样式显式使用 SCSS 编译 token。列表项保留拖拽把手、客户名和状态，副标题按“餐次 · 总份数 · 次卡次数 · 微信/现金金额 · 完整备注”组合并自然换行，删除最右侧次卡 / 金额块；空态可直接进入无日期参数的新建页，今日午餐全部配送后默认折叠。拖拽继续使用 v1.6 的动态 `:scroll-y` 开关 + `setTimeout(16)` 边缘自动滚屏方案并写回 `orders.sort_order`。 |
 | `src/pages/order/new.vue` | `<uni-forms>` 新建订单表单：高频录单把日期、餐次直接放在连续录单卡的白色表面内，各占一条普通表单行，不再使用独立“配送安排”色块；全部字段共享 80px 标签列，标签与右侧控件垂直居中，控件从同一左边界开始。每次打开均以 `tomorrow()` 初始化配送日期，不接收订单列表筛选日期，用户仍可手动修改。份数表示“本次增量”，客户仍走现有搜索 / 拼音选择；客户上下文提示的重新检查 / 查看订单按钮保留固定触摸高度、最小宽度与水平留白。微信 / 现金 / 次卡为一级选择，份数大于 1 才出现组合支付入口；用户主动进入组合支付时，次卡次数预填 1 次并可用步进器在合法范围调整，补款与金额自动计算，展开面板与主表单使用同一白色表面，“改为纯支付”按钮保持完整触摸宽度与横向留白。实际单价直接显示输入框，选定客户后带入默认 / 已有订单单价；备注保持一行常显。次卡正常时紧凑提示，有预占或不足才展开明细。后台查询同键有效订单，pending 紧凑提示合并、delivered 阻断，改单价仍二次确认。固定确认区展示金额 / 支付摘要和当前缺失项；保存后由原生二次弹窗选择“继续下一单”（清空客户、份数、单价、备注，保留日期 / 餐次 / 支付）或“结束录单”（返回对应日期列表）。订单、金额、预占和 SQLite 写入规则不变。 |
 | `src/pages/order/detail.vue` | 订单详情与 `<uni-forms>` 编辑：只读态分别展示总份数、支付摘要、次卡次数、货币份数、实际单价与实际金额；编辑态同步新建页的连续白色表面、80px 标签列和单行字段顺序，日期、餐次、客户、总份数、支付、实际单价与备注之间用统一分隔线组织，标签与控件垂直居中，提示与辅助按钮沿用同一控件起点和触摸尺寸。详情页保留微信 / 现金 / 次卡 / 组合支付四种既有选项，窄屏下使用两列布局避免文字拥挤；本次实际金额、取消编辑与保存修改固定在底部。份数表示整单总量，支持组合支付、预占校验以及改变客户 / 日期 / 餐次后的目标订单合并确认。配送余额不足时整笔回滚并提示“去编辑支付”，不再自动整单改微信 / 现金；保留复制、整单配送 / 取消 / 删除能力。 |
 | `src/pages/stats/index.vue` | Tab 3「统计」：今日/本周/本月/自定义区间切换，自定义日期用 `uni-datetime-picker`；展示入账收入、支出、利润、有效订单和平均每单收入。日趋势改为“收支 / 利润趋势”，按日期同时呈现入账、支出和正 / 负利润的 CSS 进度条；统计 API 公式不变。 |
-| `src/pages/me/index.vue` | Tab 4「我的」入口：跳转客户管理、支出管理、备份恢复。 |
+| `src/pages/me/index.vue` | Tab 4「我的」入口：跳转菜单管理、文案模板、客户管理、支出管理和备份恢复。 |
 | `src/pages/me/customers/list.vue` | 客户列表：`onShow` 并行刷新 customer store 与当前有剩余次数的 active 次卡客户 ID，头像区按身份显示“次 / 普”；前端用 `uni-easyinput` 按姓名/微信/手机号/姓名拼音/拼音首字母搜索；按 `src/utils/pinyin.ts` 生成拼音首字母分组、右侧索引和滚动定位；展示折扣角标，支持新建和详情跳转。 |
 | `src/pages/me/customers/new.vue` | 客户新建/编辑共用页：用 uni-ui 表单组件维护姓名、手机、微信、午餐/晚餐默认价、折扣率、备注；默认价未触碰时保存为 null；保存时捕获客户姓名重复错误并提示不可重复。 |
 | `src/pages/me/customers/detail.vue` | 客户详情：展示基础信息、active 次卡汇总进度、历史订单；支持编辑、删除、开次卡和进入充值记录。删除走 `customerStore.remove()`，客户存在订单或次卡依赖时保持数据并提示不可删除。次卡区通过 `listCards(customerId)` 汇总所有 active 卡的剩余 / 总次数，避免新开卡后只显示最新一张而像是覆盖旧卡。历史订单通过 `listOrders({ customerId })` 查询。 |
@@ -119,7 +122,12 @@
 | `src/pages/me/expenses/list.vue` | 支出列表：用 `uni-datetime-picker` 按日期读取 expense store，展示分类 emoji/名称、实际支出金额和备注；有退差时补充展示原支出金额与退差金额；点击卡片进入支出详情，长按仍可快捷删除。 |
 | `src/pages/me/expenses/new.vue` | 新建支出页：使用 `<uni-forms>` + `<uni-forms-item>` 承载日期、分类、支出金额、退差金额、备注；全部字段共享 88px 标签列，标签与右侧控件垂直居中，页面背景使用 `$hej-color-canvas`；金额 > 0、分类已选、退差金额不超过支出金额才可保存，实际支出按 `amount - refund_amount` 预览。 |
 | `src/pages/me/expenses/detail.vue` | 支出详情：按 id 读取单条支出与分类；使用 `<uni-forms>` + `<uni-forms-item>` 承载日期、分类、支出金额、退差金额、备注，展示实际支出，支持修改和硬删除；删除后返回列表，保存后按列表当前日期刷新。 |
-| `src/pages/me/settings/backup.vue` | 备份恢复页：导出 JSON 到 `_doc/backup_YYYYMMDD_HHmmss.json` 并复制到 `_downloads/`，toast 展示可见路径，不再调用系统分享；恢复保留 `uni-easyinput` 粘贴 JSON，同时支持从已保存备份列表或本地 JSON 文件读取后全量覆盖导入；危险区三次确认清空客户、订单、次卡和支出，并恢复 5 个默认支出分类。 |
+| `src/pages/me/menus/list.vue` | 每日菜单列表：当前 / 未来与历史分栏，按日期排序；每条支持默认模板复制、编辑和硬删除，并可进入模板管理。 |
+| `src/pages/me/menus/edit.vue` | 每日菜单新增 / 编辑表单：默认当天，午晚餐至少一项且支持多行；日期冲突进入已有记录，支持保存并新增下一天、复制已保存内容和硬删除。 |
+| `src/pages/me/menu-templates/list.vue` | 文案模板列表：显示唯一默认模板，支持新建、编辑、设为默认、历史和硬删除；删除默认模板时要求选择接替项。 |
+| `src/pages/me/menu-templates/edit.vue` | 模板新增 / 编辑表单：插入日期 / 餐次区块，实时校验语法并以示例菜品渲染社群文案预览；实际修改由 API 留存编辑前快照。 |
+| `src/pages/me/menu-templates/history.vue` | 模板版本历史：按时间倒序展示完整名称 / 正文，可确认恢复；恢复前先快照当前内容，默认状态不回滚。 |
+| `src/pages/me/settings/backup.vue` | 备份恢复页：导出 JSON 到 `_doc/backup_YYYYMMDD_HHmmss.json` 并复制到 `_downloads/`；恢复支持粘贴、已保存备份和本地文件；危险区清空菜单、模板、客户、订单、次卡和支出，并恢复内置文案模板与 5 个默认支出分类。 |
 
 ### components/ — 跨页组件
 
@@ -143,9 +151,9 @@
 
 | 文件 | 作用 |
 |---|---|
-| `src/db/schema.ts` | 6 张表 DDL 字符串 + `CURRENT_SCHEMA_VERSION=5`。`orders.meal_card_quantity` 保存次卡支付次数，`amount` 只保存货币部分；其余退差、排序与 usage 字段继续对齐 `design-document.md §2.1`；**`meal_cards` 表无 end_date**。 |
-| `src/db/migrations.ts` | 迁移引擎与 v2-v5 追加迁移。v5 只在数组末尾追加 `orders.meal_card_quantity`，旧纯次卡订单按 `quantity` 回填；`reconcileCompatiblePendingOrders()` 仅合并同客户 / 日期 / 餐次且支付渠道、单价兼容的历史 pending 重复单，冲突数据保留并输出诊断。新库重复 `ADD COLUMN` 继续按列存在检查跳过；**不修改已发布迁移段**。 |
-| `src/db/seed.ts` | 首次启动 seed：`seedIfEmpty()` 写入 5 个默认支出分类（菜品 🥬 / 工具 🔧 / 耗材 📦 / 配送 🛵 / 其他 💰），is_default=1。仅在 `expense_categories` 行数为 0 时插入，不强制覆盖用户数据。 |
+| `src/db/schema.ts` | 9 张表 DDL 字符串 + `CURRENT_SCHEMA_VERSION=6`。v6 新增 `daily_menus`、`message_templates`、`template_versions` 及日期 / 名称 / 单默认约束；既有订单、次卡和支出结构不变。 |
+| `src/db/migrations.ts` | 迁移引擎与 v2-v6 追加迁移。v6 只在数组末尾追加三张菜单 / 模板表，并在迁移时插入一次内置默认模板；用户后续删除全部模板不会在启动时被重新生成。既有 v5 数据修复保持不变。 |
+| `src/db/seed.ts` | `seedIfEmpty()` 仅恢复 5 个默认支出分类；`seedDefaultMessageTemplate()` 只供 v1-v5 旧备份升级与危险清空显式恢复内置模板，不作为每次启动兜底。 |
 | `src/db/index.ts` | 数据层入口：`init()` 启动序列（openDatabase → PRAGMA foreign_keys=ON → runMigrations → seedIfEmpty → PRAGMA integrity_check(1)，逐步 await；integrity_check 失败抛错让 `App.vue` 提示用备份恢复）/ `close()` / `tx<T>(fn)`（用 5+ `transaction` 的 begin/commit/rollback 包裹，并用 Promise 队列串行单连接上的顶层事务；`fn` 内不嵌套 `tx()`）/ `exec()` / `select()`。5+ 官方 `executeSql` 不支持 args 数组，参数在本文件统一转义；`pify()` 动态调用 SQLite 方法时必须用 `fn.call(sqlite, options)` 保留 `this`；callback 静默不返回时 8 秒超时报错，便于识别 native bridge 缺失。**所有多表写入**（建单 / 取消 / 配送 / 开次卡）必须走 `tx()`。 |
 
 ### api/ — 数据访问
@@ -158,6 +166,8 @@
 | `src/api/errors.ts` | API 层可辨识业务异常：次卡所需 / 可用次数、已配送同键冲突、支付渠道冲突、合并改单价确认、编辑目标合并确认、充值记录侵占预占次数、未扣次记录删除的已使用 / 历史引用冲突、历史重复单诊断，以及既有取消 / 重名 / 总次数下限错误。 |
 | `src/api/expense-categories.ts` | expense_categories 只读 API：`listCategories(): Promise<ExpenseCategoryResult[]>` / `getCategory(id): Promise<ExpenseCategoryResult \| null>`。v1.0 不暴露分类增删改。 |
 | `src/api/expenses.ts` | expenses 表 CRUD：`listExpenses(input: ListExpensesInput): Promise<ExpenseResult[]>` / `getExpense(id): Promise<ExpenseResult \| null>` / `createExpense(input: CreateExpenseInput): Promise<ExpenseResult>` / `updateExpense(id, input): Promise<ExpenseResult \| null>` / `deleteExpense(id): Promise<boolean>`。`createExpense` / `updateExpense` 用 `tx()` 包裹，`amount <= 0` 拒绝，`refund_amount` 默认为 0 且不可为负或超过 `amount`；`deleteExpense` 硬删除支出。 |
+| `src/api/daily-menus.ts` | 每日菜单 CRUD 与当前 / 历史列表查询；API 统一 trim 并校验日期和至少一个餐次，日期冲突抛出携带已有 ID 的可辨识错误，删除为硬删除。 |
+| `src/api/message-templates.ts` | 模板 CRUD、默认切换、删除接替、版本查询和恢复；名称 / 正文实际变化前在同一事务写快照，恢复前同样快照当前内容。 |
 | `src/api/stats.ts` | 统计聚合 API：`getDashboardSummary(date): Promise<StatsSummary>` / `getRangeSummary(input: DateRangeInput): Promise<StatsSummary>` / `getDailyTrend(input: DateRangeInput): Promise<DailyTrendPoint[]>` / `getCategoryBreakdown(input: DateRangeInput): Promise<CategoryBreakdown[]>`。收入口径 = 非 cancelled 订单金额 + 开次卡金额；次卡 UTC `created_at` 通过 SQLite `date(created_at, 'localtime')` 按设备本地日期筛选和分组；支出口径 = `expenses.amount - expenses.refund_amount`；利润 = 收入 - 支出。 |
 
 ### utils/ — 工具函数
@@ -167,16 +177,17 @@
 | `src/utils/date.ts` | dayjs 本地时区日期工具：`today()` / `tomorrow()` 返回 `YYYY-MM-DD`；`weekRange(d)` 返回自然周周一到周日；`monthRange(d)` 返回自然月 1 号到月底；`formatDate(d)` 按当前年份显示 `MM-DD` 或 `YYYY-MM-DD`；`daysBetween(a, b)` 返回自然日整数差。 |
 | `src/utils/format.ts` | 金额/百分比格式化与精确计算工具（基于 big.js，全局 `Big.RM = roundHalfUp`，所有 helper 输出强制 `toFixed(2)` 保证 2 位小数）：`formatMoney(n)` 输出 `¥1,234.50`（空值/非法值为 `¥—`）；`parseMoney(s)` 接受普通数字、`¥`、`￥`、千分位并解析为 number（非法为 0）；`formatPercent(n)` 四舍五入输出整数百分比；`roundMoney/addMoney/subtractMoney/multiplyMoney/divideMoney` 提供按分精确运算，所有金额计算（订单单价、份数、统计累加/差值、次卡均摊）必须走这些 helper，禁止原生 `+ - * /` |
 | `src/utils/order-rules.ts` | 订单纯规则模块：支付拆分、次卡可用判断、备注合并去重、支付兼容与合并改单价预览；API 与 Node 测试共享，金额计算只走 big.js helper。 |
+| `src/utils/menu-template.ts` | 社群菜单模板纯函数：内置默认正文、语法校验、条件餐次区块删除、`M月D日` 替换、多行 / 特殊字符保真和多余空行整理。 |
 | `src/utils/ui.ts` | 页面层小工具：toast / confirm / actionSheet、数值与状态文案、客户默认价提示，以及组合支付摘要和列表副标题拼接。 |
-| `src/utils/backup.ts` | JSON 全量备份恢复；v5 随 orders 导入导出 `meal_card_quantity`，导入 v1-v4 时按旧 `payment_method` 推导，组合 delivered usage 继续精确恢复，并在导入后执行兼容 pending 重复单合并。 |
+| `src/utils/backup.ts` | JSON 全量备份恢复；v6 导入导出菜单、模板与版本历史，v1-v5 旧备份升级时补内置模板；v6 的空模板状态原样恢复，危险清空显式恢复内置模板。 |
 | `src/utils/pinyin.ts` | 客户姓名拼音工具：基于纯 JS `pinyin-pro`，使用姓氏优先模式把中文姓名转为无声调拼音 key、拼音首字母串和 A-Z / `#` 分组字母，并提供客户姓名排序函数；用于 Android App 端客户列表分组、索引和拼音搜索。 |
 
 ### types/ — TS 类型
 
 | 文件 | 作用 |
 |---|---|
-| `src/types/domain.ts` | 与 schema snake_case 字段严格对齐的领域类型；`Order` 新增必填 `meal_card_quantity`。 |
-| `src/types/api.ts` | API 入参 / 出参契约；订单创建 / 编辑增加次卡次数与价格 / 合并确认标志，新增 `MealCardAvailabilityResult`。 |
+| `src/types/domain.ts` | 与 schema snake_case 字段严格对齐的领域类型；含 `DailyMenu`、`MessageTemplate`、`TemplateVersion`。 |
+| `src/types/api.ts` | API 入参 / 出参契约；含每日菜单与文案模板保存输入。 |
 | `src/types/pinia.d.ts` | 本地类型声明：在不手动安装 npm `pinia` 的前提下，让 `vue-tsc` 能识别 uni-app/HBuilderX 内置 Pinia 的 `createPinia` / `defineStore`。仅提供类型，不提供运行时代码。 |
 
 ---
@@ -185,7 +196,7 @@
 
 | 决策 | 位置 | 影响范围 |
 |---|---|---|
-| 6 张表结构 | `memory-bank/design-document.md §2.1` | 所有 db / api / store |
+| 9 张表结构 | `memory-bank/design-document.md §2.1` | 所有 db / api / store |
 | 次卡扣次 = 配送完成（A1），按客户余额池旧卡优先扣次 | `memory-bank/design-document.md §3.2 §4.3` | orders API、UI 流程 |
 | 客户默认价 + 折扣率（A6） | `memory-bank/design-document.md §2.1 §4.1` | customers API、订单录入 UI |
 | 1 订单 = 1 餐 + 多份（D1） | `memory-bank/design-document.md §2.1` | orders schema |
@@ -195,7 +206,8 @@
 | 多表写入必走 tx() | `memory-bank/design-document.md §4` | db/index.ts 提供 tx() 工具 |
 | 删除 = 硬删除 + 回滚已产生副作用 | `memory-bank/design-document.md §4.6` | orders / expenses / customers API 与详情页删除入口 |
 | PRAGMA foreign_keys = ON | db/index.ts init() | 维护 customer_id / meal_card_id / category_id 外键完整性 |
-| `user_version` 驱动迁移 | db/migrations.ts | 首次建表=v1，当前=v5；未来加字段在 MIGRATIONS 末尾追加 |
+| `user_version` 驱动迁移 | db/migrations.ts | 首次建表=v1，当前=v6；未来加字段在 MIGRATIONS 末尾追加 |
+| 菜单复制只读当前默认模板 | `docs/superpowers/specs/2026-07-28-daily-menu-message-template-design.md` | 菜单、模板、剪贴板与版本历史 |
 | 客户姓名应用层判重 | `src/api/customers.ts` / `src/pages/me/customers/new.vue` | 重复姓名不可新增；编辑时允许保持原姓名 |
 | 表单控件统一使用 uni-ui | `src/uni_modules` + 各表单页 | 业务页面不直接使用原生 `input` / `textarea` / `picker` / `radio-group` / `slider`，改用 easycom 的 uni-ui 表单组件 |
 
@@ -312,3 +324,4 @@
 - 2026-07-23：表单页面背景规则——根目录 `AGENTS.md` 的表单约束补充：表单页面背景统一使用 `$hej-color-canvas`，引用该 token 的 Vue 样式块必须声明 `lang="scss"`。
 - 2026-07-24：次卡收入本地日期修复（v1.16）—— `src/api/stats.ts` 用 SQLite `date(created_at, 'localtime')` 将 UTC 开卡时间按设备本地日期过滤和分组，避免凌晨开卡收入误归前一日；新增 `tests/stats-timezone.test.cjs` 保护首页收入 / 利润和日趋势。`pnpm test`（24 条）、`pnpm type-check`、`pnpm lint`、`pnpm build:h5` 通过，Android 真机待验证。
 - 2026-07-24：次卡开卡记录删除（v1.17）——只允许删除从未扣次的记录；`deleteCard()` 在同一事务内保护 usage / delivered 历史、pending 预占和外键引用，必要时把 pending 订单改绑到最早可用卡。充值记录页新增带明确影响确认的危险按钮，已扣次记录禁用。`pnpm test`（30 条）、`pnpm type-check`、`pnpm lint`、`pnpm build:h5` 通过，Android 真机待验证。
+- 2026-07-28：每日菜单与社群文案模板（v1.18）—— schema v6 新增每日菜单、唯一默认文案模板与编辑前版本历史；支持连续新增下一天、当前 / 历史菜单、缺餐条件区块渲染、默认模板复制、版本恢复和硬删除。今日 / 我的增加入口，备份与危险清空同步三张新表；自动化与 CLI 结果见 `CHANGELOG.md v1.18`，HBuilderX 真机待验证。

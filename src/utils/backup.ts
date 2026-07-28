@@ -1,13 +1,16 @@
 import { exec, select, tx, type PlusSqliteRow } from '../db'
 import { reconcileCompatiblePendingOrders } from '../db/migrations'
-import { seedIfEmpty } from '../db/seed'
+import { seedDefaultMessageTemplate, seedIfEmpty } from '../db/seed'
 import type {
   Customer,
+  DailyMenu,
   Expense,
   ExpenseCategory,
   MealCard,
   MealCardUsage,
   Order,
+  MessageTemplate,
+  TemplateVersion,
 } from '../types/domain'
 
 const BACKUP_VERSION = '1.0'
@@ -22,6 +25,9 @@ interface BackupPayload {
   orders: Order[]
   expense_categories: ExpenseCategory[]
   expenses: Expense[]
+  daily_menus?: DailyMenu[]
+  message_templates?: MessageTemplate[]
+  template_versions?: TemplateVersion[]
 }
 
 interface VersionRow extends PlusSqliteRow {
@@ -34,6 +40,9 @@ type MealCardUsageRow = MealCardUsage & PlusSqliteRow
 type OrderRow = Order & PlusSqliteRow
 type ExpenseCategoryRow = ExpenseCategory & PlusSqliteRow
 type ExpenseRow = Expense & PlusSqliteRow
+type DailyMenuRow = DailyMenu & PlusSqliteRow
+type MessageTemplateRow = MessageTemplate & PlusSqliteRow
+type TemplateVersionRow = TemplateVersion & PlusSqliteRow
 
 /** 5+ `readEntries` 实际返回的条目视图，仅用到本场景下的字段 */
 interface PlusIoEntryView {
@@ -83,16 +92,29 @@ async function schemaVersion(): Promise<number> {
 }
 
 export async function buildBackupPayload(): Promise<BackupPayload> {
-  const [version, customers, mealCards, mealCardUsages, orders, expenseCategories, expenses] =
-    await Promise.all([
-      schemaVersion(),
-      select<CustomerRow>('SELECT * FROM customers ORDER BY id ASC'),
-      select<MealCardRow>('SELECT * FROM meal_cards ORDER BY id ASC'),
-      select<MealCardUsageRow>('SELECT * FROM meal_card_usages ORDER BY id ASC'),
-      select<OrderRow>('SELECT * FROM orders ORDER BY id ASC'),
-      select<ExpenseCategoryRow>('SELECT * FROM expense_categories ORDER BY id ASC'),
-      select<ExpenseRow>('SELECT * FROM expenses ORDER BY id ASC'),
-    ])
+  const [
+    version,
+    customers,
+    mealCards,
+    mealCardUsages,
+    orders,
+    expenseCategories,
+    expenses,
+    dailyMenus,
+    messageTemplates,
+    templateVersions,
+  ] = await Promise.all([
+    schemaVersion(),
+    select<CustomerRow>('SELECT * FROM customers ORDER BY id ASC'),
+    select<MealCardRow>('SELECT * FROM meal_cards ORDER BY id ASC'),
+    select<MealCardUsageRow>('SELECT * FROM meal_card_usages ORDER BY id ASC'),
+    select<OrderRow>('SELECT * FROM orders ORDER BY id ASC'),
+    select<ExpenseCategoryRow>('SELECT * FROM expense_categories ORDER BY id ASC'),
+    select<ExpenseRow>('SELECT * FROM expenses ORDER BY id ASC'),
+    select<DailyMenuRow>('SELECT * FROM daily_menus ORDER BY id ASC'),
+    select<MessageTemplateRow>('SELECT * FROM message_templates ORDER BY id ASC'),
+    select<TemplateVersionRow>('SELECT * FROM template_versions ORDER BY id ASC'),
+  ])
 
   return {
     version: BACKUP_VERSION,
@@ -104,6 +126,9 @@ export async function buildBackupPayload(): Promise<BackupPayload> {
     orders: orders as Order[],
     expense_categories: expenseCategories as ExpenseCategory[],
     expenses: expenses as Expense[],
+    daily_menus: dailyMenus as DailyMenu[],
+    message_templates: messageTemplates as MessageTemplate[],
+    template_versions: templateVersions as TemplateVersion[],
   }
 }
 
@@ -122,8 +147,15 @@ function ensureBackupPayload(value: unknown): BackupPayload {
   if (payload.meal_card_usages !== undefined && !Array.isArray(payload.meal_card_usages)) {
     throw new Error('备份文件版本不兼容或格式无效')
   }
+  const menuArrays = [payload.daily_menus, payload.message_templates, payload.template_versions]
+  if (menuArrays.some((item) => item !== undefined && !Array.isArray(item))) {
+    throw new Error('备份文件版本不兼容或格式无效')
+  }
   if (typeof payload.schema_version !== 'number') {
     throw new Error('备份文件版本不兼容或格式无效')
+  }
+  if (payload.schema_version >= 6 && menuArrays.some((item) => !Array.isArray(item))) {
+    throw new Error('备份文件缺少菜单或模板数据')
   }
   return payload as BackupPayload
 }
@@ -511,6 +543,9 @@ export async function importBackup(payload: BackupPayload): Promise<void> {
   }
 
   await tx(async () => {
+    await exec('DELETE FROM template_versions')
+    await exec('DELETE FROM message_templates')
+    await exec('DELETE FROM daily_menus')
     await exec('DELETE FROM meal_card_usages')
     await exec('DELETE FROM orders')
     await exec('DELETE FROM expenses')
@@ -638,12 +673,50 @@ export async function importBackup(payload: BackupPayload): Promise<void> {
       )
     }
 
+    for (const item of payload.daily_menus ?? []) {
+      await exec(
+        `INSERT INTO daily_menus (
+          id, menu_date, lunch_text, dinner_text, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          item.id,
+          item.menu_date,
+          item.lunch_text,
+          item.dinner_text,
+          item.created_at,
+          item.updated_at,
+        ],
+      )
+    }
+
+    for (const item of payload.message_templates ?? []) {
+      await exec(
+        `INSERT INTO message_templates (
+          id, name, body, is_default, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?)`,
+        [item.id, item.name, item.body, item.is_default, item.created_at, item.updated_at],
+      )
+    }
+
+    for (const item of payload.template_versions ?? []) {
+      await exec(
+        `INSERT INTO template_versions (id, template_id, name, body, created_at)
+        VALUES (?, ?, ?, ?, ?)`,
+        [item.id, item.template_id, item.name, item.body, item.created_at],
+      )
+    }
+
     await reconcileCompatiblePendingOrders()
+    await seedIfEmpty()
+    if (payload.schema_version < 6) await seedDefaultMessageTemplate()
   })
 }
 
 export async function clearAllData(): Promise<void> {
   await tx(async () => {
+    await exec('DELETE FROM template_versions')
+    await exec('DELETE FROM message_templates')
+    await exec('DELETE FROM daily_menus')
     await exec('DELETE FROM meal_card_usages')
     await exec('DELETE FROM orders')
     await exec('DELETE FROM expenses')
@@ -651,5 +724,6 @@ export async function clearAllData(): Promise<void> {
     await exec('DELETE FROM customers')
     await exec('DELETE FROM expense_categories')
     await seedIfEmpty()
+    await seedDefaultMessageTemplate()
   })
 }
