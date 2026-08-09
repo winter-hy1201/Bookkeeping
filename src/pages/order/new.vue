@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import CustomerPicker from '../../components/CustomerPicker.vue'
+import { usePageReturnSnapshot } from '../../composables/usePageReturnSnapshot'
 import {
   DeliveredOrderConflictError,
   InsufficientCardError,
@@ -42,6 +44,11 @@ interface OrderForm {
 }
 
 const orderStore = useOrderStore()
+const pageReturn = usePageReturnSnapshot({
+  mode: 'scroll-view',
+  containerSelector: '.form-scroll',
+  itemIdPrefix: 'order-new-return-item',
+})
 const formRef = ref<UniFormsRef | null>(null)
 const selectedCustomer = ref<Customer | null>(null)
 const existingOrder = ref<Order | null>(null)
@@ -296,12 +303,12 @@ function exitMixedPayment(): void {
 }
 
 function goCreateCustomer(): void {
-  uni.navigateTo({ url: '/pages/me/customers/new' })
+  void pageReturn.navigateTo({ url: '/pages/me/customers/new' })
 }
 
 function goExistingOrder(): void {
   if (!existingOrder.value) return
-  uni.navigateTo({ url: `/pages/order/detail?id=${existingOrder.value.id}` })
+  void pageReturn.navigateTo({ url: `/pages/order/detail?id=${existingOrder.value.id}` })
 }
 
 async function validateForm(): Promise<boolean> {
@@ -369,7 +376,9 @@ async function handleSaveError(error: unknown): Promise<void> {
       '已有订单的收款方式不同',
       `${error.message}。要先去修改已有订单吗？`,
     )
-    if (goEdit) uni.navigateTo({ url: `/pages/order/detail?id=${error.orderId}` })
+    if (goEdit) {
+      void pageReturn.navigateTo({ url: `/pages/order/detail?id=${error.orderId}` })
+    }
     return
   }
   if (error instanceof InsufficientCardError) {
@@ -433,11 +442,20 @@ async function save(): Promise<void> {
     saving.value = false
   }
 }
+
+onShow(() => {
+  void pageReturn.restoreOnShow()
+})
 </script>
 
 <template>
   <view class="page">
-    <scroll-view class="form-scroll" scroll-y>
+    <scroll-view
+      class="form-scroll"
+      scroll-y
+      :scroll-top="pageReturn.scrollTopValue"
+      @scroll="pageReturn.onScroll"
+    >
       <uni-forms
         ref="formRef"
         class="form"

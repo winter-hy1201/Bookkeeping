@@ -47,12 +47,14 @@
 | `docs/` | `archive/` 保留历史基线；`superpowers/specs/` 保留已批准的增量功能设计；根目录放当前 UI 规范与 AI 选型索引 | 新增/归档设计或协作指引时 |
 | `docs/design.md` | 盒记项目级 UI 设计规范：语义 token、按钮 / 状态 / 空态规则与页面验收清单；视觉改动前先读。 | 改动跨页面视觉语言、token 或 UI 验收标准时 |
 | `docs/uni-modules-ai-index.md` | 本地 `src/uni_modules` 的 AI 选型索引：45 个包的版本、场景、状态、边界、本地 README 与项目内用例；新增 / 重做 UI 先查。 | 增删 / 升级本地组件，或形成新的项目内用例时 |
+| `docs/adr/0001-in-memory-page-return-snapshots.md` | 页面返回现场采用页面实例级内存快照与共享 composable、拒绝全局缓存和持久化的架构决策。 | 返回现场的状态归属、生命周期或持久化边界变化时 |
 | `docs/superpowers/specs/2026-07-14-meal-card-recharge-records-design.md` | 次卡充值记录入口与总次数校正的已批准设计、数据边界和验收标准 | 该功能设计变更时 |
 | `docs/superpowers/specs/2026-07-14-customer-picker-pinyin-sort-design.md` | CustomerPicker 按客户姓名拼音分组并支持右侧索引跳转的已批准设计与验收标准 | 该分组索引行为变更时 |
 | `docs/superpowers/specs/2026-07-22-customer-picker-form-label-design.md` | CustomerPicker 的字段标签归属、调用页统一表单标签与验收标准 | 该标签归属或调用方式变更时 |
 | `docs/superpowers/specs/2026-07-14-customer-card-avatar-label-design.md` | 客户列表头像按当前可用次卡显示“次 / 普”的已批准设计与验收标准 | 该身份判定或展示变更时 |
 | `docs/superpowers/specs/2026-07-22-combined-payment-single-order-design.md` | 一餐一单、组合支付、次卡预占、合并改单价确认、schema v5 与备份兼容的已批准设计 | 该订单支付 / 合并规则变更时 |
 | `docs/superpowers/specs/2026-07-28-daily-menu-message-template-design.md` | 每日菜单、条件模板语法、版本历史、默认模板、备份与验收的已批准设计 | 菜单或社群文案工作流变更时 |
+| `docs/superpowers/specs/2026-08-09-page-return-snapshot-design.md` | 页面返回现场、滚动恢复、数据刷新、条目锚点、状态生命周期与验收边界的已批准设计。 | 返回现场的产品范围、交互规则或验收标准变化时 |
 | `.gitignore` | git 忽略规则（node_modules、dist、IDE 文件等） | 加新忽略项时 |
 | `index.html` | Vite H5 入口 HTML；`<script type="module" src="/src/main.ts">` | 几乎不改 |
 | `package.json` | 项目元数据 + scripts（dev / build / test / lint / format / type-check） | 加新脚本/依赖时 |
@@ -64,6 +66,7 @@
 | `tests/backup-v6.test.cjs` | Node 备份兼容测试：v5 无菜单数组仍可解析，v6 必须显式携带菜单、模板和版本数组（含空数组状态） | schema 或备份格式变化时 |
 | `tests/stats-timezone.test.cjs` | Node 内置回归测试：在 `Asia/Shanghai` 时区下验证 UTC 凌晨时间戳按设备本地日期计入首页次卡收入与日趋势 | 统计时区或次卡收入口径变化时 |
 | `tests/ui-style-preprocess.test.cjs` | Node 静态测试：扫描业务 Vue 样式块，使用 `$hej-*` token 时必须声明 `lang="scss"`，避免 token 原样输出使 App 回退默认样式 | token 样式页面变化时 |
+| `tests/page-return.test.cjs` | Node 纯函数回归：从生产 TypeScript 载入返回目标解析器，覆盖原像素、条目移动、删除后的下一 / 上一相邻项、空列表和无可测锚点。 | 页面返回现场的定位优先级变化时 |
 | `pnpm-lock.yaml` | pnpm 锁定文件（**不要**手动编辑） | pnpm install 后自动 |
 | `tsconfig.json` | TypeScript 配置；extends `@vue/tsconfig`，加 3 个 strict 选项；排除 `src/uni_modules` 第三方 uni-ui 源码 | 调整严格度时 |
 | `vite.config.ts` | Vite 配置；只注册 `uni()` 插件 | 加 Vite 插件时 |
@@ -106,6 +109,8 @@
 
 ### pages/ — 页面（uni-app 自动路由；Phase 7 已实现）
 
+所有通过 `navigateTo` 打开下级页面的可滚动父页面统一使用页面实例级返回快照：页面栈内返回时保留筛选 / 草稿 / 折叠并恢复滚动，列表页同时提供稳定条目锚点；内部 `scroll-view` 与原生页面滚动分别适配。产品与生命周期边界见 `docs/superpowers/specs/2026-08-09-page-return-snapshot-design.md`。
+
 | 文件 | 作用 |
 |---|---|
 | `src/pages/index/index.vue` | Tab 1「今日」Dashboard：增加社群菜单快捷入口；`onShow` 仍刷新 stats/order/customer store并展示订单、收支与三组今日订单，不改变配送流程。 |
@@ -137,6 +142,12 @@
 | `src/components/StatCard.vue` | 通用数字卡片；props 为 `label` / `value` / `color?: 'normal' \| 'positive' \| 'negative'` / `hint?`；上方展示 label，下方展示大号 value，可选 hint；利润 label 在未显式传 color 时按数值正负自动映射绿色/红色。 |
 | `src/components/AmountInput.vue` | 金额输入组件；props 为 `modelValue: number` / `label` / `placeholder?`；事件 `update:modelValue`；内部用 `uni-easyinput` 保留字符串输入态，使用 `parseMoney()` 将输入解析为 number 回传，模板提供 `¥` 前缀。 |
 | `src/components/CustomerPicker.vue` | 客户选择组件；props 为 `modelValue: Customer \| null` / `showCreate?`；事件 `update:modelValue` / `create`；字段标签由外层 `<uni-forms-item>` 负责，组件只展示已选客户或占位和选择入口；点击输入区打开底部选择弹层，内部用 `uni-easyinput` 支持按姓名、微信、手机号前端搜索；列表复用 `src/utils/pinyin.ts` 按姓名拼音排序和首字母分组，右侧 `index-bar` 可跳转到对应分组，并展示客户名和折扣角标。 |
+
+### composables/ — 页面交互复用
+
+| 文件 | 作用 |
+|---|---|
+| `src/composables/usePageReturnSnapshot.ts` | 页面实例级返回现场协调器：包装前进导航，记录内部 `scroll-view` 或原生页面滚动，返回时协调本地数据刷新、真实 offset 查询、像素 / 条目锚点恢复与同值滚动脉冲；状态随页面卸载自然释放，不写 Pinia、SQLite 或本地存储。 |
 
 ### stores/ — Pinia 状态
 
@@ -181,6 +192,7 @@
 | `src/utils/ui.ts` | 页面层小工具：toast / confirm / actionSheet、数值与状态文案、客户默认价提示，以及组合支付摘要和列表副标题拼接。 |
 | `src/utils/backup.ts` | JSON 全量备份恢复；v6 导入导出菜单、模板与版本历史，v1-v5 旧备份升级时补内置模板；v6 的空模板状态原样恢复，危险清空显式恢复内置模板。 |
 | `src/utils/pinyin.ts` | 客户姓名拼音工具：基于纯 JS `pinyin-pro`，使用姓氏优先模式把中文姓名转为无声调拼音 key、拼音首字母串和 A-Z / `#` 分组字母，并提供客户姓名排序函数；用于 Android App 端客户列表分组、索引和拼音搜索。 |
+| `src/utils/page-return.ts` | 页面返回现场的纯定位规则：记录离开前条目与相邻项；列表不变时返回原像素，结构变化时按原条目 → 下一项 → 上一项 → 顶部解析恢复目标。 |
 
 ### types/ — TS 类型
 
@@ -325,3 +337,4 @@
 - 2026-07-24：次卡收入本地日期修复（v1.16）—— `src/api/stats.ts` 用 SQLite `date(created_at, 'localtime')` 将 UTC 开卡时间按设备本地日期过滤和分组，避免凌晨开卡收入误归前一日；新增 `tests/stats-timezone.test.cjs` 保护首页收入 / 利润和日趋势。`pnpm test`（24 条）、`pnpm type-check`、`pnpm lint`、`pnpm build:h5` 通过，Android 真机待验证。
 - 2026-07-24：次卡开卡记录删除（v1.17）——只允许删除从未扣次的记录；`deleteCard()` 在同一事务内保护 usage / delivered 历史、pending 预占和外键引用，必要时把 pending 订单改绑到最早可用卡。充值记录页新增带明确影响确认的危险按钮，已扣次记录禁用。`pnpm test`（30 条）、`pnpm type-check`、`pnpm lint`、`pnpm build:h5` 通过，Android 真机待验证。
 - 2026-07-28：每日菜单与社群文案模板（v1.18）—— schema v6 新增每日菜单、唯一默认文案模板与编辑前版本历史；支持连续新增下一天、当前 / 历史菜单、缺餐条件区块渲染、默认模板复制、版本恢复和硬删除。今日 / 我的增加入口，备份与危险清空同步三张新表；自动化与 CLI 结果见 `CHANGELOG.md v1.18`，HBuilderX 真机待验证。
+- 2026-08-09：页面返回现场（v1.19）——新增页面实例级内存快照 composable 与纯定位规则，所有现有 `navigateTo` 父页面统一保留筛选 / 草稿 / 折叠和滚动；列表变化时按原条目、下一项、上一项兜底，订单拖拽复用既有受控滚动，客户字母索引在恢复前清空目标。新增 7 条定位回归，`pnpm type-check` / `pnpm lint` / `pnpm build:h5` 与 `git diff --check` 通过；全量测试 45/46，既有 schema 测试在 Windows 下因 sqlite3 CRLF 与 LF 期望不一致失败，Android 真机待验证。

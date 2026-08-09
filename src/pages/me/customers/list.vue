@@ -2,6 +2,7 @@
 import { computed, nextTick, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { listActiveMealCardCustomerIds } from '../../../api/meal-cards'
+import { usePageReturnSnapshot } from '../../../composables/usePageReturnSnapshot'
 import { useCustomerStore } from '../../../stores/customer'
 import type { Customer } from '../../../types/domain'
 import {
@@ -74,6 +75,16 @@ const sections = computed<CustomerSection[]>(() => {
 })
 
 const indexLetters = computed(() => sections.value.map((section) => section.letter))
+const pageReturn = usePageReturnSnapshot({
+  mode: 'scroll-view',
+  containerSelector: '.list',
+  itemIdPrefix: 'customer-return-item',
+  getItemKeys: () => filtered.value.map((customer) => customer.id),
+  beforeRestore: async () => {
+    scrollTarget.value = ''
+    await nextTick()
+  },
+})
 
 async function jumpTo(letter: string): Promise<void> {
   scrollTarget.value = ''
@@ -82,11 +93,14 @@ async function jumpTo(letter: string): Promise<void> {
 }
 
 function goNew(): void {
-  uni.navigateTo({ url: '/pages/me/customers/new' })
+  void pageReturn.navigateTo({ url: '/pages/me/customers/new' })
 }
 
 function goDetail(id: number): void {
-  uni.navigateTo({ url: `/pages/me/customers/detail?id=${id}` })
+  void pageReturn.navigateTo(
+    { url: `/pages/me/customers/detail?id=${id}` },
+    { anchorKey: id },
+  )
 }
 
 function avatarLabel(customerId: number): '次' | '普' {
@@ -117,7 +131,7 @@ async function refresh(): Promise<void> {
 }
 
 onShow(() => {
-  void refresh()
+  void pageReturn.restoreOnShow(refresh)
 })
 </script>
 
@@ -135,17 +149,14 @@ onShow(() => {
       <button class="add" @click="goNew">+</button>
     </view>
 
-    <view v-if="pageLoading" class="empty">客户加载中...</view>
-    <view v-else-if="loadFailed" class="empty">客户加载失败</view>
-    <view v-else-if="sections.length === 0" class="empty">
-      {{ keyword.trim() ? '未找到匹配客户' : '暂无客户' }}
-    </view>
     <scroll-view
-      v-else
+      v-if="sections.length > 0 && (!pageLoading || pageReturn.isReturningValue)"
       class="list"
       scroll-y
       :scroll-into-view="scrollTarget"
-      :scroll-with-animation="true"
+      :scroll-top="pageReturn.scrollTopValue"
+      :scroll-with-animation="Boolean(scrollTarget)"
+      @scroll="pageReturn.onScroll"
     >
       <view
         v-for="section in sections"
@@ -156,6 +167,7 @@ onShow(() => {
         <view class="section-title">{{ section.letter }}</view>
         <view
           v-for="customer in section.customers"
+          :id="pageReturn.itemId(customer.id)"
           :key="customer.id"
           class="item"
           @click="goDetail(customer.id)"
@@ -173,6 +185,11 @@ onShow(() => {
         </view>
       </view>
     </scroll-view>
+    <view v-else-if="pageLoading" class="empty">客户加载中...</view>
+    <view v-else-if="loadFailed" class="empty">客户加载失败</view>
+    <view v-else class="empty">
+      {{ keyword.trim() ? '未找到匹配客户' : '暂无客户' }}
+    </view>
 
     <view v-if="!pageLoading && !loadFailed && indexLetters.length > 0" class="index-bar">
       <text

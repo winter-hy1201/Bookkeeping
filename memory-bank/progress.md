@@ -1,8 +1,21 @@
 # 盒记 — 实施进度
 
 > v1.0 已发布（2026-06-11）。9 阶段 **61/63** 步完成，2 步按用户决策跳过（9.3 真机性能 / 9.4 Release APK 打包），用 HBuilderX 标准基座 debug APK 侧载替代。
-> 下一步：一并完成 v1.12–v1.18 真机回归（组合支付、预占、v4 → v6、备份往返、订单 UI，以及每日菜单 / 模板 / 剪贴板交互）。
+> 下一步：一并完成 v1.12–v1.19 真机回归（组合支付、预占、v4 → v6、备份往返、订单 UI、菜单 / 模板 / 剪贴板，以及返回现场与滚动恢复）。
 > 完整步骤与里程碑详见 `memory-bank/implementation-plan.md`（已通过 9 阶段实施基线）。
+
+---
+
+## 当前增量（页面返回现场）
+
+| Step | 内容 | 状态 |
+|---|---|---|
+| 16.1 | 返回现场规格、实例级内存快照 ADR 与测试接缝 | ✅ 2026-08-09 |
+| 16.2 | 返回目标解析器与共享 composable | ✅ 2026-08-09 |
+| 16.3 | 现有可滚动父页面接入与特殊滚动兼容 | ✅ 2026-08-09 |
+| 16.4 | 自动化 / CLI / HBuilderX 真机回归 | 🔄 新增 7 条定位回归、type-check、lint、H5 build 与 diff-check 通过；全量测试 45/46，既有 schema 测试受 Windows CRLF 影响；Android 真机待验证 |
+
+设计基线：`docs/superpowers/specs/2026-08-09-page-return-snapshot-design.md`
 
 ---
 
@@ -168,3 +181,4 @@
 - 2026-07-24：次卡收入本地日期修复（v1.16）—— `src/api/stats.ts` 不再直接截取 UTC `created_at`，改用 SQLite `date(created_at, 'localtime')` 按设备本地日期过滤和分组，修复凌晨 00:00–07:59 开卡金额误归前一日的问题；新增 `tests/stats-timezone.test.cjs` 覆盖首页与日趋势。`pnpm test`（24 条）、`pnpm type-check`、`pnpm lint`、`pnpm build:h5` 通过，Android 原生 SQLite 本地时区待 HBuilderX 真机验证。
 - 2026-07-24：次卡开卡记录删除（v1.17）——只允许删除从未扣次的记录；删除前保护 usage / delivered 历史和 pending 预占，引用该卡的 pending 订单按 FIFO 改绑，cancelled 订单清空引用，全部写入在同一事务内完成。充值记录页新增危险操作区、收入 / 次数影响确认、已扣次禁用态和页面级操作锁。`pnpm test`（30 条）、`pnpm type-check`、`pnpm lint`、`pnpm build:h5` 通过，Android 真机待验证。
 - 2026-07-28：每日菜单与社群文案模板（v1.18）—— schema v6 新增每日菜单、唯一默认文案模板与编辑前版本历史；支持连续新增下一天、当前 / 历史菜单、缺餐条件区块渲染、默认模板复制、版本恢复和硬删除。今日 / 我的增加入口，备份与危险清空同步三张新表；自动化与 CLI 结果见 `CHANGELOG.md v1.18`，HBuilderX 真机待验证。
+- 2026-08-09：页面返回现场（v1.19）——新增页面实例级内存快照 composable 与纯定位规则，所有现有 `navigateTo` 父页面统一保留筛选 / 草稿 / 折叠和滚动；列表变化时按原条目、下一项、上一项兜底，订单拖拽复用既有受控滚动，客户字母索引在恢复前清空目标。新增 7 条定位回归，`pnpm type-check` / `pnpm lint` / `pnpm build:h5` 与 `git diff --check` 通过；全量测试 45/46，既有 schema 测试在 Windows 下因 sqlite3 CRLF 与 LF 期望不一致失败，Android 真机待验证。

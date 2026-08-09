@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import StatCard from '../../components/StatCard.vue'
+import { usePageReturnSnapshot } from '../../composables/usePageReturnSnapshot'
 import { useCustomerStore } from '../../stores/customer'
 import { useOrderStore } from '../../stores/order'
 import { useStatsStore } from '../../stores/stats'
@@ -32,13 +33,18 @@ function totalQuantity(orders: Order[]): number {
 const pendingQuantity = computed(() => totalQuantity(pendingOrders.value))
 const deliveredQuantity = computed(() => totalQuantity(deliveredOrders.value))
 const cancelledQuantity = computed(() => totalQuantity(cancelledOrders.value))
+const pageReturn = usePageReturnSnapshot({
+  mode: 'scroll-view',
+  containerSelector: '.page',
+  itemIdPrefix: 'today-return-item',
+})
 
 function customerName(id: number): string {
   return customerStore.list.find((customer) => customer.id === id)?.name ?? `客户 #${id}`
 }
 
 function goDailyMenus(): void {
-  uni.navigateTo({ url: '/pages/me/menus/list' })
+  void pageReturn.navigateTo({ url: '/pages/me/menus/list' })
 }
 
 async function refresh(): Promise<void> {
@@ -54,12 +60,17 @@ async function refresh(): Promise<void> {
 }
 
 onShow(() => {
-  void refresh()
+  void pageReturn.restoreOnShow(refresh)
 })
 </script>
 
 <template>
-  <scroll-view class="page" scroll-y>
+  <scroll-view
+    class="page"
+    scroll-y
+    :scroll-top="pageReturn.scrollTopValue"
+    @scroll="pageReturn.onScroll"
+  >
     <view class="header">
       <text class="title">今日 · {{ formatDate(todayText) }}</text>
       <text class="subtitle">订单、收支和配送状态</text>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import { usePageReturnSnapshot } from '../../composables/usePageReturnSnapshot'
 import { useCustomerStore } from '../../stores/customer'
 import { useOrderStore } from '../../stores/order'
 import type { MealType, Order, OrderStatus } from '../../types/domain'
@@ -68,6 +69,13 @@ const dragItemHeightPx = computed(() => {
 })
 
 const displayedOrders = computed(() => dragOrders.value ?? orderStore.list)
+const pageReturn = usePageReturnSnapshot({
+  mode: 'scroll-view',
+  containerSelector: '.list',
+  itemIdPrefix: 'order-return-item',
+  scrollTop: listScrollTop,
+  getItemKeys: () => displayedOrders.value.map((order) => order.id),
+})
 
 const orderSections = computed<OrderSection[]>(() =>
   mealTypes.map((type) => {
@@ -90,6 +98,13 @@ const defaultOpenSections = computed(() =>
     .filter((section) => section.orders.length > 0 && !shouldCollapseCompletedLunch(section))
     .map((section) => section.type),
 )
+const openSections = ref<MealType[]>([])
+let openSectionsInitialized = false
+
+function resetOpenSections(): void {
+  openSections.value = [...defaultOpenSections.value]
+  openSectionsInitialized = true
+}
 
 function shouldCollapseCompletedLunch(section: OrderSection): boolean {
   return (
@@ -158,7 +173,7 @@ function unlockScroll(): void {
 
 function onListScroll(event: { detail: { scrollTop: number } }): void {
   // :scroll-top 受控模式下必须同步真实滚动位置，否则同值再设不触发
-  listScrollTop.value = event.detail.scrollTop
+  pageReturn.onScroll(event)
 }
 
 function stopEdgeAutoScroll(): void {
@@ -312,27 +327,33 @@ function isDragging(orderId: number): boolean {
 async function refresh(): Promise<void> {
   try {
     await Promise.all([orderStore.refreshForDate(orderStore.currentDate), customerStore.refresh()])
+    if (!openSectionsInitialized) resetOpenSections()
   } catch {
     uni.showToast({ title: '订单加载失败', icon: 'none' })
   }
 }
 
-function handleDateChange(value: string): void {
+async function handleDateChange(value: string): Promise<void> {
   const date = value || today()
-  void orderStore.refreshForDate(date)
+  try {
+    await orderStore.refreshForDate(date)
+    resetOpenSections()
+  } catch {
+    showToast('订单加载失败')
+  }
 }
 
 function goNew(): void {
-  uni.navigateTo({ url: '/pages/order/new' })
+  void pageReturn.navigateTo({ url: '/pages/order/new' })
 }
 
 function goDetail(id: number): void {
   if (dragState.value || Date.now() < dragClickBlockedUntil.value) return
-  uni.navigateTo({ url: `/pages/order/detail?id=${id}` })
+  void pageReturn.navigateTo({ url: `/pages/order/detail?id=${id}` }, { anchorKey: id })
 }
 
 onShow(() => {
-  void refresh()
+  void pageReturn.restoreOnShow(refresh)
 })
 </script>
 
@@ -349,7 +370,12 @@ onShow(() => {
       <button class="add-button" @click="goNew">+ 新建</button>
     </view>
 
-    <view v-if="orderStore.loading" class="empty empty--loading">订单加载中...</view>
+    <view
+      v-if="orderStore.loading && (!pageReturn.isReturningValue || orderStore.list.length === 0)"
+      class="empty empty--loading"
+    >
+      订单加载中...
+    </view>
     <view v-else-if="orderStore.list.length === 0" class="empty-state">
       <text class="empty-state-title">这一天还没有订单</text>
     </view>
@@ -363,7 +389,7 @@ onShow(() => {
       :show-scrollbar="false"
       @scroll="onListScroll"
     >
-      <uni-collapse :model-value="defaultOpenSections">
+      <uni-collapse v-model="openSections">
         <uni-collapse-item
           v-for="section in orderSections"
           :key="section.type"
@@ -381,6 +407,7 @@ onShow(() => {
             <view class="order-list">
               <view
                 v-for="(order, index) in section.orders"
+                :id="pageReturn.itemId(order.id)"
                 :key="order.id"
                 class="order-item"
                 :class="{

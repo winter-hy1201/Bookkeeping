@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import dayjs from 'dayjs'
+import { usePageReturnSnapshot } from '../../../composables/usePageReturnSnapshot'
 import {
   createDailyMenu,
   DailyMenuDateConflictError,
@@ -27,6 +28,11 @@ interface MenuForm {
 }
 
 const menuId = ref<number | null>(null)
+const pageReturn = usePageReturnSnapshot({
+  mode: 'scroll-view',
+  containerSelector: '.content',
+  itemIdPrefix: 'menu-edit-return-item',
+})
 const savedMenu = ref<DailyMenu | null>(null)
 const loading = ref(false)
 const saving = ref(false)
@@ -136,7 +142,7 @@ async function copySavedMenu(): Promise<void> {
     const template = await getDefaultMessageTemplate()
     if (!template) {
       const go = await confirmDialog('还没有默认模板', '请先新建或设置一个默认模板。')
-      if (go) uni.navigateTo({ url: '/pages/me/menu-templates/list' })
+      if (go) void pageReturn.navigateTo({ url: '/pages/me/menu-templates/list' })
       return
     }
     const text = renderMenuTemplate(template.body, {
@@ -174,11 +180,20 @@ onLoad((query) => {
   const id = Number(query?.id)
   if (Number.isFinite(id) && id > 0) void loadMenu(id)
 })
+
+onShow(() => {
+  void pageReturn.restoreOnShow()
+})
 </script>
 
 <template>
   <view class="page">
-    <scroll-view class="content" scroll-y>
+    <scroll-view
+      class="content"
+      scroll-y
+      :scroll-top="pageReturn.scrollTopValue"
+      @scroll="pageReturn.onScroll"
+    >
       <view v-if="loading" class="empty">菜单加载中...</view>
       <template v-else>
         <view class="intro">

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import dayjs from 'dayjs'
 import { computed, nextTick, reactive, ref, watch } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import CustomerPicker from '../../components/CustomerPicker.vue'
+import { usePageReturnSnapshot } from '../../composables/usePageReturnSnapshot'
 import { getCustomer } from '../../api/customers'
 import {
   DeliveredOrderConflictError,
@@ -47,6 +48,11 @@ interface EditOrderForm {
 }
 
 const orderStore = useOrderStore()
+const pageReturn = usePageReturnSnapshot({
+  mode: 'scroll-view',
+  containerSelector: '.page-scroll',
+  itemIdPrefix: 'order-detail-return-item',
+})
 const formRef = ref<UniFormsRef | null>(null)
 const order = ref<Order | null>(null)
 const customer = ref<Customer | null>(null)
@@ -290,12 +296,12 @@ function onQuantityChange(value: string | number): void {
 }
 
 function goCreateCustomer(): void {
-  uni.navigateTo({ url: '/pages/me/customers/new' })
+  void pageReturn.navigateTo({ url: '/pages/me/customers/new' })
 }
 
 function goTargetOrder(): void {
   if (!editTargetOrder.value) return
-  uni.navigateTo({ url: `/pages/order/detail?id=${editTargetOrder.value.id}` })
+  void pageReturn.navigateTo({ url: `/pages/order/detail?id=${editTargetOrder.value.id}` })
 }
 
 async function validateEditForm(): Promise<boolean> {
@@ -401,7 +407,9 @@ async function submitEditWithConfirmations(): Promise<Order | null> {
 async function handleEditError(error: unknown): Promise<void> {
   if (error instanceof OrderPaymentConflictError) {
     const goEdit = await confirmDialog('支付方式冲突', `${error.message}，是否查看目标订单？`)
-    if (goEdit) uni.navigateTo({ url: `/pages/order/detail?id=${error.orderId}` })
+    if (goEdit) {
+      void pageReturn.navigateTo({ url: `/pages/order/detail?id=${error.orderId}` })
+    }
     return
   }
   if (
@@ -517,11 +525,20 @@ onLoad((query) => {
     showToast('订单参数无效')
   }
 })
+
+onShow(() => {
+  void pageReturn.restoreOnShow()
+})
 </script>
 
 <template>
   <view class="page">
-    <scroll-view class="page-scroll" scroll-y>
+    <scroll-view
+      class="page-scroll"
+      scroll-y
+      :scroll-top="pageReturn.scrollTopValue"
+      @scroll="pageReturn.onScroll"
+    >
       <view class="page-content">
         <view v-if="loading" class="empty">正在读取订单...</view>
         <view v-else-if="!order" class="empty">订单不存在或已被删除</view>

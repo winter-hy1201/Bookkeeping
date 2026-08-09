@@ -1,12 +1,18 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import { usePageReturnSnapshot } from '../../../composables/usePageReturnSnapshot'
 import { useExpenseStore } from '../../../stores/expense'
 import type { Expense } from '../../../types/domain'
 import { formatMoney, subtractMoney } from '../../../utils/format'
 import { actionSheet, confirmDialog, showToast } from '../../../utils/ui'
 
 const expenseStore = useExpenseStore()
+const pageReturn = usePageReturnSnapshot({
+  mode: 'page',
+  itemIdPrefix: 'expense-return-item',
+  getItemKeys: () => expenseStore.list.map((expense) => expense.id),
+})
 
 const categoryById = computed(() => {
   const map = new Map<number, string>()
@@ -32,11 +38,14 @@ function onDateChange(value: string): void {
 }
 
 function goNew(): void {
-  uni.navigateTo({ url: '/pages/me/expenses/new' })
+  void pageReturn.navigateTo({ url: '/pages/me/expenses/new' })
 }
 
 function goDetail(id: number): void {
-  uni.navigateTo({ url: `/pages/me/expenses/detail?id=${id}` })
+  void pageReturn.navigateTo(
+    { url: `/pages/me/expenses/detail?id=${id}` },
+    { anchorKey: id },
+  )
 }
 
 function netExpenseAmount(expense: Expense): number {
@@ -57,7 +66,7 @@ async function onLongPress(id: number): Promise<void> {
 }
 
 onShow(() => {
-  void refresh()
+  void pageReturn.restoreOnShow(refresh)
 })
 </script>
 
@@ -80,6 +89,7 @@ onShow(() => {
       <text class="group-date">{{ expenseStore.currentDate }}</text>
       <view
         v-for="expense in expenseStore.list"
+        :id="pageReturn.itemId(expense.id)"
         :key="expense.id"
         class="item"
         @click="goDetail(expense.id)"

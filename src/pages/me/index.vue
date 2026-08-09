@@ -1,7 +1,19 @@
 <script setup lang="ts">
+import { onShow } from '@dcloudio/uni-app'
+import { usePageReturnSnapshot } from '../../composables/usePageReturnSnapshot'
+
+const pageReturn = usePageReturnSnapshot({
+  mode: 'page',
+  itemIdPrefix: 'me-return-item',
+})
+
 function go(url: string): void {
-  uni.navigateTo({ url })
+  void pageReturn.navigateTo({ url })
 }
+
+onShow(() => {
+  void pageReturn.restoreOnShow()
+})
 </script>
 
 <template>

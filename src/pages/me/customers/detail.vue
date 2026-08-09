@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
+import { usePageReturnSnapshot } from '../../../composables/usePageReturnSnapshot'
 import { getCustomer } from '../../../api/customers'
 import { listCards } from '../../../api/meal-cards'
 import { listOrders } from '../../../api/orders'
@@ -21,6 +22,11 @@ const customer = ref<Customer | null>(null)
 const cards = ref<MealCard[]>([])
 const orders = ref<Order[]>([])
 const loading = ref(false)
+const pageReturn = usePageReturnSnapshot({
+  mode: 'scroll-view',
+  containerSelector: '.page',
+  itemIdPrefix: 'customer-detail-return-item',
+})
 
 const activeCards = computed(() => cards.value.filter((item) => item.status === 'active'))
 const activeCardSummary = computed(() => {
@@ -59,18 +65,22 @@ async function refresh(): Promise<void> {
 
 function goEdit(): void {
   if (customerId.value !== null)
-    uni.navigateTo({ url: `/pages/me/customers/new?id=${customerId.value}` })
+    void pageReturn.navigateTo({ url: `/pages/me/customers/new?id=${customerId.value}` })
 }
 
 function goOpenCard(): void {
   if (customerId.value !== null) {
-    uni.navigateTo({ url: `/pages/me/customers/open-card?customerId=${customerId.value}` })
+    void pageReturn.navigateTo({
+      url: `/pages/me/customers/open-card?customerId=${customerId.value}`,
+    })
   }
 }
 
 function goCardRecords(): void {
   if (customerId.value !== null) {
-    uni.navigateTo({ url: `/pages/me/customers/card-records?customerId=${customerId.value}` })
+    void pageReturn.navigateTo({
+      url: `/pages/me/customers/card-records?customerId=${customerId.value}`,
+    })
   }
 }
 
@@ -101,12 +111,17 @@ onLoad((query) => {
 })
 
 onShow(() => {
-  void refresh()
+  void pageReturn.restoreOnShow(refresh)
 })
 </script>
 
 <template>
-  <scroll-view class="page" scroll-y>
+  <scroll-view
+    class="page"
+    scroll-y
+    :scroll-top="pageReturn.scrollTopValue"
+    @scroll="pageReturn.onScroll"
+  >
     <view v-if="loading" class="empty">加载中...</view>
     <view v-else-if="!customer" class="empty">客户不存在</view>
     <template v-else>

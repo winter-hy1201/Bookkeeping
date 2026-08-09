@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import dayjs from 'dayjs'
+import { usePageReturnSnapshot } from '../../../composables/usePageReturnSnapshot'
 import {
   deleteDailyMenu,
   listCurrentDailyMenus,
@@ -23,6 +24,12 @@ const actioningId = ref<number | null>(null)
 const visibleMenus = computed(() =>
   scope.value === 'current' ? currentMenus.value : historyMenus.value,
 )
+const pageReturn = usePageReturnSnapshot({
+  mode: 'scroll-view',
+  containerSelector: '.page',
+  itemIdPrefix: 'menu-return-item',
+  getItemKeys: () => visibleMenus.value.map((menu) => menu.id),
+})
 
 async function refresh(): Promise<void> {
   loading.value = true
@@ -41,16 +48,16 @@ async function refresh(): Promise<void> {
 }
 
 function goNew(): void {
-  uni.navigateTo({ url: '/pages/me/menus/edit' })
+  void pageReturn.navigateTo({ url: '/pages/me/menus/edit' })
 }
 
 function goEdit(id: number): void {
   if (actioningId.value !== null) return
-  uni.navigateTo({ url: `/pages/me/menus/edit?id=${id}` })
+  void pageReturn.navigateTo({ url: `/pages/me/menus/edit?id=${id}` }, { anchorKey: id })
 }
 
 function goTemplates(): void {
-  uni.navigateTo({ url: '/pages/me/menu-templates/list' })
+  void pageReturn.navigateTo({ url: '/pages/me/menu-templates/list' })
 }
 
 function dateText(value: string): string {
@@ -105,12 +112,17 @@ async function removeMenu(menu: DailyMenu): Promise<void> {
 }
 
 onShow(() => {
-  void refresh()
+  void pageReturn.restoreOnShow(refresh)
 })
 </script>
 
 <template>
-  <scroll-view class="page" scroll-y>
+  <scroll-view
+    class="page"
+    scroll-y
+    :scroll-top="pageReturn.scrollTopValue"
+    @scroll="pageReturn.onScroll"
+  >
     <view class="toolbar">
       <view>
         <text class="page-title">每日菜单</text>
@@ -149,7 +161,13 @@ onShow(() => {
     </view>
 
     <view v-else class="menu-list">
-      <view v-for="menu in visibleMenus" :key="menu.id" class="menu-card" @click="goEdit(menu.id)">
+      <view
+        v-for="menu in visibleMenus"
+        :id="pageReturn.itemId(menu.id)"
+        :key="menu.id"
+        class="menu-card"
+        @click="goEdit(menu.id)"
+      >
         <view class="menu-card__header">
           <text class="menu-date">{{ dateText(menu.menu_date) }}</text>
           <text class="menu-year">{{ menu.menu_date }}</text>

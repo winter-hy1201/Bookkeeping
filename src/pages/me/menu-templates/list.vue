@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import dayjs from 'dayjs'
+import { usePageReturnSnapshot } from '../../../composables/usePageReturnSnapshot'
 import {
   deleteMessageTemplate,
   listMessageTemplates,
@@ -13,6 +14,12 @@ import { actionSheet, confirmDialog, showToast } from '../../../utils/ui'
 const templates = ref<MessageTemplate[]>([])
 const loading = ref(false)
 const actioningId = ref<number | null>(null)
+const pageReturn = usePageReturnSnapshot({
+  mode: 'scroll-view',
+  containerSelector: '.page',
+  itemIdPrefix: 'template-return-item',
+  getItemKeys: () => templates.value.map((template) => template.id),
+})
 
 async function refresh(): Promise<void> {
   loading.value = true
@@ -26,17 +33,23 @@ async function refresh(): Promise<void> {
 }
 
 function goNew(): void {
-  uni.navigateTo({ url: '/pages/me/menu-templates/edit' })
+  void pageReturn.navigateTo({ url: '/pages/me/menu-templates/edit' })
 }
 
 function goEdit(id: number): void {
   if (actioningId.value !== null) return
-  uni.navigateTo({ url: `/pages/me/menu-templates/edit?id=${id}` })
+  void pageReturn.navigateTo(
+    { url: `/pages/me/menu-templates/edit?id=${id}` },
+    { anchorKey: id },
+  )
 }
 
 function goHistory(id: number): void {
   if (actioningId.value !== null) return
-  uni.navigateTo({ url: `/pages/me/menu-templates/history?id=${id}` })
+  void pageReturn.navigateTo(
+    { url: `/pages/me/menu-templates/history?id=${id}` },
+    { anchorKey: id },
+  )
 }
 
 async function makeDefault(template: MessageTemplate): Promise<void> {
@@ -81,12 +94,17 @@ async function remove(template: MessageTemplate): Promise<void> {
 }
 
 onShow(() => {
-  void refresh()
+  void pageReturn.restoreOnShow(refresh)
 })
 </script>
 
 <template>
-  <scroll-view class="page" scroll-y>
+  <scroll-view
+    class="page"
+    scroll-y
+    :scroll-top="pageReturn.scrollTopValue"
+    @scroll="pageReturn.onScroll"
+  >
     <view class="toolbar">
       <view>
         <text class="page-title">文案模板</text>
@@ -110,7 +128,12 @@ onShow(() => {
     </view>
 
     <view v-else class="template-list">
-      <view v-for="template in templates" :key="template.id" class="template-card">
+      <view
+        v-for="template in templates"
+        :id="pageReturn.itemId(template.id)"
+        :key="template.id"
+        class="template-card"
+      >
         <view class="template-header" @click="goEdit(template.id)">
           <view class="template-heading">
             <view class="name-row">

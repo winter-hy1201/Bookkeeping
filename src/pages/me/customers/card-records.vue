@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
+import { usePageReturnSnapshot } from '../../../composables/usePageReturnSnapshot'
 import { getCustomer } from '../../../api/customers'
 import {
   MealCardAlreadyUsedError,
@@ -19,6 +20,12 @@ const cards = ref<MealCard[]>([])
 const loading = ref(false)
 const operatingCardId = ref<number | null>(null)
 const deletingCardId = ref<number | null>(null)
+const pageReturn = usePageReturnSnapshot({
+  mode: 'scroll-view',
+  containerSelector: '.page',
+  itemIdPrefix: 'card-record-return-item',
+  getItemKeys: () => cards.value.map((card) => card.id),
+})
 
 function remainingMeals(card: MealCard): number {
   return card.total_meals - card.used_meals
@@ -47,9 +54,12 @@ async function refresh(): Promise<void> {
 
 function goEdit(card: MealCard): void {
   if (customerId.value === null || operatingCardId.value !== null) return
-  uni.navigateTo({
-    url: `/pages/me/customers/open-card?customerId=${customerId.value}&cardId=${card.id}`,
-  })
+  void pageReturn.navigateTo(
+    {
+      url: `/pages/me/customers/open-card?customerId=${customerId.value}&cardId=${card.id}`,
+    },
+    { anchorKey: card.id },
+  )
 }
 
 function showDeleteError(title: string, content: string): void {
@@ -106,12 +116,17 @@ onLoad((query) => {
 })
 
 onShow(() => {
-  void refresh()
+  void pageReturn.restoreOnShow(refresh)
 })
 </script>
 
 <template>
-  <scroll-view class="page" scroll-y>
+  <scroll-view
+    class="page"
+    scroll-y
+    :scroll-top="pageReturn.scrollTopValue"
+    @scroll="pageReturn.onScroll"
+  >
     <view class="hero">
       <text class="title">次卡充值记录</text>
       <text class="subtitle">{{ customer?.name ?? '客户' }} · 共 {{ cards.length }} 笔</text>
@@ -121,7 +136,13 @@ onShow(() => {
     <view v-else-if="!customer" class="empty">客户不存在</view>
     <view v-else-if="cards.length === 0" class="empty">暂无充值记录</view>
     <view v-else class="records">
-      <view v-for="card in cards" :key="card.id" class="record" @click="goEdit(card)">
+      <view
+        v-for="card in cards"
+        :id="pageReturn.itemId(card.id)"
+        :key="card.id"
+        class="record"
+        @click="goEdit(card)"
+      >
         <view class="record-head">
           <view>
             <text class="record-title">{{ formatMoney(card.amount) }}</text>
