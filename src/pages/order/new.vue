@@ -241,7 +241,7 @@ watch([() => form.quantity, () => form.payment_mode, () => form.meal_card_quanti
   cardOperationError.value = ''
 })
 
-async function refreshOrderContext(): Promise<void> {
+async function refreshOrderContext(): Promise<boolean> {
   const version = ++contextVersion
   const customer = selectedCustomer.value
   contextLoading.value = false
@@ -252,7 +252,7 @@ async function refreshOrderContext(): Promise<void> {
   availability.value = null
   if (!customer || !form.order_date || !form.meal_type) {
     form.actual_price = ''
-    return
+    return true
   }
 
   const defaultPrice = customerPrice(customer, form.meal_type)
@@ -264,7 +264,7 @@ async function refreshOrderContext(): Promise<void> {
     const matchedOrder = await findEffectiveOrder(customer.id, form.order_date, form.meal_type)
     const excludedIds = matchedOrder?.status === 'pending' ? [matchedOrder.id] : []
     const cardAvailability = await getMealCardAvailability(customer.id, excludedIds)
-    if (version !== contextVersion) return
+    if (version !== contextVersion) return false
 
     existingOrder.value = matchedOrder
     availability.value = cardAvailability
@@ -273,10 +273,12 @@ async function refreshOrderContext(): Promise<void> {
       form.actual_price = price == null ? '' : String(price)
     }
     contextReady.value = true
+    return true
   } catch {
-    if (version !== contextVersion) return
+    if (version !== contextVersion) return false
     contextError.value = '暂时无法确认这餐是否已有订单，请重新检查后再保存。'
     showToast('暂时无法确认订单信息')
+    return false
   } finally {
     if (version === contextVersion) contextLoading.value = false
   }
@@ -443,8 +445,23 @@ async function save(): Promise<void> {
   }
 }
 
+async function refreshOrderContextOnReturn(): Promise<boolean> {
+  const previousExistingOrder = existingOrder.value
+  const previousAvailability = availability.value
+  const previousContextReady = contextReady.value
+  const previousActualPrice = form.actual_price
+  const refreshed = await refreshOrderContext()
+  if (!refreshed) {
+    existingOrder.value = previousExistingOrder
+    availability.value = previousAvailability
+    contextReady.value = previousContextReady
+    form.actual_price = previousActualPrice
+  }
+  return refreshed
+}
+
 onShow(() => {
-  void pageReturn.restoreOnShow()
+  void pageReturn.restoreOnShow(refreshOrderContextOnReturn)
 })
 </script>
 

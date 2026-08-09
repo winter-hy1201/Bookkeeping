@@ -44,8 +44,8 @@ const cardProgress = computed(() => {
   return activeCardSummary.value.usedMeals / activeCardSummary.value.totalMeals
 })
 
-async function refresh(): Promise<void> {
-  if (customerId.value === null) return
+async function refresh(): Promise<boolean> {
+  if (customerId.value === null) return false
   loading.value = true
   try {
     const [customerResult, cardResult, orderResult] = await Promise.all([
@@ -56,8 +56,10 @@ async function refresh(): Promise<void> {
     customer.value = customerResult
     cards.value = cardResult
     orders.value = orderResult
+    return true
   } catch {
     showToast('客户详情加载失败')
+    return false
   } finally {
     loading.value = false
   }

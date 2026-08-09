@@ -36,6 +36,8 @@ export interface NavigateWithSnapshotOptions {
   anchorKey?: ReturnItemKey
 }
 
+export type PageReturnRefresh = () => Promise<boolean | void>
+
 function asRect(value: UniNamespace.NodeInfo | UniNamespace.NodeInfo[]): UniNamespace.NodeInfo | null {
   return Array.isArray(value) ? (value[0] ?? null) : value
 }
@@ -55,7 +57,7 @@ export function usePageReturnSnapshot(options: PageReturnOptions): {
     navigation: UniNamespace.NavigateToOptions,
     snapshotOptions?: NavigateWithSnapshotOptions,
   ) => Promise<void>
-  restoreOnShow: (refresh?: () => Promise<void>) => Promise<void>
+  restoreOnShow: (refresh?: PageReturnRefresh) => Promise<void>
 } {
   const instance = getCurrentInstance()
   const scrollTop = options.mode === 'scroll-view' && options.scrollTop ? options.scrollTop : ref(0)
@@ -217,7 +219,7 @@ export function usePageReturnSnapshot(options: PageReturnOptions): {
     }
   }
 
-  async function restoreOnShow(refresh?: () => Promise<void>): Promise<void> {
+  async function restoreOnShow(refresh?: PageReturnRefresh): Promise<void> {
     const snapshot = pendingSnapshot
     if (!snapshot) {
       await refresh?.()
@@ -228,7 +230,7 @@ export function usePageReturnSnapshot(options: PageReturnOptions): {
     if (refresh) uni.showLoading({ title: '刷新中...', mask: true })
 
     try {
-      await refresh?.()
+      const refreshSucceeded = (await refresh?.()) !== false
       await nextTick()
       await waitForLayout()
       await options.beforeRestore?.()
@@ -236,7 +238,7 @@ export function usePageReturnSnapshot(options: PageReturnOptions): {
 
       const target = resolvePageReturnTarget(snapshot, options.getItemKeys?.())
       await restoreTarget(target, snapshot)
-      pendingSnapshot = null
+      if (refreshSucceeded) pendingSnapshot = null
     } finally {
       if (refresh) uni.hideLoading()
       isReturning.value = false

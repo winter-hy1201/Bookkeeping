@@ -11,7 +11,7 @@
 - **已建文件**：`docs/archive/PRD-v1.0.md`、`CLAUDE.md`、`AGENTS.md`、`memory-bank/` 活文档、uni-app Vue 3 + Vite + TS 模板、9 张表 DDL + 迁移 + seed + integrity_check + tx() 工具、domain/api 类型、日期/金额/菜单模板/页面/备份工具、完整 API 层、4 个 Pinia store、3 个通用 UI 组件、uni-ui 表单组件、4 个 Tab 与关键子页、App.vue 全局 onError 兜底
 - **DB 状态**：v0 基线（`memory-bank/bookkeeping-v0.db`，CLI sqlite smoke-test 生成）；v1 阶段基线（`memory-bank/bookkeeping-v1.db`，Phase 8 真机 E2E 通过后归档，`user_version=1`）；当前 schema 版本为 6，新增每日菜单、文案模板和模板版本历史，v5 → v6 真机迁移待回归
 - **UI 基线**：v1.13 新增 `docs/design.md` 与 `$hej-*` 语义 token，并由样式预处理检查保护；订单空态、新建 / 编辑确认区和统计对账趋势已按该基线改造；今日页按用户反馈保留既有布局，HBuilderX 视觉回归待执行
-- **最后更新**：2026-07-28
+- **最后更新**：2026-08-09
 
 ---
 
@@ -147,7 +147,7 @@
 
 | 文件 | 作用 |
 |---|---|
-| `src/composables/usePageReturnSnapshot.ts` | 页面实例级返回现场协调器：包装前进导航，记录内部 `scroll-view` 或原生页面滚动，返回时协调本地数据刷新、真实 offset 查询、像素 / 条目锚点恢复与同值滚动脉冲；状态随页面卸载自然释放，不写 Pinia、SQLite 或本地存储。 |
+| `src/composables/usePageReturnSnapshot.ts` | 页面实例级返回现场协调器：包装前进导航，记录内部 `scroll-view` 或原生页面滚动，返回时协调本地数据刷新、真实 offset 查询、像素 / 条目锚点恢复与同值滚动脉冲；刷新失败仍恢复现场但不消费快照，状态随页面卸载自然释放，不写 Pinia、SQLite 或本地存储。 |
 
 ### stores/ — Pinia 状态
 
@@ -338,3 +338,4 @@
 - 2026-07-24：次卡开卡记录删除（v1.17）——只允许删除从未扣次的记录；`deleteCard()` 在同一事务内保护 usage / delivered 历史、pending 预占和外键引用，必要时把 pending 订单改绑到最早可用卡。充值记录页新增带明确影响确认的危险按钮，已扣次记录禁用。`pnpm test`（30 条）、`pnpm type-check`、`pnpm lint`、`pnpm build:h5` 通过，Android 真机待验证。
 - 2026-07-28：每日菜单与社群文案模板（v1.18）—— schema v6 新增每日菜单、唯一默认文案模板与编辑前版本历史；支持连续新增下一天、当前 / 历史菜单、缺餐条件区块渲染、默认模板复制、版本恢复和硬删除。今日 / 我的增加入口，备份与危险清空同步三张新表；自动化与 CLI 结果见 `CHANGELOG.md v1.18`，HBuilderX 真机待验证。
 - 2026-08-09：页面返回现场（v1.19）——新增页面实例级内存快照 composable 与纯定位规则，所有现有 `navigateTo` 父页面统一保留筛选 / 草稿 / 折叠和滚动；列表变化时按原条目、下一项、上一项兜底，订单拖拽复用既有受控滚动，客户字母索引在恢复前清空目标。新增 7 条定位回归，`pnpm type-check` / `pnpm lint` / `pnpm build:h5` 与 `git diff --check` 通过；全量测试 45/46，既有 schema 测试在 Windows 下因 sqlite3 CRLF 与 LF 期望不一致失败，Android 真机待验证。
+- 2026-08-09：v1.19 代码审查修复——订单新建 / 编辑表单返回后只刷新已有订单、目标订单和次卡可用量等辅助数据；刷新失败仍恢复滚动但保留快照，并回滚多 Store 的部分成功结果；订单相邻项按午餐 → 晚餐实际渲染顺序记录，客户次卡身份不在刷新前清空。定位测试 7/7、`pnpm type-check`、`pnpm lint`、`pnpm build:h5` 通过；全量测试仍为 45/46，唯一失败是既有 Windows sqlite3 CRLF 断言，Android 真机待验证。

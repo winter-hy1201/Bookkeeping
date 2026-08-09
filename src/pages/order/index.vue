@@ -69,14 +69,6 @@ const dragItemHeightPx = computed(() => {
 })
 
 const displayedOrders = computed(() => dragOrders.value ?? orderStore.list)
-const pageReturn = usePageReturnSnapshot({
-  mode: 'scroll-view',
-  containerSelector: '.list',
-  itemIdPrefix: 'order-return-item',
-  scrollTop: listScrollTop,
-  getItemKeys: () => displayedOrders.value.map((order) => order.id),
-})
-
 const orderSections = computed<OrderSection[]>(() =>
   mealTypes.map((type) => {
     const orders = displayedOrders.value.filter((order) => order.meal_type === type)
@@ -92,6 +84,15 @@ const orderSections = computed<OrderSection[]>(() =>
     }
   }),
 )
+
+const pageReturn = usePageReturnSnapshot({
+  mode: 'scroll-view',
+  containerSelector: '.list',
+  itemIdPrefix: 'order-return-item',
+  scrollTop: listScrollTop,
+  getItemKeys: () =>
+    orderSections.value.flatMap((section) => section.orders.map((order) => order.id)),
+})
 
 const defaultOpenSections = computed(() =>
   orderSections.value
@@ -324,13 +325,22 @@ function isDragging(orderId: number): boolean {
   return dragState.value?.orderId === orderId
 }
 
-async function refresh(): Promise<void> {
-  try {
-    await Promise.all([orderStore.refreshForDate(orderStore.currentDate), customerStore.refresh()])
-    if (!openSectionsInitialized) resetOpenSections()
-  } catch {
+async function refresh(): Promise<boolean> {
+  const previousOrders = [...orderStore.list]
+  const previousDate = orderStore.currentDate
+  const previousCustomers = [...customerStore.list]
+  const results = await Promise.allSettled([
+    orderStore.refreshForDate(orderStore.currentDate),
+    customerStore.refresh(),
+  ])
+  if (results.some((result) => result.status === 'rejected')) {
+    orderStore.$patch({ list: previousOrders, currentDate: previousDate })
+    customerStore.$patch({ list: previousCustomers })
     uni.showToast({ title: '订单加载失败', icon: 'none' })
+    return false
   }
+  if (!openSectionsInitialized) resetOpenSections()
+  return true
 }
 
 async function handleDateChange(value: string): Promise<void> {

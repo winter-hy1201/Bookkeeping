@@ -35,8 +35,8 @@ function cardStatusText(card: MealCard): string {
   return card.status === 'active' ? '使用中' : '已用完'
 }
 
-async function refresh(): Promise<void> {
-  if (customerId.value === null) return
+async function refresh(): Promise<boolean> {
+  if (customerId.value === null) return false
   loading.value = true
   try {
     const [customerResult, cardResult] = await Promise.all([
@@ -45,8 +45,10 @@ async function refresh(): Promise<void> {
     ])
     customer.value = customerResult
     cards.value = cardResult
+    return true
   } catch {
     showToast('充值记录加载失败')
+    return false
   } finally {
     loading.value = false
   }

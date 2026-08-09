@@ -31,7 +31,7 @@ const pageReturn = usePageReturnSnapshot({
   getItemKeys: () => visibleMenus.value.map((menu) => menu.id),
 })
 
-async function refresh(): Promise<void> {
+async function refresh(): Promise<boolean> {
   loading.value = true
   try {
     const [current, history] = await Promise.all([
@@ -40,8 +40,10 @@ async function refresh(): Promise<void> {
     ])
     currentMenus.value = current
     historyMenus.value = history
+    return true
   } catch {
     showToast('菜单加载失败')
+    return false
   } finally {
     loading.value = false
   }

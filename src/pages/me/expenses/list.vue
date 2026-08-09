@@ -22,15 +22,24 @@ const categoryById = computed(() => {
   return map
 })
 
-async function refresh(): Promise<void> {
-  try {
-    await Promise.all([
-      expenseStore.refreshCategories(),
-      expenseStore.refreshForDate(expenseStore.currentDate),
-    ])
-  } catch {
+async function refresh(): Promise<boolean> {
+  const previousCategories = [...expenseStore.categories]
+  const previousExpenses = [...expenseStore.list]
+  const previousDate = expenseStore.currentDate
+  const results = await Promise.allSettled([
+    expenseStore.refreshCategories(),
+    expenseStore.refreshForDate(expenseStore.currentDate),
+  ])
+  if (results.some((result) => result.status === 'rejected')) {
+    expenseStore.$patch({
+      categories: previousCategories,
+      list: previousExpenses,
+      currentDate: previousDate,
+    })
     showToast('支出加载失败')
+    return false
   }
+  return true
 }
 
 function onDateChange(value: string): void {

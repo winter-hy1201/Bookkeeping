@@ -107,22 +107,27 @@ function avatarLabel(customerId: number): '次' | '普' {
   return activeMealCardCustomerIds.value.has(customerId) ? '次' : '普'
 }
 
-async function refresh(): Promise<void> {
+async function refresh(): Promise<boolean> {
   const generation = ++refreshGeneration
+  const previousCustomers = [...customerStore.list]
+  const previousCustomerIds = activeMealCardCustomerIds.value
   pageLoading.value = true
   loadFailed.value = false
-  activeMealCardCustomerIds.value = new Set()
   try {
-    const [, customerIds] = await Promise.all([
+    const [customersResult, customerIdsResult] = await Promise.allSettled([
       customerStore.refresh(),
       listActiveMealCardCustomerIds(),
     ])
-    if (generation !== refreshGeneration) return
-    activeMealCardCustomerIds.value = new Set(customerIds)
-  } catch {
-    if (generation !== refreshGeneration) return
-    loadFailed.value = true
-    showToast('客户加载失败')
+    if (generation !== refreshGeneration) return false
+    if (customersResult.status === 'rejected' || customerIdsResult.status === 'rejected') {
+      customerStore.$patch({ list: previousCustomers })
+      activeMealCardCustomerIds.value = previousCustomerIds
+      loadFailed.value = true
+      showToast('客户加载失败')
+      return false
+    }
+    activeMealCardCustomerIds.value = new Set(customerIdsResult.value)
+    return true
   } finally {
     if (generation === refreshGeneration) {
       pageLoading.value = false

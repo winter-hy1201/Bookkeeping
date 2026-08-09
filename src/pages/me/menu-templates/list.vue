@@ -21,12 +21,14 @@ const pageReturn = usePageReturnSnapshot({
   getItemKeys: () => templates.value.map((template) => template.id),
 })
 
-async function refresh(): Promise<void> {
+async function refresh(): Promise<boolean> {
   loading.value = true
   try {
     templates.value = await listMessageTemplates()
+    return true
   } catch {
     showToast('模板加载失败')
+    return false
   } finally {
     loading.value = false
   }

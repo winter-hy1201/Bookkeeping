@@ -47,16 +47,25 @@ function goDailyMenus(): void {
   void pageReturn.navigateTo({ url: '/pages/me/menus/list' })
 }
 
-async function refresh(): Promise<void> {
-  try {
-    await Promise.all([
-      statsStore.refreshSummary(today()),
-      orderStore.refreshForDate(today()),
-      customerStore.refresh(),
-    ])
-  } catch {
+async function refresh(): Promise<boolean> {
+  const previousSummary = statsStore.summary
+  const previousRange = { ...statsStore.range }
+  const previousOrders = [...orderStore.list]
+  const previousOrderDate = orderStore.currentDate
+  const previousCustomers = [...customerStore.list]
+  const results = await Promise.allSettled([
+    statsStore.refreshSummary(today()),
+    orderStore.refreshForDate(today()),
+    customerStore.refresh(),
+  ])
+  if (results.some((result) => result.status === 'rejected')) {
+    statsStore.$patch({ summary: previousSummary, range: previousRange })
+    orderStore.$patch({ list: previousOrders, currentDate: previousOrderDate })
+    customerStore.$patch({ list: previousCustomers })
     uni.showToast({ title: '首页数据加载失败', icon: 'none' })
+    return false
   }
+  return true
 }
 
 onShow(() => {

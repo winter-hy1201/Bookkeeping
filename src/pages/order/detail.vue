@@ -264,13 +264,13 @@ function cancelEdit(): void {
   editAvailability.value = null
 }
 
-async function refreshEditContext(): Promise<void> {
+async function refreshEditContext(): Promise<boolean> {
   const version = ++editContextVersion
   const current = order.value
   const selected = selectedCustomer.value
   editTargetOrder.value = null
   editAvailability.value = null
-  if (!current || !selected || !form.order_date || !form.meal_type) return
+  if (!current || !selected || !form.order_date || !form.meal_type) return true
 
   editContextLoading.value = true
   try {
@@ -280,15 +280,28 @@ async function refreshEditContext(): Promise<void> {
     const excludedIds = [current.id]
     if (target?.status === 'pending') excludedIds.push(target.id)
     const availability = await getMealCardAvailability(selected.id, excludedIds)
-    if (version !== editContextVersion) return
+    if (version !== editContextVersion) return false
     editTargetOrder.value = target
     editAvailability.value = availability
+    return true
   } catch {
-    if (version !== editContextVersion) return
+    if (version !== editContextVersion) return false
     showToast('订单校验信息加载失败')
+    return false
   } finally {
     if (version === editContextVersion) editContextLoading.value = false
   }
+}
+
+async function refreshEditContextOnReturn(): Promise<boolean> {
+  const previousTargetOrder = editTargetOrder.value
+  const previousAvailability = editAvailability.value
+  const refreshed = await refreshEditContext()
+  if (!refreshed) {
+    editTargetOrder.value = previousTargetOrder
+    editAvailability.value = previousAvailability
+  }
+  return refreshed
 }
 
 function onQuantityChange(value: string | number): void {
@@ -527,7 +540,7 @@ onLoad((query) => {
 })
 
 onShow(() => {
-  void pageReturn.restoreOnShow()
+  void pageReturn.restoreOnShow(refreshEditContextOnReturn)
 })
 </script>
 
