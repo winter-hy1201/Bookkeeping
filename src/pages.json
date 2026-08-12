@@ -116,6 +116,24 @@
       }
     },
     {
+      "path": "pages/me/meal-card-templates/list",
+      "style": {
+        "navigationBarTitleText": "月卡文案模板"
+      }
+    },
+    {
+      "path": "pages/me/meal-card-templates/edit",
+      "style": {
+        "navigationBarTitleText": "新建月卡模板"
+      }
+    },
+    {
+      "path": "pages/me/meal-card-templates/history",
+      "style": {
+        "navigationBarTitleText": "月卡模板历史"
+      }
+    },
+    {
       "path": "pages/me/settings/backup",
       "style": {
         "navigationBarTitleText": "备份恢复"

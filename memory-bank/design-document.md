@@ -1,6 +1,6 @@
 # 盒记 — 产品设计文档
 
-> 基于 PRD v1.0 持续维护；最近更新：2026-07-22 组合支付 / 一餐一单 / 次卡预占
+> 基于 PRD v1.0 持续维护；最近更新：2026-08-12 月卡信息复制与独立文案模板
 
 ---
 
@@ -56,6 +56,7 @@
 [Tab 4] 我的
    ├─ 菜单管理 → 当前 / 未来菜单、历史菜单、新增 / 编辑 / 删除 / 复制
    ├─ 文案模板 → 默认模板、编辑、删除、历史版本与恢复
+   ├─ 月卡文案模板 → 默认模板、编辑、删除、历史版本与恢复
    ├─ 客户管理
    │   ├─ 客户列表
    │   ├─ [+] 新建客户
@@ -208,6 +209,30 @@ CREATE TABLE template_versions (
   created_at TEXT NOT NULL,
   FOREIGN KEY (template_id) REFERENCES message_templates(id) ON DELETE CASCADE
 );
+
+-- 月卡信息文案模板（与菜单文案模板独立）
+CREATE TABLE meal_card_message_templates (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL UNIQUE,
+  body TEXT NOT NULL,
+  is_default INTEGER NOT NULL DEFAULT 0 CHECK (is_default IN (0, 1)),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX idx_meal_card_message_templates_single_default
+  ON meal_card_message_templates(is_default) WHERE is_default = 1;
+
+-- 月卡模板编辑前快照
+CREATE TABLE meal_card_template_versions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  template_id INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  body TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (template_id) REFERENCES meal_card_message_templates(id) ON DELETE CASCADE
+);
+CREATE INDEX idx_meal_card_template_versions_template
+  ON meal_card_template_versions(template_id, created_at DESC, id DESC);
 ```
 
 ### 2.2 设计点说明
@@ -263,6 +288,11 @@ CREATE TABLE template_versions (
 - 菜单和模板均硬删除；模板删除通过 `ON DELETE CASCADE` 同步删除版本历史。
 - 完整模板语法、缺餐区块渲染、导航和验收见 `docs/superpowers/specs/2026-07-28-daily-menu-message-template-design.md`。
 
+**月卡信息文案模板**：
+- `meal_card_message_templates` 与菜单模板独立维护，各自至多一个默认模板；套餐描述直接写在正文中并可编辑，不从某张次卡自动推导，也不使用套餐变量。
+- 月卡模板必须包含 `{{本次使用份数}}` 和 `{{当前可用份数}}`，不允许其他占位符；每次实际修改前写入 `meal_card_template_versions`，恢复不改变默认状态。
+- 月卡复制只对已配送且 `meal_card_quantity > 0` 的订单开放；当前可用份数按配送后客户 active 次卡余额减去其他 pending 订单预占计算。
+
 ### 2.3 初始化数据（首次启动 seed）
 
 ```sql
@@ -274,7 +304,7 @@ INSERT INTO expense_categories (name, icon, sort_order, is_default) VALUES
   ('其他', '💰', 5, 1);
 ```
 
-schema v6 迁移时若模板表为空，插入“日常午晚餐”默认模板。该动作只发生在迁移或危险清空，不在每次启动时重复执行，用户可以主动删除最后一个模板。
+schema v6 迁移时若菜单模板表为空，插入“日常午晚餐”默认模板；schema v7 迁移时若月卡模板表为空，插入“月卡信息”默认模板。两个动作只发生在对应迁移或危险清空，不在每次启动时重复执行，用户可以主动删除最后一个对应类型的模板。
 
 ---
 
@@ -396,6 +426,8 @@ schema v6 迁移时若模板表为空，插入“日常午晚餐”默认模板�
 
 注：配送完成后会自动排到订单列表中同日同餐次的最后一位；该行为复用 `orders.sort_order`，不影响金额、统计或次卡扣次口径。
 
+配送成功后详情页保留在当前页面，并用事务返回的最新订单刷新状态。若订单实际使用次卡，详情页显示“复制月卡信息”；复制时读取默认月卡模板，将 `{{本次使用份数}}` 替换为 `meal_card_quantity`，将 `{{当前可用份数}}` 替换为配送后的客户可用余额。没有默认月卡模板时提示先维护模板并提供跳转入口。
+
 **异常分支（配送时余额意外不足）**：
 - 订单状态、排序、已写 usage 与任何部分扣次全部随事务回滚
 - 弹窗展示“订单需要 N 次，当前可用 M 次”，提供“去编辑支付”入口
@@ -411,7 +443,7 @@ schema v6 迁移时若模板表为空，插入“日常午晚餐”默认模板�
       {
         "version": "1.0",
         "exported_at": "2026-06-09T22:00:00Z",
-        "schema_version": 6,
+        "schema_version": 7,
         "customers": [...],
         "meal_cards": [...],
         "orders": [...],
@@ -420,7 +452,9 @@ schema v6 迁移时若模板表为空，插入“日常午晚餐”默认模板�
         "expenses": [...],
         "daily_menus": [...],
         "message_templates": [...],
-        "template_versions": [...]
+        "template_versions": [...],
+        "meal_card_message_templates": [...],
+        "meal_card_template_versions": [...]
       }
    2. plus.io 写入应用沙盒：`_doc/backup_YYYYMMDD_HHmmss.json`
    3. 复制一份到 `_downloads/backup_YYYYMMDD_HHmmss.json`
@@ -435,10 +469,10 @@ schema v6 迁移时若模板表为空，插入“日常午晚餐”默认模板�
       - 粘贴 JSON 文本
       - 从 `_doc/backup_*.json` 已保存备份列表选择
       - 从本地 JSON 文件选择器读取（Android App 端用系统 Intent；其他端 fallback 到 `uni.chooseFile`）
-   2. 解析 JSON + 校验 schema_version：当前 v6 直接导入；v1-v5 补齐缺失字段并按 v6 规则升级；无效或高于当前版本时报错"备份文件版本不兼容"
+   2. 解析 JSON + 校验 schema_version：当前 v7 直接导入；v1-v6 补齐缺失字段并按 v7 规则升级；无效或高于当前版本时报错"备份文件版本不兼容"
    3. 二次确认："导入将覆盖所有现有数据，无法恢复。是否继续？"
    4. 事务：
-      DELETE FROM template_versions / message_templates / daily_menus / meal_card_usages / orders / expenses / meal_cards / customers / expense_categories
+      DELETE FROM meal_card_template_versions / meal_card_message_templates / template_versions / message_templates / daily_menus / meal_card_usages / orders / expenses / meal_cards / customers / expense_categories
       INSERT 新数据
    5. 提示"导入成功，请重启 App 刷新缓存"
 ```
@@ -450,11 +484,11 @@ schema v6 迁移时若模板表为空，插入“日常午晚餐”默认模板�
    1. 三次确认
    2. 事务：
       DELETE menus / templates / orders / expenses / meal_cards / customers / expense_categories
-      重新 seed 内置文案模板和 5 个默认支出分类
+重新 seed 内置菜单文案模板、月卡文案模板和 5 个默认支出分类
    3. 提示"已清空"
 ```
 
-注：默认支出分类和内置文案模板是系统参考数据。清空后恢复二者；普通启动不会重新生成用户主动删除的最后一个模板。
+注：默认支出分类、菜单文案模板和月卡文案模板是系统参考数据。清空后恢复三者；普通启动不会重新生成用户主动删除的最后一个对应类型模板。
 
 ### 4.5 开次卡
 

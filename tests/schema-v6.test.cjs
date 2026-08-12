@@ -25,6 +25,8 @@ const {
   SCHEMA_DAILY_MENUS,
   SCHEMA_MESSAGE_TEMPLATES,
   SCHEMA_TEMPLATE_VERSIONS,
+  SCHEMA_MEAL_CARD_MESSAGE_TEMPLATES,
+  SCHEMA_MEAL_CARD_TEMPLATE_VERSIONS,
 } = require('../src/db/schema.ts')
 
 function sqlite(sql) {
@@ -33,14 +35,14 @@ function sqlite(sql) {
   try {
     const result = spawnSync('sqlite3', [dbPath], { input: sql, encoding: 'utf8' })
     assert.equal(result.status, 0, result.stderr)
-    return result.stdout.trim()
+    return result.stdout.trim().replace(/\r\n/g, '\n')
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
 }
 
-test('fresh schema v5 stores a non-negative meal-card allocation', () => {
-  assert.equal(CURRENT_SCHEMA_VERSION, 6)
+test('current schema keeps a non-negative meal-card allocation', () => {
+  assert.equal(CURRENT_SCHEMA_VERSION, 7)
   assert.match(
     SCHEMA_ORDERS,
     /meal_card_quantity INTEGER NOT NULL DEFAULT 0 CHECK \(meal_card_quantity >= 0\)/,
@@ -58,7 +60,7 @@ test('fresh schema v5 stores a non-negative meal-card allocation', () => {
   assert.equal(output, '1')
 })
 
-test('fresh schema v6 enforces one menu per date, unique template names, and one default', () => {
+test('fresh schema v6 menu tables enforce unique dates, names, and one default', () => {
   const output = sqlite(`
     PRAGMA foreign_keys = ON;
     ${SCHEMA_DAILY_MENUS}
@@ -79,6 +81,26 @@ test('fresh schema v6 enforces one menu per date, unique template names, and one
     SELECT (SELECT COUNT(*) FROM daily_menus) || ':' ||
       (SELECT COUNT(*) FROM message_templates) || ':' ||
       (SELECT COUNT(*) FROM message_templates WHERE is_default = 1);
+  `)
+  assert.equal(output, '1:1:1')
+})
+
+test('fresh schema v7 enforces independent monthly card templates and one default', () => {
+  const output = sqlite(`
+    PRAGMA foreign_keys = ON;
+    ${SCHEMA_MEAL_CARD_MESSAGE_TEMPLATES}
+    ${SCHEMA_MEAL_CARD_TEMPLATE_VERSIONS}
+    INSERT INTO meal_card_message_templates (name, body, is_default, created_at, updated_at)
+      VALUES ('月卡', 'body', 1, 'now', 'now');
+    INSERT OR IGNORE INTO meal_card_message_templates (name, body, is_default, created_at, updated_at)
+      VALUES ('月卡', 'duplicate name', 0, 'later', 'later');
+    INSERT OR IGNORE INTO meal_card_message_templates (name, body, is_default, created_at, updated_at)
+      VALUES ('另一个月卡', 'body', 1, 'later', 'later');
+    INSERT INTO meal_card_template_versions (template_id, name, body, created_at)
+      VALUES (1, '月卡', 'old body', 'now');
+    SELECT (SELECT COUNT(*) FROM meal_card_message_templates) || ':' ||
+      (SELECT COUNT(*) FROM meal_card_message_templates WHERE is_default = 1) || ':' ||
+      (SELECT COUNT(*) FROM meal_card_template_versions);
   `)
   assert.equal(output, '1:1:1')
 })
@@ -106,9 +128,11 @@ test('migration list appends the v5 column without rewriting prior migrations', 
   assert.equal(output, '1:2\n2:0')
 })
 
-test('migration list appends the v6 menu and template tables', () => {
+test('migration list appends the v6 menu and v7 monthly template tables', () => {
   const source = readFileSync(join(__dirname, '../src/db/migrations.ts'), 'utf8')
   assert.match(source, /SCHEMA_DAILY_MENUS/)
   assert.match(source, /SCHEMA_MESSAGE_TEMPLATES/)
   assert.match(source, /SCHEMA_TEMPLATE_VERSIONS/)
+  assert.match(source, /SCHEMA_MEAL_CARD_MESSAGE_TEMPLATES/)
+  assert.match(source, /SCHEMA_MEAL_CARD_TEMPLATE_VERSIONS/)
 })

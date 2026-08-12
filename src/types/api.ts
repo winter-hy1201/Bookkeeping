@@ -3,6 +3,8 @@ import type {
   Expense,
   ExpenseCategory,
   MealCard,
+  MealCardMessageTemplate,
+  MealCardTemplateVersion,
   MealType,
   Order,
   OrderStatus,
@@ -88,6 +90,11 @@ export interface SaveMessageTemplateInput {
   body: string
 }
 
+export interface SaveMealCardMessageTemplateInput {
+  name: string
+  body: string
+}
+
 export type UpdateExpenseInput = CreateExpenseInput
 
 export interface ListExpensesInput {
@@ -128,3 +135,5 @@ export type MealCardResult = MealCard
 export type OrderResult = Order
 export type ExpenseCategoryResult = ExpenseCategory
 export type ExpenseResult = Expense
+export type MealCardMessageTemplateResult = MealCardMessageTemplate
+export type MealCardTemplateVersionResult = MealCardTemplateVersion

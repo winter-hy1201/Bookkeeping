@@ -37,6 +37,34 @@ test('accepts a legacy v5 backup without menu arrays', () => {
   assert.equal(payload.daily_menus, undefined)
 })
 
+test('requires monthly template arrays in a v7 backup', () => {
+  assert.throws(
+    () =>
+      parseBackupText(
+        JSON.stringify({
+          ...basePayload(7),
+          daily_menus: [],
+          message_templates: [],
+          template_versions: [],
+        }),
+      ),
+    /月卡模板数据/,
+  )
+
+  const payload = parseBackupText(
+    JSON.stringify({
+      ...basePayload(7),
+      daily_menus: [],
+      message_templates: [],
+      template_versions: [],
+      meal_card_message_templates: [],
+      meal_card_template_versions: [],
+    }),
+  )
+  assert.deepEqual(payload.meal_card_message_templates, [])
+  assert.deepEqual(payload.meal_card_template_versions, [])
+})
+
 test('requires menu, template, and version arrays in a v6 backup', () => {
   assert.throws(
     () => parseBackupText(JSON.stringify(basePayload(6))),

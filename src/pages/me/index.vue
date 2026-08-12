@@ -31,6 +31,10 @@ onShow(() => {
         <view><text class="menu-title">文案模板</text><text class="menu-sub">默认模板、条件区块、历史版本</text></view>
         <text class="arrow">›</text>
       </view>
+      <view class="menu-item" @click="go('/pages/me/meal-card-templates/list')">
+        <view><text class="menu-title">月卡文案模板</text><text class="menu-sub">月卡说明、次数占位符、历史版本</text></view>
+        <text class="arrow">›</text>
+      </view>
       <view class="menu-item" @click="go('/pages/me/customers/list')">
         <view><text class="menu-title">客户管理</text><text class="menu-sub">客户档案、历史订单、次卡</text></view>
         <text class="arrow">›</text>

@@ -5,6 +5,7 @@ import { onLoad, onShow } from '@dcloudio/uni-app'
 import CustomerPicker from '../../components/CustomerPicker.vue'
 import { usePageReturnSnapshot } from '../../composables/usePageReturnSnapshot'
 import { getCustomer } from '../../api/customers'
+import { getDefaultMealCardMessageTemplate } from '../../api/meal-card-templates'
 import {
   DeliveredOrderConflictError,
   InsufficientCardError,
@@ -18,6 +19,7 @@ import { useOrderStore } from '../../stores/order'
 import type { MealCardAvailabilityResult } from '../../types/api'
 import type { Customer, MealType, Order, PaymentMethod } from '../../types/domain'
 import { formatMoney, multiplyMoney, parseMoney, roundMoney } from '../../utils/format'
+import { renderMealCardTemplate } from '../../utils/meal-card-template'
 import type { OrderPaymentMode } from '../../utils/order-rules'
 import {
   confirmDialog,
@@ -58,6 +60,7 @@ const loading = ref(false)
 const editing = ref(false)
 const saving = ref(false)
 const actioning = ref(false)
+const copyingMealCard = ref(false)
 const selectedCustomer = ref<Customer | null>(null)
 const editTargetOrder = ref<Order | null>(null)
 const editAvailability = ref<MealCardAvailabilityResult | null>(null)
@@ -509,13 +512,55 @@ function copyOrderInfo(): void {
   })
 }
 
+async function copyMealCardInfo(): Promise<void> {
+  const current = order.value
+  if (
+    !current ||
+    current.status !== 'delivered' ||
+    current.meal_card_quantity <= 0 ||
+    copyingMealCard.value
+  ) {
+    return
+  }
+
+  copyingMealCard.value = true
+  try {
+    const template = await getDefaultMealCardMessageTemplate()
+    if (!template) {
+      const goMaintain = await confirmDialog(
+        '还没有默认月卡模板',
+        '请先维护一个默认月卡模板，才能复制月卡信息。是否现在去维护？',
+      )
+      if (goMaintain) {
+        void pageReturn.navigateTo({ url: '/pages/me/meal-card-templates/list' })
+      }
+      return
+    }
+
+    const availability = await getMealCardAvailability(current.customer_id)
+    const text = renderMealCardTemplate(template.body, {
+      usedMeals: current.meal_card_quantity,
+      availableMeals: availability.available,
+    })
+    uni.setClipboardData({
+      data: text,
+      success: () => showToast('月卡信息已复制'),
+      fail: () => showToast('月卡信息复制失败'),
+    })
+  } catch {
+    showToast('月卡信息生成失败')
+  } finally {
+    copyingMealCard.value = false
+  }
+}
+
 async function markDelivered(): Promise<void> {
   if (!order.value || actioning.value) return
   actioning.value = true
   try {
-    await orderStore.markDelivered(order.value.id)
+    const updated = await orderStore.markDelivered(order.value.id)
+    order.value = updated
     showToast('已标记配送')
-    uni.navigateBack()
   } catch (error) {
     if (error instanceof InsufficientCardError) {
       const goEdit = await confirmDialog('次卡次数不足', `${error.message}，是否去编辑支付？`)
@@ -798,6 +843,14 @@ onShow(() => {
             <view class="actions">
               <button class="secondary" :disabled="actioning" @click="copyOrderInfo">
                 复制信息
+              </button>
+              <button
+                v-if="order.status === 'delivered' && order.meal_card_quantity > 0"
+                class="secondary"
+                :disabled="actioning || copyingMealCard"
+                @click="copyMealCardInfo"
+              >
+                {{ copyingMealCard ? '生成中...' : '复制月卡信息' }}
               </button>
               <button
                 v-if="order.status === 'pending'"

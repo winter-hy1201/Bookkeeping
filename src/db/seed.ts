@@ -11,6 +11,10 @@
 
 import { exec, select } from './index'
 import { DEFAULT_MENU_TEMPLATE_BODY, DEFAULT_MENU_TEMPLATE_NAME } from '../utils/menu-template'
+import {
+  DEFAULT_MEAL_CARD_TEMPLATE_BODY,
+  DEFAULT_MEAL_CARD_TEMPLATE_NAME,
+} from '../utils/meal-card-template'
 
 interface DefaultCategory {
   name: string
@@ -36,6 +40,19 @@ export async function seedDefaultMessageTemplate(): Promise<void> {
     `INSERT INTO message_templates (name, body, is_default, created_at, updated_at)
     VALUES (?, ?, 1, ?, ?)`,
     [DEFAULT_MENU_TEMPLATE_NAME, DEFAULT_MENU_TEMPLATE_BODY, now, now],
+  )
+}
+
+export async function seedDefaultMealCardMessageTemplate(): Promise<void> {
+  const templateRows = await select<{ cnt: number }>(
+    'SELECT COUNT(*) as cnt FROM meal_card_message_templates;',
+  )
+  if ((templateRows[0]?.cnt ?? 0) > 0) return
+  const now = new Date().toISOString()
+  await exec(
+    `INSERT INTO meal_card_message_templates (name, body, is_default, created_at, updated_at)
+    VALUES (?, ?, 1, ?, ?)`,
+    [DEFAULT_MEAL_CARD_TEMPLATE_NAME, DEFAULT_MEAL_CARD_TEMPLATE_BODY, now, now],
   )
 }
 

@@ -1,6 +1,10 @@
 import { exec, select, tx, type PlusSqliteRow } from '../db'
 import { reconcileCompatiblePendingOrders } from '../db/migrations'
-import { seedDefaultMessageTemplate, seedIfEmpty } from '../db/seed'
+import {
+  seedDefaultMealCardMessageTemplate,
+  seedDefaultMessageTemplate,
+  seedIfEmpty,
+} from '../db/seed'
 import type {
   Customer,
   DailyMenu,
@@ -11,6 +15,8 @@ import type {
   Order,
   MessageTemplate,
   TemplateVersion,
+  MealCardMessageTemplate,
+  MealCardTemplateVersion,
 } from '../types/domain'
 
 const BACKUP_VERSION = '1.0'
@@ -28,6 +34,8 @@ interface BackupPayload {
   daily_menus?: DailyMenu[]
   message_templates?: MessageTemplate[]
   template_versions?: TemplateVersion[]
+  meal_card_message_templates?: MealCardMessageTemplate[]
+  meal_card_template_versions?: MealCardTemplateVersion[]
 }
 
 interface VersionRow extends PlusSqliteRow {
@@ -43,6 +51,8 @@ type ExpenseRow = Expense & PlusSqliteRow
 type DailyMenuRow = DailyMenu & PlusSqliteRow
 type MessageTemplateRow = MessageTemplate & PlusSqliteRow
 type TemplateVersionRow = TemplateVersion & PlusSqliteRow
+type MealCardMessageTemplateRow = MealCardMessageTemplate & PlusSqliteRow
+type MealCardTemplateVersionRow = MealCardTemplateVersion & PlusSqliteRow
 
 /** 5+ `readEntries` 实际返回的条目视图，仅用到本场景下的字段 */
 interface PlusIoEntryView {
@@ -103,6 +113,8 @@ export async function buildBackupPayload(): Promise<BackupPayload> {
     dailyMenus,
     messageTemplates,
     templateVersions,
+    mealCardMessageTemplates,
+    mealCardTemplateVersions,
   ] = await Promise.all([
     schemaVersion(),
     select<CustomerRow>('SELECT * FROM customers ORDER BY id ASC'),
@@ -114,6 +126,12 @@ export async function buildBackupPayload(): Promise<BackupPayload> {
     select<DailyMenuRow>('SELECT * FROM daily_menus ORDER BY id ASC'),
     select<MessageTemplateRow>('SELECT * FROM message_templates ORDER BY id ASC'),
     select<TemplateVersionRow>('SELECT * FROM template_versions ORDER BY id ASC'),
+    select<MealCardMessageTemplateRow>(
+      'SELECT * FROM meal_card_message_templates ORDER BY id ASC',
+    ),
+    select<MealCardTemplateVersionRow>(
+      'SELECT * FROM meal_card_template_versions ORDER BY id ASC',
+    ),
   ])
 
   return {
@@ -129,6 +147,8 @@ export async function buildBackupPayload(): Promise<BackupPayload> {
     daily_menus: dailyMenus as DailyMenu[],
     message_templates: messageTemplates as MessageTemplate[],
     template_versions: templateVersions as TemplateVersion[],
+    meal_card_message_templates: mealCardMessageTemplates as MealCardMessageTemplate[],
+    meal_card_template_versions: mealCardTemplateVersions as MealCardTemplateVersion[],
   }
 }
 
@@ -156,6 +176,18 @@ function ensureBackupPayload(value: unknown): BackupPayload {
   }
   if (payload.schema_version >= 6 && menuArrays.some((item) => !Array.isArray(item))) {
     throw new Error('备份文件缺少菜单或模板数据')
+  }
+  const mealCardTemplateArrays = [
+    payload.meal_card_message_templates,
+    payload.meal_card_template_versions,
+  ]
+  if (
+    mealCardTemplateArrays.some((item) => item !== undefined && !Array.isArray(item))
+  ) {
+    throw new Error('备份文件版本不兼容或格式无效')
+  }
+  if (payload.schema_version >= 7 && mealCardTemplateArrays.some((item) => !Array.isArray(item))) {
+    throw new Error('备份文件缺少月卡模板数据')
   }
   return payload as BackupPayload
 }
@@ -543,6 +575,8 @@ export async function importBackup(payload: BackupPayload): Promise<void> {
   }
 
   await tx(async () => {
+    await exec('DELETE FROM meal_card_template_versions')
+    await exec('DELETE FROM meal_card_message_templates')
     await exec('DELETE FROM template_versions')
     await exec('DELETE FROM message_templates')
     await exec('DELETE FROM daily_menus')
@@ -706,14 +740,34 @@ export async function importBackup(payload: BackupPayload): Promise<void> {
       )
     }
 
+    for (const item of payload.meal_card_message_templates ?? []) {
+      await exec(
+        `INSERT INTO meal_card_message_templates (
+          id, name, body, is_default, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?)`,
+        [item.id, item.name, item.body, item.is_default, item.created_at, item.updated_at],
+      )
+    }
+
+    for (const item of payload.meal_card_template_versions ?? []) {
+      await exec(
+        `INSERT INTO meal_card_template_versions (id, template_id, name, body, created_at)
+        VALUES (?, ?, ?, ?, ?)`,
+        [item.id, item.template_id, item.name, item.body, item.created_at],
+      )
+    }
+
     await reconcileCompatiblePendingOrders()
     await seedIfEmpty()
     if (payload.schema_version < 6) await seedDefaultMessageTemplate()
+    if (payload.schema_version < 7) await seedDefaultMealCardMessageTemplate()
   })
 }
 
 export async function clearAllData(): Promise<void> {
   await tx(async () => {
+    await exec('DELETE FROM meal_card_template_versions')
+    await exec('DELETE FROM meal_card_message_templates')
     await exec('DELETE FROM template_versions')
     await exec('DELETE FROM message_templates')
     await exec('DELETE FROM daily_menus')
@@ -725,5 +779,6 @@ export async function clearAllData(): Promise<void> {
     await exec('DELETE FROM expense_categories')
     await seedIfEmpty()
     await seedDefaultMessageTemplate()
+    await seedDefaultMealCardMessageTemplate()
   })
 }

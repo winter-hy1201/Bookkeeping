@@ -26,6 +26,8 @@ import {
   SCHEMA_DAILY_MENUS,
   SCHEMA_MESSAGE_TEMPLATES,
   SCHEMA_TEMPLATE_VERSIONS,
+  SCHEMA_MEAL_CARD_MESSAGE_TEMPLATES,
+  SCHEMA_MEAL_CARD_TEMPLATE_VERSIONS,
   CURRENT_SCHEMA_VERSION,
 } from './schema'
 import { exec, select, tx } from './index'
@@ -33,6 +35,10 @@ import type { PlusSqliteRow } from './index'
 import type { OrderStatus, PaymentMethod } from '../types/domain'
 import { roundMoney } from '../utils/format'
 import { DEFAULT_MENU_TEMPLATE_BODY, DEFAULT_MENU_TEMPLATE_NAME } from '../utils/menu-template'
+import {
+  DEFAULT_MEAL_CARD_TEMPLATE_BODY,
+  DEFAULT_MEAL_CARD_TEMPLATE_NAME,
+} from '../utils/meal-card-template'
 import {
   mergeOrderNotes,
   mergePaymentBreakdowns,
@@ -98,6 +104,7 @@ export const MIGRATIONS: string[] = [
       WHERE payment_method = 'meal_card'`,
   ].join(';\n'),
   [SCHEMA_DAILY_MENUS, SCHEMA_MESSAGE_TEMPLATES, SCHEMA_TEMPLATE_VERSIONS].join('\n'),
+  [SCHEMA_MEAL_CARD_MESSAGE_TEMPLATES, SCHEMA_MEAL_CARD_TEMPLATE_VERSIONS].join('\n'),
   // 未来迁移示例（不要启用）：
   // "ALTER TABLE customers ADD COLUMN wechat_openid TEXT;",
 ]
@@ -287,6 +294,19 @@ export async function runMigrations(): Promise<void> {
             `INSERT INTO message_templates (name, body, is_default, created_at, updated_at)
             VALUES (?, ?, 1, ?, ?)`,
             [DEFAULT_MENU_TEMPLATE_NAME, DEFAULT_MENU_TEMPLATE_BODY, now, now],
+          )
+        }
+      }
+      if (i + 1 === 7) {
+        const rows = await select<{ cnt: number }>(
+          'SELECT COUNT(*) AS cnt FROM meal_card_message_templates',
+        )
+        if ((rows[0]?.cnt ?? 0) === 0) {
+          const now = new Date().toISOString()
+          await exec(
+            `INSERT INTO meal_card_message_templates (name, body, is_default, created_at, updated_at)
+            VALUES (?, ?, 1, ?, ?)`,
+            [DEFAULT_MEAL_CARD_TEMPLATE_NAME, DEFAULT_MEAL_CARD_TEMPLATE_BODY, now, now],
           )
         }
       }

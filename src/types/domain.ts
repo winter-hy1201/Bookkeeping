@@ -101,3 +101,20 @@ export interface TemplateVersion {
   body: string
   created_at: string
 }
+
+export interface MealCardMessageTemplate {
+  id: number
+  name: string
+  body: string
+  is_default: BooleanInt
+  created_at: string
+  updated_at: string
+}
+
+export interface MealCardTemplateVersion {
+  id: number
+  template_id: number
+  name: string
+  body: string
+  created_at: string
+}
