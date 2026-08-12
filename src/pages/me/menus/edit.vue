@@ -30,8 +30,6 @@ interface MenuForm {
 const menuId = ref<number | null>(null)
 const pageReturn = usePageReturnSnapshot({
   mode: 'scroll-view',
-  containerSelector: '.content',
-  itemIdPrefix: 'menu-edit-return-item',
 })
 const savedMenu = ref<DailyMenu | null>(null)
 const loading = ref(false)

@@ -10,8 +10,7 @@ import { actionSheet, confirmDialog, showToast } from '../../../utils/ui'
 const expenseStore = useExpenseStore()
 const pageReturn = usePageReturnSnapshot({
   mode: 'page',
-  itemIdPrefix: 'expense-return-item',
-  getItemKeys: () => expenseStore.list.map((expense) => expense.id),
+  hasContent: () => expenseStore.list.length > 0,
 })
 
 const categoryById = computed(() => {
@@ -51,10 +50,7 @@ function goNew(): void {
 }
 
 function goDetail(id: number): void {
-  void pageReturn.navigateTo(
-    { url: `/pages/me/expenses/detail?id=${id}` },
-    { anchorKey: id },
-  )
+  void pageReturn.navigateTo({ url: `/pages/me/expenses/detail?id=${id}` })
 }
 
 function netExpenseAmount(expense: Expense): number {
@@ -98,7 +94,6 @@ onShow(() => {
       <text class="group-date">{{ expenseStore.currentDate }}</text>
       <view
         v-for="expense in expenseStore.list"
-        :id="pageReturn.itemId(expense.id)"
         :key="expense.id"
         class="item"
         @click="goDetail(expense.id)"

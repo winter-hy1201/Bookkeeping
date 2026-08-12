@@ -22,9 +22,7 @@ const operatingCardId = ref<number | null>(null)
 const deletingCardId = ref<number | null>(null)
 const pageReturn = usePageReturnSnapshot({
   mode: 'scroll-view',
-  containerSelector: '.page',
-  itemIdPrefix: 'card-record-return-item',
-  getItemKeys: () => cards.value.map((card) => card.id),
+  hasContent: () => cards.value.length > 0,
 })
 
 function remainingMeals(card: MealCard): number {
@@ -56,12 +54,9 @@ async function refresh(): Promise<boolean> {
 
 function goEdit(card: MealCard): void {
   if (customerId.value === null || operatingCardId.value !== null) return
-  void pageReturn.navigateTo(
-    {
-      url: `/pages/me/customers/open-card?customerId=${customerId.value}&cardId=${card.id}`,
-    },
-    { anchorKey: card.id },
-  )
+  void pageReturn.navigateTo({
+    url: `/pages/me/customers/open-card?customerId=${customerId.value}&cardId=${card.id}`,
+  })
 }
 
 function showDeleteError(title: string, content: string): void {
@@ -140,7 +135,6 @@ onShow(() => {
     <view v-else class="records">
       <view
         v-for="card in cards"
-        :id="pageReturn.itemId(card.id)"
         :key="card.id"
         class="record"
         @click="goEdit(card)"

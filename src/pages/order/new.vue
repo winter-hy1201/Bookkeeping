@@ -46,8 +46,6 @@ interface OrderForm {
 const orderStore = useOrderStore()
 const pageReturn = usePageReturnSnapshot({
   mode: 'scroll-view',
-  containerSelector: '.form-scroll',
-  itemIdPrefix: 'order-new-return-item',
 })
 const formRef = ref<UniFormsRef | null>(null)
 const selectedCustomer = ref<Customer | null>(null)

@@ -11,7 +11,7 @@
 - **已建文件**：`docs/archive/PRD-v1.0.md`、`CLAUDE.md`、`AGENTS.md`、`memory-bank/` 活文档、uni-app Vue 3 + Vite + TS 模板、9 张表 DDL + 迁移 + seed + integrity_check + tx() 工具、domain/api 类型、日期/金额/菜单模板/页面/备份工具、完整 API 层、4 个 Pinia store、3 个通用 UI 组件、uni-ui 表单组件、4 个 Tab 与关键子页、App.vue 全局 onError 兜底
 - **DB 状态**：v0 基线（`memory-bank/bookkeeping-v0.db`，CLI sqlite smoke-test 生成）；v1 阶段基线（`memory-bank/bookkeeping-v1.db`，Phase 8 真机 E2E 通过后归档，`user_version=1`）；当前 schema 版本为 6，新增每日菜单、文案模板和模板版本历史，v5 → v6 真机迁移待回归
 - **UI 基线**：v1.13 新增 `docs/design.md` 与 `$hej-*` 语义 token，并由样式预处理检查保护；订单空态、新建 / 编辑确认区和统计对账趋势已按该基线改造；今日页按用户反馈保留既有布局，HBuilderX 视觉回归待执行
-- **最后更新**：2026-08-09
+- **最后更新**：2026-08-12
 
 ---
 
@@ -47,14 +47,14 @@
 | `docs/` | `archive/` 保留历史基线；`superpowers/specs/` 保留已批准的增量功能设计；根目录放当前 UI 规范与 AI 选型索引 | 新增/归档设计或协作指引时 |
 | `docs/design.md` | 盒记项目级 UI 设计规范：语义 token、按钮 / 状态 / 空态规则与页面验收清单；视觉改动前先读。 | 改动跨页面视觉语言、token 或 UI 验收标准时 |
 | `docs/uni-modules-ai-index.md` | 本地 `src/uni_modules` 的 AI 选型索引：45 个包的版本、场景、状态、边界、本地 README 与项目内用例；新增 / 重做 UI 先查。 | 增删 / 升级本地组件，或形成新的项目内用例时 |
-| `docs/adr/0001-in-memory-page-return-snapshots.md` | 页面返回现场采用页面实例级内存快照与共享 composable、拒绝全局缓存和持久化的架构决策。 | 返回现场的状态归属、生命周期或持久化边界变化时 |
+| `docs/adr/0001-in-memory-page-return-snapshots.md` | 页面返回现场采用页面实例级像素快照与共享 composable、拒绝全局缓存和持久化的架构决策。 | 返回现场的状态归属、生命周期或持久化边界变化时 |
 | `docs/superpowers/specs/2026-07-14-meal-card-recharge-records-design.md` | 次卡充值记录入口与总次数校正的已批准设计、数据边界和验收标准 | 该功能设计变更时 |
 | `docs/superpowers/specs/2026-07-14-customer-picker-pinyin-sort-design.md` | CustomerPicker 按客户姓名拼音分组并支持右侧索引跳转的已批准设计与验收标准 | 该分组索引行为变更时 |
 | `docs/superpowers/specs/2026-07-22-customer-picker-form-label-design.md` | CustomerPicker 的字段标签归属、调用页统一表单标签与验收标准 | 该标签归属或调用方式变更时 |
 | `docs/superpowers/specs/2026-07-14-customer-card-avatar-label-design.md` | 客户列表头像按当前可用次卡显示“次 / 普”的已批准设计与验收标准 | 该身份判定或展示变更时 |
 | `docs/superpowers/specs/2026-07-22-combined-payment-single-order-design.md` | 一餐一单、组合支付、次卡预占、合并改单价确认、schema v5 与备份兼容的已批准设计 | 该订单支付 / 合并规则变更时 |
 | `docs/superpowers/specs/2026-07-28-daily-menu-message-template-design.md` | 每日菜单、条件模板语法、版本历史、默认模板、备份与验收的已批准设计 | 菜单或社群文案工作流变更时 |
-| `docs/superpowers/specs/2026-08-09-page-return-snapshot-design.md` | 页面返回现场、滚动恢复、数据刷新、条目锚点、状态生命周期与验收边界的已批准设计。 | 返回现场的产品范围、交互规则或验收标准变化时 |
+| `docs/superpowers/specs/2026-08-09-page-return-snapshot-design.md` | 页面返回现场、像素滚动恢复、数据刷新、状态生命周期与验收边界的已批准设计。 | 返回现场的产品范围、交互规则或验收标准变化时 |
 | `.gitignore` | git 忽略规则（node_modules、dist、IDE 文件等） | 加新忽略项时 |
 | `index.html` | Vite H5 入口 HTML；`<script type="module" src="/src/main.ts">` | 几乎不改 |
 | `package.json` | 项目元数据 + scripts（dev / build / test / lint / format / type-check） | 加新脚本/依赖时 |
@@ -66,7 +66,7 @@
 | `tests/backup-v6.test.cjs` | Node 备份兼容测试：v5 无菜单数组仍可解析，v6 必须显式携带菜单、模板和版本数组（含空数组状态） | schema 或备份格式变化时 |
 | `tests/stats-timezone.test.cjs` | Node 内置回归测试：在 `Asia/Shanghai` 时区下验证 UTC 凌晨时间戳按设备本地日期计入首页次卡收入与日趋势 | 统计时区或次卡收入口径变化时 |
 | `tests/ui-style-preprocess.test.cjs` | Node 静态测试：扫描业务 Vue 样式块，使用 `$hej-*` token 时必须声明 `lang="scss"`，避免 token 原样输出使 App 回退默认样式 | token 样式页面变化时 |
-| `tests/page-return.test.cjs` | Node 纯函数回归：从生产 TypeScript 载入返回目标解析器，覆盖原像素、条目移动、删除后的下一 / 上一相邻项、空列表和无可测锚点。 | 页面返回现场的定位优先级变化时 |
+| `tests/page-return.test.cjs` | Node 纯函数回归：从生产 TypeScript 载入返回目标解析器，覆盖内容变化时仍恢复像素、空列表回顶部和负数像素归零。 | 页面返回现场的滚动恢复规则变化时 |
 | `pnpm-lock.yaml` | pnpm 锁定文件（**不要**手动编辑） | pnpm install 后自动 |
 | `tsconfig.json` | TypeScript 配置；extends `@vue/tsconfig`，加 3 个 strict 选项；排除 `src/uni_modules` 第三方 uni-ui 源码 | 调整严格度时 |
 | `vite.config.ts` | Vite 配置；只注册 `uni()` 插件 | 加 Vite 插件时 |
@@ -109,7 +109,7 @@
 
 ### pages/ — 页面（uni-app 自动路由；Phase 7 已实现）
 
-所有通过 `navigateTo` 打开下级页面的可滚动父页面统一使用页面实例级返回快照：页面栈内返回时保留筛选 / 草稿 / 折叠并恢复滚动，列表页同时提供稳定条目锚点；内部 `scroll-view` 与原生页面滚动分别适配。产品与生命周期边界见 `docs/superpowers/specs/2026-08-09-page-return-snapshot-design.md`。
+所有通过 `navigateTo` 打开下级页面的可滚动父页面统一使用页面实例级返回快照：页面栈内返回时保留筛选 / 草稿 / 折叠并恢复像素滚动，不记录业务数据条目；内部 `scroll-view` 与原生页面滚动分别适配。产品与生命周期边界见 `docs/superpowers/specs/2026-08-09-page-return-snapshot-design.md`。
 
 | 文件 | 作用 |
 |---|---|
@@ -147,7 +147,7 @@
 
 | 文件 | 作用 |
 |---|---|
-| `src/composables/usePageReturnSnapshot.ts` | 页面实例级返回现场协调器：包装前进导航，记录内部 `scroll-view` 或原生页面滚动，返回时协调本地数据刷新、真实 offset 查询、像素 / 条目锚点恢复与同值滚动脉冲；刷新失败仍恢复现场但不消费快照，状态随页面卸载自然释放，不写 Pinia、SQLite 或本地存储。 |
+| `src/composables/usePageReturnSnapshot.ts` | 页面实例级返回现场协调器：包装前进导航，记录内部 `scroll-view` 或原生页面滚动，返回时协调本地数据刷新、像素恢复与同值滚动脉冲；刷新失败仍恢复现场但不消费快照，状态随页面卸载自然释放，不写 Pinia、SQLite 或本地存储。 |
 
 ### stores/ — Pinia 状态
 
@@ -187,12 +187,12 @@
 |---|---|
 | `src/utils/date.ts` | dayjs 本地时区日期工具：`today()` / `tomorrow()` 返回 `YYYY-MM-DD`；`weekRange(d)` 返回自然周周一到周日；`monthRange(d)` 返回自然月 1 号到月底；`formatDate(d)` 按当前年份显示 `MM-DD` 或 `YYYY-MM-DD`；`daysBetween(a, b)` 返回自然日整数差。 |
 | `src/utils/format.ts` | 金额/百分比格式化与精确计算工具（基于 big.js，全局 `Big.RM = roundHalfUp`，所有 helper 输出强制 `toFixed(2)` 保证 2 位小数）：`formatMoney(n)` 输出 `¥1,234.50`（空值/非法值为 `¥—`）；`parseMoney(s)` 接受普通数字、`¥`、`￥`、千分位并解析为 number（非法为 0）；`formatPercent(n)` 四舍五入输出整数百分比；`roundMoney/addMoney/subtractMoney/multiplyMoney/divideMoney` 提供按分精确运算，所有金额计算（订单单价、份数、统计累加/差值、次卡均摊）必须走这些 helper，禁止原生 `+ - * /` |
-| `src/utils/order-rules.ts` | 订单纯规则模块：支付拆分、次卡可用判断、备注合并去重、支付兼容与合并改单价预览；API 与 Node 测试共享，金额计算只走 big.js helper。 |
+| `src/utils/order-rules.ts` | 订单纯规则模块：支付拆分、次卡可用判断、备注合并去重、支付兼容与合并改单价预览，以及今日午餐自动折叠状态转移；API 与 Node 测试共享，金额计算只走 big.js helper。 |
 | `src/utils/menu-template.ts` | 社群菜单模板纯函数：内置默认正文、语法校验、条件餐次区块删除、`M月D日` 替换、多行 / 特殊字符保真和多余空行整理。 |
 | `src/utils/ui.ts` | 页面层小工具：toast / confirm / actionSheet、数值与状态文案、客户默认价提示，以及组合支付摘要和列表副标题拼接。 |
 | `src/utils/backup.ts` | JSON 全量备份恢复；v6 导入导出菜单、模板与版本历史，v1-v5 旧备份升级时补内置模板；v6 的空模板状态原样恢复，危险清空显式恢复内置模板。 |
 | `src/utils/pinyin.ts` | 客户姓名拼音工具：基于纯 JS `pinyin-pro`，使用姓氏优先模式把中文姓名转为无声调拼音 key、拼音首字母串和 A-Z / `#` 分组字母，并提供客户姓名排序函数；用于 Android App 端客户列表分组、索引和拼音搜索。 |
-| `src/utils/page-return.ts` | 页面返回现场的纯定位规则：记录离开前条目与相邻项；列表不变时返回原像素，结构变化时按原条目 → 下一项 → 上一项 → 顶部解析恢复目标。 |
+| `src/utils/page-return.ts` | 页面返回现场的纯滚动规则：记录离开前像素；返回后有内容时恢复该像素，内容为空时回到顶部，不记录业务数据身份。 |
 
 ### types/ — TS 类型
 
@@ -339,3 +339,4 @@
 - 2026-07-28：每日菜单与社群文案模板（v1.18）—— schema v6 新增每日菜单、唯一默认文案模板与编辑前版本历史；支持连续新增下一天、当前 / 历史菜单、缺餐条件区块渲染、默认模板复制、版本恢复和硬删除。今日 / 我的增加入口，备份与危险清空同步三张新表；自动化与 CLI 结果见 `CHANGELOG.md v1.18`，HBuilderX 真机待验证。
 - 2026-08-09：页面返回现场（v1.19）——新增页面实例级内存快照 composable 与纯定位规则，所有现有 `navigateTo` 父页面统一保留筛选 / 草稿 / 折叠和滚动；列表变化时按原条目、下一项、上一项兜底，订单拖拽复用既有受控滚动，客户字母索引在恢复前清空目标。新增 7 条定位回归，`pnpm type-check` / `pnpm lint` / `pnpm build:h5` 与 `git diff --check` 通过；全量测试 45/46，既有 schema 测试在 Windows 下因 sqlite3 CRLF 与 LF 期望不一致失败，Android 真机待验证。
 - 2026-08-09：v1.19 代码审查修复——订单新建 / 编辑表单返回后只刷新已有订单、目标订单和次卡可用量等辅助数据；刷新失败仍恢复滚动但保留快照，并回滚多 Store 的部分成功结果；订单相邻项按午餐 → 晚餐实际渲染顺序记录，客户次卡身份不在刷新前清空。定位测试 7/7、`pnpm type-check`、`pnpm lint`、`pnpm build:h5` 通过；全量测试仍为 45/46，唯一失败是既有 Windows sqlite3 CRLF 断言，Android 真机待验证。
+- 2026-08-12：页面返回与订单午餐折叠修订（v1.20）——返回快照仅保存离开时的滚动像素，数据重排、编辑、配送或删除不再按订单身份定位；列表刷新为空时回到顶部。订单页今日午餐在非空且全部已配送时自动折叠，新增待配送午餐时仅对系统自动折叠状态重新展开，取消或清空不强制展开，用户手动开关优先。未改订单状态流、排序、API 或数据库结构。

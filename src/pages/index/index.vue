@@ -35,8 +35,8 @@ const deliveredQuantity = computed(() => totalQuantity(deliveredOrders.value))
 const cancelledQuantity = computed(() => totalQuantity(cancelledOrders.value))
 const pageReturn = usePageReturnSnapshot({
   mode: 'scroll-view',
-  containerSelector: '.page',
-  itemIdPrefix: 'today-return-item',
+  hasContent: () =>
+    pendingOrders.value.length + deliveredOrders.value.length + cancelledOrders.value.length > 0,
 })
 
 function customerName(id: number): string {

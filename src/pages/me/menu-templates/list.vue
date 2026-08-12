@@ -16,9 +16,7 @@ const loading = ref(false)
 const actioningId = ref<number | null>(null)
 const pageReturn = usePageReturnSnapshot({
   mode: 'scroll-view',
-  containerSelector: '.page',
-  itemIdPrefix: 'template-return-item',
-  getItemKeys: () => templates.value.map((template) => template.id),
+  hasContent: () => templates.value.length > 0,
 })
 
 async function refresh(): Promise<boolean> {
@@ -40,18 +38,12 @@ function goNew(): void {
 
 function goEdit(id: number): void {
   if (actioningId.value !== null) return
-  void pageReturn.navigateTo(
-    { url: `/pages/me/menu-templates/edit?id=${id}` },
-    { anchorKey: id },
-  )
+  void pageReturn.navigateTo({ url: `/pages/me/menu-templates/edit?id=${id}` })
 }
 
 function goHistory(id: number): void {
   if (actioningId.value !== null) return
-  void pageReturn.navigateTo(
-    { url: `/pages/me/menu-templates/history?id=${id}` },
-    { anchorKey: id },
-  )
+  void pageReturn.navigateTo({ url: `/pages/me/menu-templates/history?id=${id}` })
 }
 
 async function makeDefault(template: MessageTemplate): Promise<void> {
@@ -132,7 +124,6 @@ onShow(() => {
     <view v-else class="template-list">
       <view
         v-for="template in templates"
-        :id="pageReturn.itemId(template.id)"
         :key="template.id"
         class="template-card"
       >

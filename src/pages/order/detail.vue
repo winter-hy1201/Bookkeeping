@@ -50,8 +50,6 @@ interface EditOrderForm {
 const orderStore = useOrderStore()
 const pageReturn = usePageReturnSnapshot({
   mode: 'scroll-view',
-  containerSelector: '.page-scroll',
-  itemIdPrefix: 'order-detail-return-item',
 })
 const formRef = ref<UniFormsRef | null>(null)
 const order = ref<Order | null>(null)

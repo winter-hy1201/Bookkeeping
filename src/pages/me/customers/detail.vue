@@ -24,8 +24,6 @@ const orders = ref<Order[]>([])
 const loading = ref(false)
 const pageReturn = usePageReturnSnapshot({
   mode: 'scroll-view',
-  containerSelector: '.page',
-  itemIdPrefix: 'customer-detail-return-item',
 })
 
 const activeCards = computed(() => cards.value.filter((item) => item.status === 'active'))

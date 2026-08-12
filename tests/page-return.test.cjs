@@ -21,71 +21,47 @@ const { createPageReturnSnapshot, resolvePageReturnTarget } = loadTypeScriptModu
   join(__dirname, '../src/utils/page-return.ts'),
 )
 
-test('restores the exact pixel when item order is unchanged', () => {
-  const snapshot = createPageReturnSnapshot(420, [1, 2, 3], 2, 96)
+test('restores the exact pixel when the refreshed content is still available', () => {
+  const snapshot = createPageReturnSnapshot(420)
 
-  assert.deepEqual(resolvePageReturnTarget(snapshot, [1, 2, 3]), {
+  assert.deepEqual(resolvePageReturnTarget(snapshot, true), {
     type: 'pixel',
     scrollTop: 420,
   })
 })
 
-test('keeps the interacted item at its prior offset after reordering', () => {
-  const snapshot = createPageReturnSnapshot(420, [1, 2, 3], 2, 96)
+test('keeps the same pixel when refreshed content changes order', () => {
+  const snapshot = createPageReturnSnapshot(420)
 
-  assert.deepEqual(resolvePageReturnTarget(snapshot, [1, 3, 2]), {
-    type: 'anchor',
-    key: '2',
-    offset: 96,
-    source: 'anchor',
-  })
-})
-
-test('uses the next neighbor when the interacted item was deleted', () => {
-  const snapshot = createPageReturnSnapshot(420, [1, 2, 3], 2, 96)
-
-  assert.deepEqual(resolvePageReturnTarget(snapshot, [1, 3]), {
-    type: 'anchor',
-    key: '3',
-    offset: 96,
-    source: 'next',
-  })
-})
-
-test('uses the previous neighbor when the item and next neighbor were deleted', () => {
-  const snapshot = createPageReturnSnapshot(420, [1, 2, 3], 2, 96)
-
-  assert.deepEqual(resolvePageReturnTarget(snapshot, [1]), {
-    type: 'anchor',
-    key: '1',
-    offset: 96,
-    source: 'previous',
-  })
-})
-
-test('returns to the top when no captured item survives', () => {
-  const snapshot = createPageReturnSnapshot(420, [1, 2, 3], 2, 96)
-
-  assert.deepEqual(resolvePageReturnTarget(snapshot, [4, 5]), {
-    type: 'top',
-    scrollTop: 0,
-  })
-})
-
-test('returns to the top when the refreshed list is empty', () => {
-  const snapshot = createPageReturnSnapshot(420, [1], 1, 96)
-
-  assert.deepEqual(resolvePageReturnTarget(snapshot, []), {
-    type: 'top',
-    scrollTop: 0,
-  })
-})
-
-test('falls back to the pixel when no measurable anchor was captured', () => {
-  const snapshot = createPageReturnSnapshot(420, [1, 2, 3], 2, null)
-
-  assert.deepEqual(resolvePageReturnTarget(snapshot, [1, 3, 2]), {
+  assert.deepEqual(resolvePageReturnTarget(snapshot, true), {
     type: 'pixel',
     scrollTop: 420,
+  })
+})
+
+test('keeps the same pixel when refreshed content deletes an item', () => {
+  const snapshot = createPageReturnSnapshot(420)
+
+  assert.deepEqual(resolvePageReturnTarget(snapshot, true), {
+    type: 'pixel',
+    scrollTop: 420,
+  })
+})
+
+test('returns to the top when refreshed content is empty', () => {
+  const snapshot = createPageReturnSnapshot(420)
+
+  assert.deepEqual(resolvePageReturnTarget(snapshot, false), {
+    type: 'top',
+    scrollTop: 0,
+  })
+})
+
+test('clamps a negative captured pixel to the top', () => {
+  const snapshot = createPageReturnSnapshot(-20)
+
+  assert.deepEqual(resolvePageReturnTarget(snapshot, true), {
+    type: 'pixel',
+    scrollTop: 0,
   })
 })

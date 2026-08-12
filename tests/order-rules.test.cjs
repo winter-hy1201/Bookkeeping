@@ -18,9 +18,13 @@ require.extensions['.ts'] = (module, filename) => {
 const {
   calculatePaymentBreakdown,
   evaluateMealCardAvailability,
+  initializeLunchPanelCollapse,
+  markLunchPanelManually,
   mergeOrderNotes,
   mergePaymentBreakdowns,
+  reconcileLunchPanelCollapse,
   selectPendingOrdersForReconciliation,
+  shouldAutoCollapseTodayLunch,
 } = require('../src/utils/order-rules.ts')
 const { orderSubtitle } = require('../src/utils/ui.ts')
 
@@ -351,4 +355,107 @@ test('builds the exact combined-payment order-list subtitle', () => {
     }),
     '午餐 · 2份 · 次卡 1次 · 微信 ¥25.00 · 不要葱',
   )
+})
+
+test('auto-collapses only today lunch when every lunch order is delivered', () => {
+  assert.equal(
+    shouldAutoCollapseTodayLunch({
+      currentDate: '2026-08-12',
+      today: '2026-08-12',
+      mealType: 'lunch',
+      orders: [{ status: 'delivered' }, { status: 'delivered' }],
+    }),
+    true,
+  )
+  assert.equal(
+    shouldAutoCollapseTodayLunch({
+      currentDate: '2026-08-12',
+      today: '2026-08-12',
+      mealType: 'lunch',
+      orders: [{ status: 'delivered' }, { status: 'cancelled' }],
+    }),
+    false,
+  )
+  assert.equal(
+    shouldAutoCollapseTodayLunch({
+      currentDate: '2026-08-11',
+      today: '2026-08-12',
+      mealType: 'lunch',
+      orders: [{ status: 'delivered' }],
+    }),
+    false,
+  )
+})
+
+test('auto-collapses on initial completion and reopens when an auto-collapsed lunch gains a pending order', () => {
+  const initial = initializeLunchPanelCollapse(false, true)
+  assert.deepEqual(initial, {
+    lastAllDelivered: true,
+    open: false,
+    autoCollapsed: true,
+  })
+
+  const completed = reconcileLunchPanelCollapse(initial, true, false)
+  assert.deepEqual(completed, {
+    lastAllDelivered: true,
+    open: false,
+    autoCollapsed: true,
+  })
+
+  const autoCollapsed = reconcileLunchPanelCollapse(
+    initializeLunchPanelCollapse(true, false),
+    true,
+    false,
+  )
+  assert.deepEqual(autoCollapsed, {
+    lastAllDelivered: true,
+    open: false,
+    autoCollapsed: true,
+  })
+
+  assert.deepEqual(reconcileLunchPanelCollapse(autoCollapsed, false, false), {
+    lastAllDelivered: false,
+    open: false,
+    autoCollapsed: true,
+  })
+  assert.deepEqual(reconcileLunchPanelCollapse(autoCollapsed, false, true), {
+    lastAllDelivered: false,
+    open: true,
+    autoCollapsed: false,
+  })
+})
+
+test('manual lunch state wins over automatic collapse and reopening', () => {
+  const manuallyOpen = markLunchPanelManually(
+    {
+      lastAllDelivered: true,
+      open: false,
+      autoCollapsed: true,
+    },
+    true,
+  )
+  assert.deepEqual(reconcileLunchPanelCollapse(manuallyOpen, true, false), {
+    lastAllDelivered: true,
+    open: true,
+    autoCollapsed: false,
+  })
+
+  const manuallyClosed = markLunchPanelManually(
+    {
+      lastAllDelivered: false,
+      open: true,
+      autoCollapsed: false,
+    },
+    false,
+  )
+  assert.deepEqual(reconcileLunchPanelCollapse(manuallyClosed, true, false), {
+    lastAllDelivered: true,
+    open: false,
+    autoCollapsed: false,
+  })
+  assert.deepEqual(reconcileLunchPanelCollapse(manuallyClosed, false, false), {
+    lastAllDelivered: false,
+    open: false,
+    autoCollapsed: false,
+  })
 })

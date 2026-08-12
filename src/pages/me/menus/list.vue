@@ -26,9 +26,7 @@ const visibleMenus = computed(() =>
 )
 const pageReturn = usePageReturnSnapshot({
   mode: 'scroll-view',
-  containerSelector: '.page',
-  itemIdPrefix: 'menu-return-item',
-  getItemKeys: () => visibleMenus.value.map((menu) => menu.id),
+  hasContent: () => visibleMenus.value.length > 0,
 })
 
 async function refresh(): Promise<boolean> {
@@ -55,7 +53,7 @@ function goNew(): void {
 
 function goEdit(id: number): void {
   if (actioningId.value !== null) return
-  void pageReturn.navigateTo({ url: `/pages/me/menus/edit?id=${id}` }, { anchorKey: id })
+  void pageReturn.navigateTo({ url: `/pages/me/menus/edit?id=${id}` })
 }
 
 function goTemplates(): void {
@@ -165,7 +163,6 @@ onShow(() => {
     <view v-else class="menu-list">
       <view
         v-for="menu in visibleMenus"
-        :id="pageReturn.itemId(menu.id)"
         :key="menu.id"
         class="menu-card"
         @click="goEdit(menu.id)"

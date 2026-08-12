@@ -77,9 +77,7 @@ const sections = computed<CustomerSection[]>(() => {
 const indexLetters = computed(() => sections.value.map((section) => section.letter))
 const pageReturn = usePageReturnSnapshot({
   mode: 'scroll-view',
-  containerSelector: '.list',
-  itemIdPrefix: 'customer-return-item',
-  getItemKeys: () => filtered.value.map((customer) => customer.id),
+  hasContent: () => filtered.value.length > 0,
   beforeRestore: async () => {
     scrollTarget.value = ''
     await nextTick()
@@ -97,10 +95,7 @@ function goNew(): void {
 }
 
 function goDetail(id: number): void {
-  void pageReturn.navigateTo(
-    { url: `/pages/me/customers/detail?id=${id}` },
-    { anchorKey: id },
-  )
+  void pageReturn.navigateTo({ url: `/pages/me/customers/detail?id=${id}` })
 }
 
 function avatarLabel(customerId: number): '次' | '普' {
@@ -172,7 +167,6 @@ onShow(() => {
         <view class="section-title">{{ section.letter }}</view>
         <view
           v-for="customer in section.customers"
-          :id="pageReturn.itemId(customer.id)"
           :key="customer.id"
           class="item"
           @click="goDetail(customer.id)"

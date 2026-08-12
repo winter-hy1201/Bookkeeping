@@ -1,22 +1,19 @@
-import { getCurrentInstance, nextTick, ref, type Ref } from 'vue'
+import { nextTick, ref, type Ref } from 'vue'
 import { onPageScroll } from '@dcloudio/uni-app'
 import {
   createPageReturnSnapshot,
   resolvePageReturnTarget,
   type PageReturnSnapshot,
   type PageReturnTarget,
-  type ReturnItemKey,
 } from '../utils/page-return'
 
 interface BaseOptions {
-  itemIdPrefix: string
-  getItemKeys?: () => ReturnItemKey[]
+  hasContent?: () => boolean
   beforeRestore?: () => void | Promise<void>
 }
 
 interface ScrollViewOptions extends BaseOptions {
   mode: 'scroll-view'
-  containerSelector: string
   scrollTop?: Ref<number>
 }
 
@@ -32,15 +29,7 @@ export interface ReturnScrollEvent {
   }
 }
 
-export interface NavigateWithSnapshotOptions {
-  anchorKey?: ReturnItemKey
-}
-
 export type PageReturnRefresh = () => Promise<boolean | void>
-
-function asRect(value: UniNamespace.NodeInfo | UniNamespace.NodeInfo[]): UniNamespace.NodeInfo | null {
-  return Array.isArray(value) ? (value[0] ?? null) : value
-}
 
 function waitForLayout(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 16))
@@ -51,19 +40,12 @@ export function usePageReturnSnapshot(options: PageReturnOptions): {
   isReturningValue: boolean
   scrollTop: Ref<number>
   scrollTopValue: number
-  itemId: (key: ReturnItemKey) => string
   onScroll: (event: ReturnScrollEvent) => void
-  navigateTo: (
-    navigation: UniNamespace.NavigateToOptions,
-    snapshotOptions?: NavigateWithSnapshotOptions,
-  ) => Promise<void>
+  navigateTo: (navigation: UniNamespace.NavigateToOptions) => Promise<void>
   restoreOnShow: (refresh?: PageReturnRefresh) => Promise<void>
 } {
-  const instance = getCurrentInstance()
   const scrollTop = options.mode === 'scroll-view' && options.scrollTop ? options.scrollTop : ref(0)
   const isReturning = ref(false)
-  const itemIds = new Map<string, string>()
-  let nextItemId = 0
   let pendingSnapshot: PageReturnSnapshot | null = null
   let navigationPreparing = false
 
@@ -73,91 +55,16 @@ export function usePageReturnSnapshot(options: PageReturnOptions): {
     })
   }
 
-  function itemId(key: ReturnItemKey): string {
-    const normalized = String(key)
-    const existing = itemIds.get(normalized)
-    if (existing) return existing
-
-    nextItemId += 1
-    const id = `${options.itemIdPrefix}-${nextItemId}`
-    itemIds.set(normalized, id)
-    return id
+  function captureSnapshot(): PageReturnSnapshot {
+    return createPageReturnSnapshot(scrollTop.value)
   }
 
-  function scopedQuery(): UniNamespace.SelectorQuery {
-    const query = uni.createSelectorQuery()
-    return instance?.proxy ? query.in(instance.proxy) : query
-  }
-
-  async function queryAnchorOffset(key: ReturnItemKey): Promise<number | null> {
-    const selector = `#${itemId(key)}`
-
-    return new Promise((resolve) => {
-      let itemRect: UniNamespace.NodeInfo | null = null
-      let containerRect: UniNamespace.NodeInfo | null = null
-      const query = scopedQuery()
-
-      query.select(selector).boundingClientRect((value) => {
-        itemRect = asRect(value)
-      })
-      if (options.mode === 'scroll-view') {
-        query.select(options.containerSelector).boundingClientRect((value) => {
-          containerRect = asRect(value)
-        })
-      }
-      query.exec(() => {
-        if (itemRect?.top == null) {
-          resolve(null)
-          return
-        }
-
-        const containerTop = options.mode === 'scroll-view' ? containerRect?.top : 0
-        resolve(containerTop == null ? null : itemRect.top - containerTop)
-      })
-    })
-  }
-
-  async function queryCurrentScrollTop(): Promise<number> {
-    return new Promise((resolve) => {
-      let scrollInfo: UniNamespace.NodeInfo | null = null
-      const query = scopedQuery()
-      const target =
-        options.mode === 'scroll-view'
-          ? query.select(options.containerSelector)
-          : query.selectViewport()
-
-      target.scrollOffset((value) => {
-        scrollInfo = asRect(value)
-      })
-      query.exec(() => resolve(scrollInfo?.scrollTop ?? scrollTop.value))
-    })
-  }
-
-  async function captureSnapshot(anchorKey?: ReturnItemKey): Promise<PageReturnSnapshot> {
-    const departureScrollTop = scrollTop.value
-    const itemKeys = options.getItemKeys?.()
-    let anchorOffset: number | null = null
-
-    if (anchorKey != null) {
-      try {
-        anchorOffset = await queryAnchorOffset(anchorKey)
-      } catch {
-        anchorOffset = null
-      }
-    }
-
-    return createPageReturnSnapshot(departureScrollTop, itemKeys, anchorKey, anchorOffset)
-  }
-
-  async function navigateTo(
-    navigation: UniNamespace.NavigateToOptions,
-    snapshotOptions: NavigateWithSnapshotOptions = {},
-  ): Promise<void> {
+  async function navigateTo(navigation: UniNamespace.NavigateToOptions): Promise<void> {
     if (navigationPreparing) return
     navigationPreparing = true
 
     try {
-      pendingSnapshot = await captureSnapshot(snapshotOptions.anchorKey)
+      pendingSnapshot = captureSnapshot()
       const { success, fail, complete } = navigation
       uni.navigateTo({
         ...navigation,
@@ -197,26 +104,8 @@ export function usePageReturnSnapshot(options: PageReturnOptions): {
     }
   }
 
-  async function restoreTarget(
-    target: PageReturnTarget,
-    snapshot: PageReturnSnapshot,
-  ): Promise<void> {
-    if (target.type === 'pixel' || target.type === 'top') {
-      await setScrollPosition(target.scrollTop)
-      return
-    }
-
-    try {
-      const currentOffset = await queryAnchorOffset(target.key)
-      if (currentOffset == null) {
-        await setScrollPosition(snapshot.scrollTop)
-        return
-      }
-      const currentScrollTop = await queryCurrentScrollTop()
-      await setScrollPosition(currentScrollTop + currentOffset - target.offset)
-    } catch {
-      await setScrollPosition(snapshot.scrollTop)
-    }
+  async function restoreTarget(target: PageReturnTarget): Promise<void> {
+    await setScrollPosition(target.scrollTop)
   }
 
   async function restoreOnShow(refresh?: PageReturnRefresh): Promise<void> {
@@ -236,8 +125,8 @@ export function usePageReturnSnapshot(options: PageReturnOptions): {
       await options.beforeRestore?.()
       await nextTick()
 
-      const target = resolvePageReturnTarget(snapshot, options.getItemKeys?.())
-      await restoreTarget(target, snapshot)
+      const target = resolvePageReturnTarget(snapshot, options.hasContent?.() ?? true)
+      await restoreTarget(target)
       if (refreshSucceeded) pendingSnapshot = null
     } finally {
       if (refresh) uni.hideLoading()
@@ -254,7 +143,6 @@ export function usePageReturnSnapshot(options: PageReturnOptions): {
     get scrollTopValue() {
       return scrollTop.value
     },
-    itemId,
     onScroll,
     navigateTo,
     restoreOnShow,

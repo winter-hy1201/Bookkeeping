@@ -4,7 +4,6 @@ import { usePageReturnSnapshot } from '../../composables/usePageReturnSnapshot'
 
 const pageReturn = usePageReturnSnapshot({
   mode: 'page',
-  itemIdPrefix: 'me-return-item',
 })
 
 function go(url: string): void {

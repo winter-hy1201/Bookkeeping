@@ -1,5 +1,81 @@
 import { multiplyMoney, roundMoney } from './format'
 
+export type LunchOrderStatus = 'pending' | 'delivered' | 'cancelled'
+
+export interface LunchCollapseCheckInput {
+  currentDate: string
+  today: string
+  mealType: 'lunch' | 'dinner'
+  orders: Array<{ status: LunchOrderStatus }>
+}
+
+export interface LunchPanelCollapseState {
+  lastAllDelivered: boolean
+  open: boolean
+  autoCollapsed: boolean
+}
+
+export function shouldAutoCollapseTodayLunch(input: LunchCollapseCheckInput): boolean {
+  return (
+    input.currentDate === input.today &&
+    input.mealType === 'lunch' &&
+    input.orders.length > 0 &&
+    input.orders.every((order) => order.status === 'delivered')
+  )
+}
+
+export function initializeLunchPanelCollapse(
+  open: boolean,
+  allDelivered: boolean,
+): LunchPanelCollapseState {
+  return {
+    lastAllDelivered: allDelivered,
+    open,
+    autoCollapsed: allDelivered && !open,
+  }
+}
+
+export function markLunchPanelManually(
+  state: LunchPanelCollapseState,
+  open: boolean,
+): LunchPanelCollapseState {
+  return {
+    ...state,
+    open,
+    autoCollapsed: false,
+  }
+}
+
+export function reconcileLunchPanelCollapse(
+  state: LunchPanelCollapseState,
+  allDelivered: boolean,
+  hasPendingOrder: boolean,
+): LunchPanelCollapseState {
+  const newlyCompleted = !state.lastAllDelivered && allDelivered
+  const becameIncomplete = state.autoCollapsed && !allDelivered && hasPendingOrder
+
+  if (newlyCompleted && state.open) {
+    return {
+      lastAllDelivered: allDelivered,
+      open: false,
+      autoCollapsed: true,
+    }
+  }
+
+  if (becameIncomplete) {
+    return {
+      lastAllDelivered: allDelivered,
+      open: true,
+      autoCollapsed: false,
+    }
+  }
+
+  return {
+    ...state,
+    lastAllDelivered: allDelivered,
+  }
+}
+
 export interface MealCardAvailabilityInput {
   actualRemaining: number
   reservedByOthers: number

@@ -7,6 +7,13 @@ import { useOrderStore } from '../../stores/order'
 import type { MealType, Order, OrderStatus } from '../../types/domain'
 import { today } from '../../utils/date'
 import { addMoney, formatMoney } from '../../utils/format'
+import {
+  initializeLunchPanelCollapse,
+  markLunchPanelManually,
+  reconcileLunchPanelCollapse,
+  shouldAutoCollapseTodayLunch,
+  type LunchPanelCollapseState,
+} from '../../utils/order-rules'
 import { mealTypeText, orderSubtitle, showToast, statusText } from '../../utils/ui'
 
 const orderStore = useOrderStore()
@@ -87,11 +94,8 @@ const orderSections = computed<OrderSection[]>(() =>
 
 const pageReturn = usePageReturnSnapshot({
   mode: 'scroll-view',
-  containerSelector: '.list',
-  itemIdPrefix: 'order-return-item',
   scrollTop: listScrollTop,
-  getItemKeys: () =>
-    orderSections.value.flatMap((section) => section.orders.map((order) => order.id)),
+  hasContent: () => orderStore.list.length > 0,
 })
 
 const defaultOpenSections = computed(() =>
@@ -100,20 +104,56 @@ const defaultOpenSections = computed(() =>
     .map((section) => section.type),
 )
 const openSections = ref<MealType[]>([])
+const lunchCollapseState = ref<LunchPanelCollapseState>(
+  initializeLunchPanelCollapse(false, false),
+)
 let openSectionsInitialized = false
 
 function resetOpenSections(): void {
-  openSections.value = [...defaultOpenSections.value]
+  const nextOpenSections = [...defaultOpenSections.value]
+  const lunchSection = orderSections.value.find((section) => section.type === 'lunch')
+  const allLunchDelivered = lunchSection ? shouldCollapseCompletedLunch(lunchSection) : false
+  openSections.value = nextOpenSections
+  lunchCollapseState.value = initializeLunchPanelCollapse(
+    nextOpenSections.includes('lunch'),
+    allLunchDelivered,
+  )
   openSectionsInitialized = true
 }
 
 function shouldCollapseCompletedLunch(section: OrderSection): boolean {
-  return (
-    orderStore.currentDate === today() &&
-    section.type === 'lunch' &&
-    section.orders.length > 0 &&
-    section.orders.every((order) => order.status === 'delivered')
+  return shouldAutoCollapseTodayLunch({
+    currentDate: orderStore.currentDate,
+    today: today(),
+    mealType: section.type,
+    orders: section.orders,
+  })
+}
+
+function syncLunchCollapse(): void {
+  const lunchSection = orderSections.value.find((section) => section.type === 'lunch')
+  const allLunchDelivered = lunchSection ? shouldCollapseCompletedLunch(lunchSection) : false
+  const hasPendingLunch = lunchSection?.orders.some((order) => order.status === 'pending') ?? false
+  const previousState = lunchCollapseState.value
+  const nextState = reconcileLunchPanelCollapse(
+    previousState,
+    allLunchDelivered,
+    hasPendingLunch,
   )
+  lunchCollapseState.value = nextState
+  if (nextState.open === previousState.open) return
+
+  if (nextState.open) {
+    openSections.value = Array.from(new Set([...openSections.value, 'lunch']))
+  } else {
+    openSections.value = openSections.value.filter((section) => section !== 'lunch')
+  }
+}
+
+function onSectionsChange(value: MealType[]): void {
+  const lunchOpen = value.includes('lunch')
+  if (lunchOpen === lunchCollapseState.value.open) return
+  lunchCollapseState.value = markLunchPanelManually(lunchCollapseState.value, lunchOpen)
 }
 
 function sectionTitle(section: OrderSection): string {
@@ -340,6 +380,7 @@ async function refresh(): Promise<boolean> {
     return false
   }
   if (!openSectionsInitialized) resetOpenSections()
+  else syncLunchCollapse()
   return true
 }
 
@@ -359,7 +400,7 @@ function goNew(): void {
 
 function goDetail(id: number): void {
   if (dragState.value || Date.now() < dragClickBlockedUntil.value) return
-  void pageReturn.navigateTo({ url: `/pages/order/detail?id=${id}` }, { anchorKey: id })
+  void pageReturn.navigateTo({ url: `/pages/order/detail?id=${id}` })
 }
 
 onShow(() => {
@@ -399,7 +440,7 @@ onShow(() => {
       :show-scrollbar="false"
       @scroll="onListScroll"
     >
-      <uni-collapse v-model="openSections">
+      <uni-collapse v-model="openSections" @change="onSectionsChange">
         <uni-collapse-item
           v-for="section in orderSections"
           :key="section.type"
@@ -417,7 +458,6 @@ onShow(() => {
             <view class="order-list">
               <view
                 v-for="(order, index) in section.orders"
-                :id="pageReturn.itemId(order.id)"
                 :key="order.id"
                 class="order-item"
                 :class="{
