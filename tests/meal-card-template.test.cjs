@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict')
 const { readFileSync } = require('node:fs')
+const { join } = require('node:path')
 const test = require('node:test')
 const ts = require('typescript')
 
@@ -22,6 +23,8 @@ const {
   validateMealCardTemplate,
 } = require('../src/utils/meal-card-template.ts')
 
+const orderDetailSource = readFileSync(join(__dirname, '../src/pages/order/detail.vue'), 'utf8')
+
 test('renders the default monthly card message with current counts', () => {
   const output = renderMealCardTemplate(DEFAULT_MEAL_CARD_TEMPLATE_BODY, {
     usedMeals: 1,
@@ -31,6 +34,11 @@ test('renders the default monthly card message with current counts', () => {
     output,
     '同步一下的月卡信息：\n您办理的是478元/20份的月卡套餐，本次使用1份，当前剩余14份可用，有任何问题随时联系我就可以啦😊',
   )
+})
+
+test('copies actual remaining meals without subtracting pending reservations', () => {
+  assert.match(orderDetailSource, /availableMeals:\s*availability\.actual_remaining/)
+  assert.doesNotMatch(orderDetailSource, /availableMeals:\s*availability\.available/)
 })
 
 test('allows editing the package text and repeating known placeholders', () => {

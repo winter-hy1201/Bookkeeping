@@ -540,7 +540,7 @@ async function copyMealCardInfo(): Promise<void> {
     const availability = await getMealCardAvailability(current.customer_id)
     const text = renderMealCardTemplate(template.body, {
       usedMeals: current.meal_card_quantity,
-      availableMeals: availability.available,
+      availableMeals: availability.actual_remaining,
     })
     uni.setClipboardData({
       data: text,
