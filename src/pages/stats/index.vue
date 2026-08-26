@@ -15,7 +15,14 @@ const customStart = ref(today())
 const customEnd = ref(today())
 
 const summary = computed(
-  () => statsStore.summary ?? { orderCount: 0, income: 0, expense: 0, profit: 0 },
+  () =>
+    statsStore.summary ?? {
+      orderCount: 0,
+      orderQuantity: 0,
+      income: 0,
+      expense: 0,
+      profit: 0,
+    },
 )
 const averageOrder = computed(() => {
   if (summary.value.orderCount <= 0) return '—'
@@ -126,7 +133,13 @@ onShow(() => {
       <StatCard label="入账收入" :value="formatMoney(summary.income)" />
       <StatCard label="支出" :value="formatMoney(summary.expense)" />
       <StatCard label="利润" :value="formatMoney(summary.profit)" />
-      <StatCard label="有效订单" :value="summary.orderCount" unit="单" />
+      <StatCard
+        label="有效订单"
+        :value="summary.orderCount"
+        unit="单"
+        :qty="summary.orderQuantity"
+        qty-unit="份"
+      />
     </view>
     <view class="avg">
       <text>平均每单收入</text>

@@ -660,3 +660,26 @@ v1.4 用 `@longpress` 激活 + `@touchmove` 绑在整个 `order-item` 上，零 
 ### 后续修正（2026-08-14）
 
 - 修正复制月卡信息的余额取值：使用 `actual_remaining`，不再把待配送订单的次卡预占从客户当前剩余份数中扣除；新增回归测试锁定该字段映射。
+
+---
+
+## v1.22（2026-08-26）
+
+统计页“有效订单”指标补充总份数，便于同时核对订单笔数和实际餐份。
+
+### 指标展示
+
+- 现有“有效订单”卡片由单一的 `X单` 改为 `X单 / Y份`。
+- 份数沿用统计 API 的 `orderQuantity`，统计选定日期范围内所有非 `cancelled` 订单的 `quantity` 总和，包含待配送、已配送和组合支付订单。
+- 选定范围没有有效订单时显示 `0单 / 0份`。
+- “平均每单收入”仍按收入 ÷ 有效订单数计算；日趋势仍只展示收入、支出和利润。
+
+### 实现边界
+
+- 仅调整 `src/pages/stats/index.vue` 的现有 `StatCard` 绑定和空态默认值，不改统计 API、类型、通用组件、数据库或统计公式。
+
+### 验证
+
+- `node --test tests/*.test.cjs`（53/53）、直接 `vue-tsc --noEmit`、ESLint、H5 build 与 `git diff --check` 通过；H5 仅输出既有 uni-ui / Dart Sass 弃用警告。
+- `pnpm test` 在 pnpm 安装器尝试清理模块目录时因无 TTY 中止，未进入测试；已改用等价的 Node 测试入口完成验证。
+- HBuilderX Android 真机视觉回归待执行。
