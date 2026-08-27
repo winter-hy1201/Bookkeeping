@@ -11,7 +11,7 @@
 - **已建文件**：`docs/archive/PRD-v1.0.md`、`CLAUDE.md`、`AGENTS.md`、`CONTEXT.md`、`memory-bank/` 活文档、uni-app Vue 3 + Vite + TS 模板、11 张表 DDL + 迁移 + seed + integrity_check + tx() 工具、domain/api 类型、日期/金额/菜单模板/月卡模板/页面/备份工具、完整 API 层、4 个 Pinia store、3 个通用 UI 组件、uni-ui 表单组件、4 个 Tab 与关键子页、App.vue 全局 onError 兜底
 - **DB 状态**：v0 基线（`memory-bank/bookkeeping-v0.db`，CLI sqlite smoke-test 生成）；v1 阶段基线（`memory-bank/bookkeeping-v1.db`，Phase 8 真机 E2E 通过后归档，`user_version=1`）；当前 schema 版本为 7，新增每日菜单、文案模板、月卡文案模板和两类模板版本历史，v5 → v7 真机迁移待回归
 - **UI 基线**：v1.13 新增 `docs/design.md` 与 `$hej-*` 语义 token，并由样式预处理检查保护；订单空态、新建 / 编辑确认区和统计对账趋势已按该基线改造；今日页按用户反馈保留既有布局，HBuilderX 视觉回归待执行
-- **最后更新**：2026-08-14
+- **最后更新**：2026-08-27
 
 ---
 
@@ -351,3 +351,4 @@
 - 2026-08-12：月卡信息复制与独立文案模板（v1.21）——schema v7 新增独立月卡模板 / 版本表、备份数组和维护页；模板只允许 `{{本次使用份数}}` / `{{当前可用份数}}`，套餐描述直接编辑正文。已配送且实际使用次卡的订单详情新增复制月卡信息按钮；标记配送成功后只更新当前详情状态并保留页面，复制时按配送后余额与其他 pending 预占生成最新文案。新增 `CONTEXT.md` 与 ADR 0002 固化“月卡”为外部称呼、实际领域仍为无有效期次卡。CLI / H5 / Android 回归待最终执行。
 - 2026-08-14：月卡信息复制余额口径修正——`src/pages/order/detail.vue` 复制文案改用 `getMealCardAvailability()` 的 `actual_remaining`，待配送订单的次卡预占只继续用于订单可用性校验，不再从客户月卡文案的当前剩余份数中扣除；新增页面字段映射回归测试。
 - 2026-08-26：统计页有效订单份数——`src/pages/stats/index.vue` 沿用统计 API 已计算的 `orderQuantity`，在“有效订单”卡片中以“单 / 份”并列展示；份数与订单数同样排除 `cancelled`，无订单时显示 `0单 / 0份`，不改统计 API、类型、组件或数据库。Node 测试 53/53、直接 `vue-tsc`、ESLint、H5 build 与 diff-check 通过；HBuilderX Android 真机待验证。
+- 2026-08-27：按 `writing-for-agents` 重整根目录 `AGENTS.md`——移除过期版本快照与脚本 / 基座缓存，补充现场优先、分支取证、证据分级和收口标准；不改应用代码或业务行为。
