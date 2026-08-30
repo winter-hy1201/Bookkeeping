@@ -10,7 +10,7 @@
 - **项目阶段**：**v1.0 已发布**（Phase 1-9 全部完成；9.3 / 9.4 按用户决策跳过，用 HBuilderX 标准基座 debug APK 侧载；CHANGELOG.md v1.0 节已写好）
 - **已建文件**：`docs/archive/PRD-v1.0.md`、`CLAUDE.md`、`AGENTS.md`、`CONTEXT.md`、`memory-bank/` 活文档、uni-app Vue 3 + Vite + TS 模板、11 张表 DDL + 迁移 + seed + integrity_check + tx() 工具、domain/api 类型、日期/金额/菜单模板/月卡模板/页面/备份工具、完整 API 层、4 个 Pinia store、3 个通用 UI 组件、uni-ui 表单组件、4 个 Tab 与关键子页、App.vue 全局 onError 兜底
 - **DB 状态**：v0 基线（`memory-bank/bookkeeping-v0.db`，CLI sqlite smoke-test 生成）；v1 阶段基线（`memory-bank/bookkeeping-v1.db`，Phase 8 真机 E2E 通过后归档，`user_version=1`）；当前 schema 版本为 7，新增每日菜单、文案模板、月卡文案模板和两类模板版本历史，v5 → v7 真机迁移待回归
-- **UI 基线**：v1.13 新增 `docs/design.md` 与 `$hej-*` 语义 token，并由样式预处理检查保护；订单空态、新建 / 编辑确认区和统计对账趋势已按该基线改造；今日页按用户反馈保留既有布局，HBuilderX 视觉回归待执行
+- **UI 基线**：v1.13 新增 `docs/design.md` 与 `$hej-*` 语义 token，并由样式预处理检查保护；订单空态、新建 / 编辑确认区和统计对账趋势已按该基线改造；Issue #2 已将今日页切换到暖纸张 token、自定义安全区头部、紧凑指标和真实订单状态摘要，HBuilderX Android 模拟器视觉回归待执行
 - **最后更新**：2026-08-30
 
 ---
@@ -71,6 +71,7 @@
 | `tests/stats-timezone.test.cjs` | Node 内置回归测试：在 `Asia/Shanghai` 时区下验证 UTC 凌晨时间戳按设备本地日期计入首页次卡收入与日趋势 | 统计时区或次卡收入口径变化时 |
 | `tests/ui-style-preprocess.test.cjs` | Node 静态测试：扫描业务 Vue 样式块，使用 `$hej-*` token 时必须声明 `lang="scss"`，避免 token 原样输出使 App 回退默认样式 | token 样式页面变化时 |
 | `tests/page-return.test.cjs` | Node 纯函数回归：从生产 TypeScript 载入返回目标解析器，覆盖内容变化时仍恢复像素、空列表回顶部和负数像素归零。 | 页面返回现场的滚动恢复规则变化时 |
+| `tests/today-page-contract.test.cjs` | Node 静态契约测试：确保今日页连接真实 store / API、保留加载 / 空 / 失败状态、菜单入口与根路由，并使用暖纸张语义 token。 | 今日页面视觉契约或真实数据链路变化时 |
 | `pnpm-lock.yaml` | pnpm 锁定文件（**不要**手动编辑） | pnpm install 后自动 |
 | `tsconfig.json` | TypeScript 配置；extends `@vue/tsconfig`，加 3 个 strict 选项；排除 `src/uni_modules` 第三方 uni-ui 源码 | 调整严格度时 |
 | `vite.config.ts` | Vite 配置；只注册 `uni()` 插件 | 加 Vite 插件时 |
@@ -117,7 +118,7 @@
 
 | 文件 | 作用 |
 |---|---|
-| `src/pages/index/index.vue` | Tab 1「今日」Dashboard：增加社群菜单快捷入口；`onShow` 仍刷新 stats/order/customer store并展示订单、收支与三组今日订单，不改变配送流程。 |
+| `src/pages/index/index.vue` | Tab 1「今日」Dashboard：使用暖纸张画布、自定义安全区标题、社群菜单快捷入口、2×2 收支指标、三态摘要和真实今日订单列表；onShow 仍刷新 stats / order / customer store，不改变配送流程。 |
 | `src/pages/order/index.vue` | Tab 2「订单」列表：按日期筛选并用 `uni-collapse` 分成午餐 / 晚餐；顶部日期 / 新建区使用有内边距的操作区，日期控件根节点纵向居中内部固定高度输入框，与新建按钮保持可见中心对齐；日期控件保持弱表面，新建按钮使用 `$hej-color-accent` 主动作蓝，页面样式显式使用 SCSS 编译 token。列表项保留拖拽把手、客户名和状态，副标题按“餐次 · 总份数 · 次卡次数 · 微信/现金金额 · 完整备注”组合并自然换行，删除最右侧次卡 / 金额块；空态可直接进入无日期参数的新建页，今日午餐全部配送后默认折叠。拖拽继续使用 v1.6 的动态 `:scroll-y` 开关 + `setTimeout(16)` 边缘自动滚屏方案并写回 `orders.sort_order`。 |
 | `src/pages/order/new.vue` | `<uni-forms>` 新建订单表单：高频录单把日期、餐次直接放在连续录单卡的白色表面内，各占一条普通表单行，不再使用独立“配送安排”色块；全部字段共享 80px 标签列，标签与右侧控件垂直居中，控件从同一左边界开始。每次打开均以 `tomorrow()` 初始化配送日期，不接收订单列表筛选日期，用户仍可手动修改。份数表示“本次增量”，客户仍走现有搜索 / 拼音选择；客户上下文提示的重新检查 / 查看订单按钮保留固定触摸高度、最小宽度与水平留白。微信 / 现金 / 次卡为一级选择，份数大于 1 才出现组合支付入口；用户主动进入组合支付时，次卡次数预填 1 次并可用步进器在合法范围调整，补款与金额自动计算，展开面板与主表单使用同一白色表面，“改为纯支付”按钮保持完整触摸宽度与横向留白。实际单价直接显示输入框，选定客户后带入默认 / 已有订单单价；备注保持一行常显。次卡正常时紧凑提示，有预占或不足才展开明细。后台查询同键有效订单，pending 紧凑提示合并、delivered 阻断，改单价仍二次确认。固定确认区展示金额 / 支付摘要和当前缺失项；保存后由原生二次弹窗选择“继续下一单”（清空客户、份数、单价、备注，保留日期 / 餐次 / 支付）或“结束录单”（返回对应日期列表）。订单、金额、预占和 SQLite 写入规则不变。 |
 | `src/pages/order/detail.vue` | 订单详情与 `<uni-forms>` 编辑：只读态分别展示总份数、支付摘要、次卡次数、货币份数、实际单价与实际金额；编辑态同步新建页的连续白色表面、80px 标签列和单行字段顺序，日期、餐次、客户、总份数、支付、实际单价与备注之间用统一分隔线组织，标签与控件垂直居中，提示与辅助按钮沿用同一控件起点和触摸尺寸。详情页保留微信 / 现金 / 次卡 / 组合支付四种既有选项，窄屏下使用两列布局避免文字拥挤；本次实际金额、取消编辑与保存修改固定在底部。份数表示整单总量，支持组合支付、预占校验以及改变客户 / 日期 / 餐次后的目标订单合并确认。配送余额不足时整笔回滚并提示“去编辑支付”，不再自动整单改微信 / 现金；配送成功只更新当前详情状态不返回上一页，已配送次卡订单可按默认月卡模板复制最新月卡信息，复制文案使用配送后 active 次卡实际剩余次数而不扣待配送预占；保留复制、整单配送 / 取消 / 删除能力。 |
@@ -193,7 +194,7 @@
 
 | 文件 | 作用 |
 |---|---|
-| `src/utils/date.ts` | dayjs 本地时区日期工具：`today()` / `tomorrow()` 返回 `YYYY-MM-DD`；`weekRange(d)` 返回自然周周一到周日；`monthRange(d)` 返回自然月 1 号到月底；`formatDate(d)` 按当前年份显示 `MM-DD` 或 `YYYY-MM-DD`；`daysBetween(a, b)` 返回自然日整数差。 |
+| `src/utils/date.ts` | dayjs 本地时区日期工具：`today()` / `tomorrow()` 返回 `YYYY-MM-DD`；`weekRange()` 返回自然周周一到周日；`monthRange()` 返回自然月；`formatDate()` 按当前年份显示日期；`formatTodayLabel()` 输出今日页标题日期与星期；`formatTime()` 输出订单时间；`daysBetween()` 返回自然日整数差。 |
 | `src/utils/format.ts` | 金额/百分比格式化与精确计算工具（基于 big.js，全局 `Big.RM = roundHalfUp`，所有 helper 输出强制 `toFixed(2)` 保证 2 位小数）：`formatMoney(n)` 输出 `¥1,234.50`（空值/非法值为 `¥—`）；`parseMoney(s)` 接受普通数字、`¥`、`￥`、千分位并解析为 number（非法为 0）；`formatPercent(n)` 四舍五入输出整数百分比；`roundMoney/addMoney/subtractMoney/multiplyMoney/divideMoney` 提供按分精确运算，所有金额计算（订单单价、份数、统计累加/差值、次卡均摊）必须走这些 helper，禁止原生 `+ - * /` |
 | `src/utils/order-rules.ts` | 订单纯规则模块：支付拆分、次卡可用判断、备注合并去重、支付兼容与合并改单价预览，以及今日午餐自动折叠状态转移；API 与 Node 测试共享，金额计算只走 big.js helper。 |
 | `src/utils/menu-template.ts` | 社群菜单模板纯函数：内置默认正文、语法校验、条件餐次区块删除、`M月D日` 替换、多行 / 特殊字符保真和多余空行整理。 |

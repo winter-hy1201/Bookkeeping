@@ -13,21 +13,25 @@
  */
 
 /* 盒记 UI 语义 token（项目规则见 docs/design.md） */
-$hej-color-canvas: #f7f7f8;
-$hej-color-surface: #ffffff;
-$hej-color-surface-subtle: #f4f4f5;
-$hej-color-text: #18181b;
-$hej-color-text-secondary: #71717a;
-$hej-color-text-tertiary: #a1a1aa;
-$hej-color-border: #e4e4e7;
-$hej-color-accent: #0070f3;
-$hej-color-accent-soft: #eaf3ff;
-$hej-color-success: #16a34a;
-$hej-color-success-soft: #ecfdf3;
-$hej-color-warning: #d97706;
-$hej-color-warning-soft: #fff7ed;
-$hej-color-danger: #dc2626;
-$hej-color-danger-soft: #fef2f2;
+$hej-color-canvas: #f5f4ed;
+$hej-color-surface: #faf9f5;
+$hej-color-surface-subtle: #e8e6dc;
+$hej-color-text: #141413;
+$hej-color-text-secondary: #5e5d59;
+$hej-color-text-tertiary: #87867f;
+$hej-color-border: #e8e6dc;
+$hej-color-accent: #c96442;
+$hej-color-accent-soft: #f3e7e1;
+$hej-color-success: #64745b;
+$hej-color-success-soft: #eef0e8;
+$hej-color-warning: #8a6843;
+$hej-color-warning-soft: #f3eadc;
+$hej-color-danger: #8d4545;
+$hej-color-danger-soft: #f6eaea;
+$hej-color-pending: #657789;
+$hej-color-pending-soft: #eef1f3;
+$hej-color-delivered: #64745b;
+$hej-color-delivered-soft: #eef0e8;
 
 $hej-space-1: 8rpx;
 $hej-space-2: 12rpx;
@@ -37,15 +41,17 @@ $hej-space-5: 24rpx;
 $hej-space-6: 32rpx;
 $hej-space-7: 40rpx;
 
-$hej-radius-control: 12rpx;
-$hej-radius-panel: 20rpx;
+$hej-radius-control: 20rpx;
+$hej-radius-panel: 24rpx;
 $hej-radius-pill: 999rpx;
-$hej-shadow-panel: 0 2rpx 10rpx rgba(24, 24, 27, 0.05);
+$hej-shadow-panel: 0 2rpx 10rpx rgba(82, 68, 56, 0.05);
 
+$hej-font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans SC', 'HarmonyOS Sans SC', Roboto, sans-serif;
 $hej-font-caption: 22rpx;
 $hej-font-meta: 24rpx;
 $hej-font-body: 28rpx;
 $hej-font-title: 34rpx;
+$hej-font-hero: 56rpx;
 $hej-font-display: 48rpx;
 
 /* 颜色变量 */

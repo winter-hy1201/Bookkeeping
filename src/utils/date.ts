@@ -7,6 +7,7 @@ export interface DateRange {
 
 const DATE_FORMAT = 'YYYY-MM-DD'
 const DISPLAY_DATE_FORMAT = 'MM-DD'
+const WEEKDAY_TEXT = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'] as const
 
 function asDay(value: ConfigType) {
   const d = dayjs(value)
@@ -42,6 +43,11 @@ export function monthRange(d: string): DateRange {
   }
 }
 
+export function formatTodayLabel(d: string | Date): string {
+  const current = asDay(d)
+  return current.format('M月D日') + ' ' + WEEKDAY_TEXT[current.day()]
+}
+
 export function formatDate(d: string | Date): string {
   const current = asDay(d)
   const now = dayjs()
@@ -49,6 +55,11 @@ export function formatDate(d: string | Date): string {
     return current.format(DISPLAY_DATE_FORMAT)
   }
   return current.format(DATE_FORMAT)
+}
+
+export function formatTime(d: string | Date): string {
+  const current = dayjs(d)
+  return current.isValid() ? current.format('HH:mm') : '--:--'
 }
 
 export function daysBetween(a: string, b: string): number {

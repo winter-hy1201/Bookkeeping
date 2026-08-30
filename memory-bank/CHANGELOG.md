@@ -5,6 +5,12 @@
 
 ---
 
+## 待发布（Issue #2：暖纸张设计契约与今日首个切片，2026-08-30）
+
+- 今日页切换为暖纸张画布与系统字体栈，沿用三 Store / SQLite 真实数据链路；保留社群菜单入口与四个根 Tab 路由，补齐加载、失败、空订单、长备注和真实支付 / 状态展示。
+- 同步 docs/design.md、src/uni.scss、src/pages.json 和架构登记；未改 schema、API、统计口径、订单状态机或次卡规则。
+- CLI：Node 56/56、type-check、lint、H5 build、diff-check 已通过；HBuilderX Android 模拟器验收 BLOCKED，原因是 computer-use 控制内核连续异常退出，且连接设备为 1440×2560（非 375×812）。
+
 ## v1.0（2026-06-11）
 
 首个可发布版本。盒饭档口老板的个人记账 App，Android 侧载 / 本地 SQLite / 单用户。

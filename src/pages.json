@@ -3,7 +3,8 @@
     {
       "path": "pages/index/index",
       "style": {
-        "navigationBarTitleText": "今日"
+        "navigationBarTitleText": "今日",
+        "navigationStyle": "custom"
       }
     },
     {
@@ -143,14 +144,14 @@
   "globalStyle": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "盒记",
-    "navigationBarBackgroundColor": "#F8F8F8",
-    "backgroundColor": "#F8F8F8"
+    "navigationBarBackgroundColor": "#F5F4ED",
+    "backgroundColor": "#F5F4ED"
   },
   "tabBar": {
-    "color": "#8F8F94",
-    "selectedColor": "#007AFF",
-    "backgroundColor": "#FFFFFF",
-    "borderStyle": "black",
+    "color": "#87867F",
+    "selectedColor": "#C96442",
+    "backgroundColor": "#FAF9F5",
+    "borderStyle": "white",
     "list": [
       {
         "pagePath": "pages/index/index",

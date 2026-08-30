@@ -8,7 +8,7 @@
 
 盒记服务于盒饭档口经营者的日常闭环：录单、配送、当晚对账。
 
-- **今日页**：保留既有的今日概览、状态计数与订单分组；本轮不改变配送流程。
+- **今日页**：以暖纸张画布承载自定义安全区标题、社群菜单快捷入口、2×2 收支概览、三态摘要和真实今日订单列表；本轮不改变配送流程。
 - **订单表单**：按“对象 → 份数 → 支付 → 金额 → 确认”完成一次可预期的录单或修改。
 - **统计页**：帮助对账，而不是展示抽象经营指标；优先呈现收入、支出、利润和有效订单（单 / 份）；收入、支出与利润按日期变化。
 - **每日菜单**：支持周末连续维护未来多天午 / 晚餐，并快速复制社群文案。
@@ -20,18 +20,21 @@
 ## 2. Token
 
 视觉值定义在 `src/uni.scss`；新增或修改的业务页面优先引用下列语义 token，禁止临时发明颜色、圆角和阴影。
+Issue #2 的今日页采用暖纸张（warm-paper）契约：画布 #F5F4ED，表面 #FAF9F5，边界 #E8E6DC，主动作 #C96442；正文使用 Android 系统字体栈，不引入大型中文字体包。
 
-| 类别 | token | 用途 |
-|---|---|---|
-| 画布 | `$hej-color-canvas` | 页面背景 |
-| 表面 | `$hej-color-surface` / `$hej-color-surface-subtle` | 卡片、弱分区、固定确认区 |
-| 文字 | `$hej-color-text` / `$hej-color-text-secondary` / `$hej-color-text-tertiary` | 标题、说明、辅助信息 |
-| 边界 | `$hej-color-border` | 卡片、输入和分隔线 |
-| 主动作 | `$hej-color-accent` / `$hej-color-accent-soft` | 新建、保存、待配送状态 |
-| 成功 | `$hej-color-success` / `$hej-color-success-soft` | 已配送、正利润 |
-| 提醒 | `$hej-color-warning` / `$hej-color-warning-soft` | 取消、待注意状态 |
-| 危险 | `$hej-color-danger` / `$hej-color-danger-soft` | 删除、不可逆错误 |
-| 布局 | `$hej-space-*` / `$hej-radius-*` / `$hej-shadow-panel` | 间距、圆角、卡片层次 |
+| 类别 | token | 参考值 | 用途 |
+|---|---|---|---|
+| 画布 | `$hej-color-canvas` | `#F5F4ED` | 页面背景 |
+| 表面 | `$hej-color-surface` / `$hej-color-surface-subtle` | `#FAF9F5` / `#E8E6DC` | 卡片、弱分区、固定确认区 |
+| 文字 | `$hej-color-text` / `$hej-color-text-secondary` / `$hej-color-text-tertiary` | `#141413` / `#5E5D59` / `#87867F` | 标题、说明、辅助信息 |
+| 边界 | `$hej-color-border` | `#E8E6DC` | 卡片、输入和分隔线 |
+| 主动作 | `$hej-color-accent` / `$hej-color-accent-soft` | `#C96442` / `#F3E7E1` | 新建、保存、今日页入口 |
+| 待配送 | `$hej-color-pending` / `$hej-color-pending-soft` | `#657789` / `#EEF1F3` | 待配送状态 |
+| 已配送 | `$hej-color-delivered` / `$hej-color-delivered-soft` | `#64745B` / `#EEF0E8` | 已配送、正利润 |
+| 已取消 | `$hej-color-warning` / `$hej-color-warning-soft` | `#8A6843` / `#F3EADC` | 取消、待注意状态 |
+| 危险 | `$hej-color-danger` / `$hej-color-danger-soft` | `#8D4545` / `#F6EAEA` | 删除、不可逆错误 |
+| 布局 | `$hej-space-*` / `$hej-radius-*` / `$hej-shadow-panel` | `20rpx / 24rpx / 0 2rpx 10rpx` | 间距、圆角、卡片层次 |
+| 字体 | `$hej-font-family` / `$hej-font-hero` / `$hej-font-title` / `$hej-font-body` / `$hej-font-meta` / `$hej-font-caption` | Android 系统字体栈；56rpx / 34rpx / 28rpx / 24rpx / 22rpx | 标题与正文层级 |
 
 使用 `$hej-*` 的 Vue 样式块必须声明 `<style ... lang="scss">`；否则 token 会作为无效 CSS 原样输出，App 会回退到平台默认样式。
 
@@ -51,9 +54,9 @@
 
 ### 状态
 
-- 待配送：主动作蓝色，始终优先于历史状态。
-- 已配送：成功绿色，只作为完成反馈，不抢主操作视觉。
-- 已取消：提醒橙色；删除错误才使用危险红色。
+- 待配送：使用低饱和石板色，保持当前待处理状态的可辨识度。
+- 已配送：使用橄榄灰绿色，只作为完成反馈，不抢主操作视觉。
+- 已取消：使用暖棕色提醒；删除错误才使用危险红色。
 - 状态名称、提示和按钮用同一套动词：例如“标记已配送”成功后提示“已标记配送”。
 
 ### 空态
@@ -124,6 +127,12 @@
 - 错误提示说明原因和可行的下一步；已有业务错误文案优先保留，不用纯视觉改动掩盖它。
 
 ## 6. UI 验收清单
+### 今日页专项
+
+- 今日页在 375 × 812 参考尺寸下使用自定义安全区头部、可滚动内容和原生四栏 TabBar，底部内容保留安全留白。
+- 指标、订单单数、份数、金额、客户、支付方式和状态均来自现有 store / API / SQLite；参考图中的示例数据不进入生产页面。
+- 订单区同时展示待配送 / 已配送 / 已取消的数量与份数，明细按状态分组，并在每条真实订单上保留文字状态标签；加载失败与空态分开表达。
+
 
 每次改 UI 后逐项确认：
 
