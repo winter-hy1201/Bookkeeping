@@ -74,6 +74,7 @@
 | `tests/order-new-contract.test.cjs` | Node 静态契约测试：确保新建订单页与 CustomerPicker 连接真实 store / API、保留组合支付与合并/阻断状态机、不含 demo 硬编码，并使用暖纸张语义 token。 | 新建订单页面视觉契约或真实数据链路变化时 |
 | `tests/today-page-contract.test.cjs` | Node 静态契约测试：确保今日页连接真实 store / API、保留加载 / 空 / 失败状态、菜单入口与根路由，并使用暖纸张语义 token。 | 今日页面视觉契约或真实数据链路变化时 |
 | `tests/order-page-contract.test.cjs` | Node 静态契约测试：确保订单列表连接真实 store / API、保留三态状态标签、空/载/错状态卡片、自定义导航与暖纸张语义 token，不含 demo 硬编码。 | 订单列表页面视觉契约或真实数据链路变化时 |
+| `tests/customer-pages-contract.test.cjs` | Node 静态契约测试：确保客户列表、新建客户档案与客户详情连接真实 store / API、保留拼音首字母检索、80px 标签列、次卡身份徽标与删除依赖保护，并使用暖纸张语义 token。 | 客户页面视觉契约或真实数据链路变化时 |
 | `pnpm-lock.yaml` | pnpm 锁定文件（**不要**手动编辑） | pnpm install 后自动 |
 | `tsconfig.json` | TypeScript 配置；extends `@vue/tsconfig`，加 3 个 strict 选项；排除 `src/uni_modules` 第三方 uni-ui 源码 | 调整严格度时 |
 | `vite.config.ts` | Vite 配置；只注册 `uni()` 插件 | 加 Vite 插件时 |
