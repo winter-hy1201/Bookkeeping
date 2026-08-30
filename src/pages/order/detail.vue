@@ -130,6 +130,14 @@ const mixedCardQuantity = computed(() => {
   const value = Number(form.meal_card_quantity)
   return Number.isInteger(value) && value > 0 ? value : 0
 })
+const mixedCardQuantityMax = computed(() => Math.max(1, form.quantity - 1))
+const mixedCardQuantityInput = computed<number>({
+  get: () => mixedCardQuantity.value,
+  set: (value) => {
+    const next = Math.min(mixedCardQuantityMax.value, Math.max(1, Math.floor(toNumber(value))))
+    form.meal_card_quantity = String(next)
+  },
+})
 const cardQuantity = computed(() => {
   if (form.payment_mode === 'meal_card') return form.quantity
   if (form.payment_mode === 'mixed') return mixedCardQuantity.value
@@ -167,6 +175,9 @@ const canSaveEdit = computed(
     Number.isInteger(form.quantity) &&
     form.quantity > 0 &&
     editTargetOrder.value?.status !== 'delivered' &&
+    (!isMixed.value || mixedCardQuantity.value > 0) &&
+    (!hasMoney.value || (form.actual_price.trim().length > 0 && actualPrice.value >= 0)) &&
+    !cardAvailabilityError.value &&
     !actioning.value &&
     !saving.value,
 )
@@ -202,11 +213,28 @@ watch([selectedCustomer, () => form.order_date, () => form.meal_type], () => {
 })
 
 watch(
+  () => form.quantity,
+  (quantity) => {
+    if (!editing.value || initializingEditForm.value || !isMixed.value) return
+    if (quantity <= 1) {
+      form.payment_mode = form.money_method
+      form.meal_card_quantity = ''
+      return
+    }
+    if (mixedCardQuantity.value >= quantity) {
+      form.meal_card_quantity = String(quantity - 1)
+    }
+  },
+)
+
+watch(
   () => form.payment_mode,
   (mode, previous) => {
     if (!editing.value || initializingEditForm.value) return
     if (mode === 'mixed' && previous !== 'mixed') {
-      form.meal_card_quantity = ''
+      if (form.quantity > 1 && !form.meal_card_quantity) {
+        form.meal_card_quantity = '1'
+      }
     }
     if (mode !== 'meal_card' && previous === 'meal_card') {
       const price = customerPrice(selectedCustomer.value, form.meal_type)
@@ -249,7 +277,9 @@ async function startEdit(): Promise<void> {
   form.meal_card_quantity =
     current.meal_card_quantity > 0 && current.meal_card_quantity < current.quantity
       ? String(current.meal_card_quantity)
-      : ''
+      : form.quantity > 1
+        ? '1'
+        : ''
   form.actual_price = String(current.unit_price)
   form.note = current.note ?? ''
   editTargetOrder.value = null
@@ -596,34 +626,180 @@ onShow(() => {
       @scroll="pageReturn.onScroll"
     >
       <view class="page-content">
-        <view v-if="loading" class="empty">正在读取订单...</view>
-        <view v-else-if="!order" class="empty">订单不存在或已被删除</view>
+        <view v-if="loading" class="state-card state-card--loading">
+          <text class="state-card__title">正在读取订单...</text>
+          <text class="state-card__desc">核对订单与客户数据</text>
+        </view>
+        <view v-else-if="!order" class="state-card state-card--empty">
+          <text class="state-card__title">订单不存在或已被删除</text>
+          <text class="state-card__desc">该订单记录可能已被清理，请返回订单列表查看最新数据。</text>
+        </view>
         <template v-else>
-          <view class="hero">
-            <view class="hero-main">
-              <text class="name">{{ customer?.name ?? `客户 #${order.customer_id}` }}</text>
-              <text
-                class="status"
-                :class="{
-                  'status--delivered': order.status === 'delivered',
-                  'status--cancelled': order.status === 'cancelled',
-                }"
-              >
-                {{ statusText(order.status) }}
-              </text>
+          <!-- Read-only View -->
+          <template v-if="!editing">
+            <view class="hero-card">
+              <view class="hero-header">
+                <view class="hero-info">
+                  <text class="hero-name">{{ customer?.name ?? `客户 #${order.customer_id}` }}</text>
+                  <text v-if="customer?.wechat || customer?.phone" class="hero-meta">
+                    {{ customer.wechat ? `微信：${customer.wechat}` : `手机：${customer.phone}` }}
+                  </text>
+                  <text v-else class="hero-meta">仅用于配送沟通</text>
+                </view>
+                <view class="hero-badge-wrap">
+                  <text
+                    class="status-chip"
+                    :class="{
+                      'status-chip--pending': order.status === 'pending',
+                      'status-chip--delivered': order.status === 'delivered',
+                      'status-chip--cancelled': order.status === 'cancelled',
+                    }"
+                  >
+                    {{ statusText(order.status) }}
+                  </text>
+                </view>
+              </view>
+              <view v-if="canEdit" class="hero-action-row">
+                <button class="hero-edit-btn" :disabled="actioning" @click="startEdit">
+                  编辑订单
+                </button>
+              </view>
             </view>
-            <button
-              v-if="canEdit && !editing"
-              class="edit-button"
-              :disabled="actioning"
-              @click="startEdit"
-            >
-              编辑订单
-            </button>
-          </view>
 
+            <view class="detail-panel">
+              <view class="panel-header">
+                <text class="panel-title">订单详情</text>
+                <text class="panel-meta">配送与收款记录</text>
+              </view>
+              <view class="panel-row">
+                <text class="row-label">日期</text>
+                <text class="row-value">{{ order.order_date }}</text>
+              </view>
+              <view class="panel-row">
+                <text class="row-label">餐次</text>
+                <text class="row-value">{{ mealTypeText(order.meal_type) }} × {{ order.quantity }}份</text>
+              </view>
+              <view class="panel-row">
+                <text class="row-label">支付</text>
+                <text class="row-value">{{ orderPaymentSummary(order) }}</text>
+              </view>
+              <view v-if="order.meal_card_quantity > 0" class="panel-row">
+                <text class="row-label">次卡次数</text>
+                <text class="row-value">{{ order.meal_card_quantity }} 次</text>
+              </view>
+              <view v-if="orderMoneyQuantity > 0" class="panel-row">
+                <text class="row-label">{{ orderMoneyPaymentLabel }}</text>
+                <text class="row-value">{{ orderMoneyQuantity }} 份</text>
+              </view>
+              <view class="panel-row">
+                <text class="row-label">实际单价</text>
+                <text class="row-value">{{ formatMoney(order.unit_price) }}</text>
+              </view>
+              <view class="panel-row">
+                <text class="row-label">实际金额</text>
+                <text class="row-value row-value--accent">{{ formatMoney(order.amount) }}</text>
+              </view>
+              <view class="panel-row panel-row--top">
+                <text class="row-label">备注</text>
+                <text class="row-value row-value--multiline">{{ order.note || '—' }}</text>
+              </view>
+              <view class="panel-row">
+                <text class="row-label">创建时间</text>
+                <text class="row-value">{{ dayjs(order.created_at).format('YYYY-MM-DD HH:mm:ss') }}</text>
+              </view>
+              <view v-if="order.cancelled_at" class="panel-row">
+                <text class="row-label">取消时间</text>
+                <text class="row-value">{{ order.cancelled_at }}</text>
+              </view>
+            </view>
+
+            <view v-if="customer" class="detail-panel">
+              <view class="panel-header">
+                <text class="panel-title">客户联系</text>
+                <text class="panel-meta">仅用于配送沟通</text>
+              </view>
+              <view class="panel-row">
+                <text class="row-label">微信</text>
+                <text class="row-value">{{ customer.wechat || '—' }}</text>
+              </view>
+              <view class="panel-row">
+                <text class="row-label">手机</text>
+                <text class="row-value">{{ customer.phone || '—' }}</text>
+              </view>
+            </view>
+
+            <view class="actions-section">
+              <button
+                v-if="order.status === 'pending'"
+                class="action-btn action-btn--primary"
+                :disabled="actioning"
+                @click="markDelivered"
+              >
+                标记已配送
+              </button>
+
+              <view v-if="order.status === 'pending'" class="action-btn-row">
+                <button
+                  class="action-btn action-btn--secondary"
+                  :disabled="actioning"
+                  @click="copyOrderInfo"
+                >
+                  复制信息
+                </button>
+                <button
+                  class="action-btn action-btn--secondary"
+                  :disabled="actioning"
+                  @click="cancelOrder"
+                >
+                  取消订单
+                </button>
+              </view>
+
+              <view v-else-if="order.status === 'delivered'" class="action-btn-group">
+                <button
+                  v-if="order.meal_card_quantity > 0"
+                  class="action-btn action-btn--secondary"
+                  :disabled="actioning || copyingMealCard"
+                  @click="copyMealCardInfo"
+                >
+                  {{ copyingMealCard ? '生成中...' : '复制月卡信息' }}
+                </button>
+                <button
+                  class="action-btn action-btn--secondary"
+                  :disabled="actioning"
+                  @click="copyOrderInfo"
+                >
+                  复制信息
+                </button>
+              </view>
+
+              <view v-else-if="order.status === 'cancelled'" class="action-btn-group">
+                <button
+                  class="action-btn action-btn--secondary"
+                  :disabled="actioning"
+                  @click="copyOrderInfo"
+                >
+                  复制信息
+                </button>
+              </view>
+            </view>
+
+            <view class="danger-zone">
+              <text class="danger-zone__title">危险操作</text>
+              <text class="danger-zone__desc">删除后无法恢复；已配送订单中的次卡使用次数会按扣次明细精确回滚。</text>
+              <button
+                class="action-btn action-btn--danger-outline"
+                :disabled="actioning"
+                @click="deleteOrder"
+              >
+                删除订单
+              </button>
+            </view>
+          </template>
+
+          <!-- Edit Form View -->
           <uni-forms
-            v-if="editing"
+            v-else
             ref="formRef"
             class="form"
             :model-value="form"
@@ -649,7 +825,8 @@ onShow(() => {
                     class="meal-choice"
                     mode="button"
                     :localdata="mealTypeOptions"
-                    selected-color="#0070f3"
+                    selected-color="#c96442"
+                    selected-text-color="#c96442"
                   />
                 </uni-forms-item>
               </view>
@@ -670,15 +847,22 @@ onShow(() => {
                   v-else-if="editTargetOrder?.status === 'pending'"
                   class="context-box context-box--info"
                 >
-                  保存时会先询问是否与订单 #{{ editTargetOrder.id }} 合并，并保留目标排序。
-                  <button class="link-button" @click="goTargetOrder">查看目标订单</button>
+                  <view class="context-box__main">
+                    <text class="context-box__title">保存时将与已有待配送订单 #{{ editTargetOrder.id }} 合并</text>
+                    <text class="context-meta">
+                      已有 {{ editTargetOrder.quantity }} 份 · {{ orderPaymentSummary(editTargetOrder) }}
+                    </text>
+                  </view>
+                  <button class="link-button" @click="goTargetOrder">查看目标订单 ›</button>
                 </view>
                 <view
                   v-else-if="editTargetOrder?.status === 'delivered'"
                   class="context-box context-box--danger"
                 >
-                  目标客户本餐次已经配送，不能修改到该餐次。
-                  <button class="link-button" @click="goTargetOrder">查看已配送订单</button>
+                  <view class="context-box__main">
+                    <text class="context-box__title">目标客户本餐次已经配送完成，不能修改到该餐次。</text>
+                  </view>
+                  <button class="link-button" @click="goTargetOrder">查看已配送订单 ›</button>
                 </view>
               </view>
 
@@ -702,18 +886,19 @@ onShow(() => {
                     class="payment-grid"
                     mode="button"
                     :localdata="paymentOptions"
-                    selected-color="#0070f3"
+                    selected-color="#c96442"
+                    selected-text-color="#c96442"
                   />
                 </uni-forms-item>
 
                 <view v-if="isMixed" class="mixed-payment-panel">
                   <uni-forms-item name="meal_card_quantity" label="次卡次数" required>
-                    <uni-easyinput
-                      v-model="form.meal_card_quantity"
-                      type="number"
-                      inputmode="numeric"
-                      placeholder="请手动填写"
-                      :clearable="true"
+                    <uni-number-box
+                      v-model="mixedCardQuantityInput"
+                      class="mixed-count-box"
+                      :min="1"
+                      :max="mixedCardQuantityMax"
+                      :width="72"
                     />
                   </uni-forms-item>
 
@@ -723,7 +908,8 @@ onShow(() => {
                       class="money-method-choice"
                       mode="button"
                       :localdata="moneyMethodOptions"
-                      selected-color="#0070f3"
+                      selected-color="#c96442"
+                      selected-text-color="#c96442"
                     />
                   </uni-forms-item>
                 </view>
@@ -783,106 +969,21 @@ onShow(() => {
               </view>
             </view>
 
-            <view class="form-bottom-spacer" />
+            <view class="form-scroll-spacer" />
           </uni-forms>
-
-          <template v-else>
-            <view class="panel">
-              <view class="panel-header">
-                <text class="panel-title">订单详情</text>
-                <text class="panel-meta">配送与收款记录</text>
-              </view>
-              <view class="row"
-                ><text>日期</text><text>{{ order.order_date }}</text></view
-              >
-              <view class="row">
-                <text>餐次</text>
-                <text>{{ mealTypeText(order.meal_type) }} × {{ order.quantity }}</text>
-              </view>
-              <view class="row"
-                ><text>支付</text><text>{{ orderPaymentSummary(order) }}</text></view
-              >
-              <view v-if="order.meal_card_quantity > 0" class="row">
-                <text>次卡次数</text><text>{{ order.meal_card_quantity }} 次</text>
-              </view>
-              <view v-if="orderMoneyQuantity > 0" class="row">
-                <text>{{ orderMoneyPaymentLabel }}</text
-                ><text>{{ orderMoneyQuantity }} 份</text>
-              </view>
-              <view class="row"
-                ><text>实际单价</text><text>{{ formatMoney(order.unit_price) }}</text></view
-              >
-              <view class="row"
-                ><text>实际金额</text><text>{{ formatMoney(order.amount) }}</text></view
-              >
-              <view class="row row--top">
-                <text>备注</text><text class="note">{{ order.note || '—' }}</text>
-              </view>
-              <view class="row">
-                <text>创建</text
-                ><text>{{ dayjs(order.created_at).format('YYYY-MM-DD HH:mm:ss') }}</text>
-              </view>
-              <view v-if="order.cancelled_at" class="row">
-                <text>取消</text><text>{{ order.cancelled_at }}</text>
-              </view>
-            </view>
-
-            <view v-if="customer" class="panel">
-              <view class="panel-header">
-                <text class="panel-title">客户联系</text>
-                <text class="panel-meta">仅用于配送沟通</text>
-              </view>
-              <view class="row"
-                ><text>微信</text><text>{{ customer.wechat || '—' }}</text></view
-              >
-              <view class="row"
-                ><text>手机</text><text>{{ customer.phone || '—' }}</text></view
-              >
-            </view>
-
-            <view class="actions">
-              <button class="secondary" :disabled="actioning" @click="copyOrderInfo">
-                复制信息
-              </button>
-              <button
-                v-if="order.status === 'delivered' && order.meal_card_quantity > 0"
-                class="secondary"
-                :disabled="actioning || copyingMealCard"
-                @click="copyMealCardInfo"
-              >
-                {{ copyingMealCard ? '生成中...' : '复制月卡信息' }}
-              </button>
-              <button
-                v-if="order.status === 'pending'"
-                class="primary"
-                :disabled="actioning"
-                @click="markDelivered"
-              >
-                标记已配送
-              </button>
-              <button
-                v-if="order.status === 'pending'"
-                class="danger"
-                :disabled="actioning"
-                @click="cancelOrder"
-              >
-                取消订单
-              </button>
-            </view>
-            <view class="danger-zone">
-              <button class="danger-outline" :disabled="actioning" @click="deleteOrder">
-                删除订单
-              </button>
-            </view>
-          </template>
         </template>
       </view>
     </scroll-view>
 
-    <view v-if="order && editing" class="edit-submit-bar">
+    <!-- Bottom Fixed Confirmation Bar for Edit Mode -->
+    <view v-if="order && editing" class="submit-bar">
       <view class="submit-summary">
         <text class="submit-label">{{ hasMoney ? '本次实际金额' : '本次支付方式' }}</text>
-        <text class="submit-value">{{ hasMoney ? formatMoney(editTotalAmount) : '次卡支付' }}</text>
+        <view class="submit-value-row">
+          <text class="submit-value" :class="{ 'submit-value--accent': hasMoney }">
+            {{ hasMoney ? formatMoney(editTotalAmount) : '次卡支付' }}
+          </text>
+        </view>
         <text class="submit-meta">
           {{
             isMixed
@@ -894,8 +995,8 @@ onShow(() => {
         </text>
       </view>
       <view class="edit-submit-actions">
-        <button class="secondary" @click="cancelEdit">取消编辑</button>
-        <button class="primary" :disabled="!canSaveEdit" @click="saveEdit">
+        <button class="edit-btn edit-btn--secondary" @click="cancelEdit">取消编辑</button>
+        <button class="edit-btn edit-btn--primary" :disabled="!canSaveEdit" @click="saveEdit">
           {{ saving ? '保存中...' : '保存修改' }}
         </button>
       </view>
@@ -921,76 +1022,302 @@ onShow(() => {
 }
 
 .page-content {
-  padding: 0;
+  padding: $hej-space-3 0 $hej-space-6;
 }
 
-.hero,
-.panel {
-  margin-bottom: $hej-space-2;
-  padding: $hej-space-5;
+/* State Cards */
+.state-card {
+  padding: 80rpx $hej-space-5;
+  border-radius: $hej-radius-panel;
+  border: 1rpx solid $hej-color-border;
   background: $hej-color-surface;
+  text-align: center;
+  box-shadow: $hej-shadow-panel;
 }
 
-.hero {
+.state-card__title {
+  display: block;
+  color: $hej-color-text;
+  font-size: $hej-font-body;
+  font-weight: 600;
+}
+
+.state-card__desc {
+  display: block;
+  margin-top: $hej-space-2;
+  color: $hej-color-text-tertiary;
+  font-size: $hej-font-caption;
+  line-height: 1.5;
+}
+
+/* Hero Card */
+.hero-card {
+  margin-bottom: $hej-space-3;
+  padding: $hej-space-5;
+  border-radius: $hej-radius-panel;
+  border: 1rpx solid $hej-color-border;
+  background: $hej-color-surface;
+  box-shadow: $hej-shadow-panel;
+}
+
+.hero-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: $hej-space-4;
+  gap: $hej-space-3;
 }
 
-.hero-main {
-  display: flex;
+.hero-info {
   flex: 1;
-  flex-direction: column;
   min-width: 0;
 }
 
-.name {
+.hero-name {
+  display: block;
   overflow: hidden;
   color: $hej-color-text;
   font-size: 38rpx;
   font-weight: 700;
+  line-height: 1.3;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.status {
-  margin-top: $hej-space-1;
-  color: $hej-color-accent;
-  font-size: $hej-font-meta;
+.hero-meta {
+  display: block;
+  margin-top: 6rpx;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-caption;
+  line-height: 1.4;
 }
 
-.status--delivered {
-  color: $hej-color-success;
-}
-
-.status--cancelled {
-  color: $hej-color-danger;
-}
-
-.edit-button {
+.hero-badge-wrap {
   flex: 0 0 auto;
-  width: auto;
-  min-width: 200rpx;
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4rpx $hej-space-3;
+  border-radius: $hej-radius-control;
+  font-size: $hej-font-caption;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.status-chip--pending {
+  background: $hej-color-pending-soft;
+  color: $hej-color-pending;
+}
+
+.status-chip--delivered {
+  background: $hej-color-delivered-soft;
+  color: $hej-color-delivered;
+}
+
+.status-chip--cancelled {
+  background: $hej-color-warning-soft;
+  color: $hej-color-warning;
+}
+
+.hero-action-row {
+  margin-top: $hej-space-4;
+  padding-top: $hej-space-4;
+  border-top: 1rpx solid $hej-color-border;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.hero-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 180rpx;
   height: 64rpx;
   margin: 0;
-  padding: 0 $hej-space-5;
-  border: 0;
+  padding: 0 $hej-space-4;
+  border: 1rpx solid $hej-color-border;
   border-radius: $hej-radius-control;
-  background: $hej-color-accent-soft;
+  background: $hej-color-surface;
   box-sizing: border-box;
-  color: $hej-color-accent;
-  font-size: $hej-font-meta;
+  color: $hej-color-text;
+  font-size: $hej-font-caption;
   font-weight: 600;
   line-height: 64rpx;
   text-align: center;
   white-space: nowrap;
 }
 
-.edit-button::after {
+.hero-edit-btn::after {
   border: 0;
 }
 
+/* Detail Panels */
+.detail-panel {
+  margin-bottom: $hej-space-3;
+  padding: $hej-space-4 $hej-space-5;
+  border-radius: $hej-radius-panel;
+  border: 1rpx solid $hej-color-border;
+  background: $hej-color-surface;
+  box-shadow: $hej-shadow-panel;
+}
+
+.panel-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: $hej-space-3;
+  padding-bottom: $hej-space-3;
+  border-bottom: 1rpx solid $hej-color-border;
+  margin-bottom: $hej-space-1;
+}
+
+.panel-title {
+  color: $hej-color-text;
+  font-size: $hej-font-body;
+  font-weight: 700;
+}
+
+.panel-meta {
+  color: $hej-color-text-tertiary;
+  font-size: $hej-font-caption;
+}
+
+.panel-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $hej-space-4;
+  padding: $hej-space-3 0;
+  border-bottom: 1rpx solid rgba(232, 230, 220, 0.6);
+  font-size: $hej-font-body;
+}
+
+.panel-row:last-child {
+  border-bottom: 0;
+  padding-bottom: $hej-space-1;
+}
+
+.panel-row--top {
+  align-items: flex-start;
+}
+
+.row-label {
+  flex: 0 0 auto;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-body;
+}
+
+.row-value {
+  flex: 1;
+  min-width: 0;
+  color: $hej-color-text;
+  font-size: $hej-font-body;
+  font-weight: 500;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.row-value--accent {
+  color: $hej-color-accent;
+  font-weight: 700;
+}
+
+.row-value--multiline {
+  max-width: 70%;
+  white-space: normal;
+}
+
+/* Actions Section */
+.actions-section {
+  margin-top: $hej-space-4;
+  display: flex;
+  flex-direction: column;
+  gap: $hej-space-3;
+}
+
+.action-btn-row {
+  display: flex;
+  gap: $hej-space-3;
+}
+
+.action-btn-row .action-btn {
+  flex: 1;
+}
+
+.action-btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: $hej-space-3;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 88rpx;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: $hej-radius-control;
+  box-sizing: border-box;
+  font-size: $hej-font-body;
+  font-weight: 600;
+  line-height: 88rpx;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.action-btn::after {
+  border: 0;
+}
+
+.action-btn--primary {
+  background: $hej-color-accent;
+  color: $hej-color-surface;
+}
+
+.action-btn--secondary {
+  border: 1rpx solid $hej-color-border;
+  background: $hej-color-surface;
+  color: $hej-color-text;
+  box-shadow: $hej-shadow-panel;
+}
+
+.action-btn--danger-outline {
+  border: 1rpx solid rgba(141, 69, 69, 0.4);
+  background: $hej-color-surface;
+  color: $hej-color-danger;
+}
+
+/* Danger Zone */
+.danger-zone {
+  margin-top: $hej-space-6;
+  padding: $hej-space-5;
+  border-radius: $hej-radius-panel;
+  border: 1rpx dashed rgba(141, 69, 69, 0.3);
+  background: $hej-color-surface;
+}
+
+.danger-zone__title {
+  display: block;
+  color: $hej-color-danger;
+  font-size: $hej-font-body;
+  font-weight: 700;
+}
+
+.danger-zone__desc {
+  display: block;
+  margin: $hej-space-2 0 $hej-space-4;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-caption;
+  line-height: 1.5;
+}
+
+/* Form Styles */
 .form {
   --order-label-width: 80px;
   display: block;
@@ -998,6 +1325,14 @@ onShow(() => {
 
 .form :deep(.uni-forms-item) {
   align-items: center;
+  margin-bottom: 0;
+  padding: $hej-space-3 0;
+}
+
+.form :deep(.uni-forms-item__label) {
+  color: $hej-color-text;
+  font-size: $hej-font-body;
+  font-weight: 500;
 }
 
 .form :deep(.uni-forms-item__content) {
@@ -1006,12 +1341,29 @@ onShow(() => {
 
 .order-card {
   overflow: hidden;
+  border-radius: $hej-radius-panel;
+  border: 1rpx solid $hej-color-border;
   background: $hej-color-surface;
+  box-shadow: $hej-shadow-panel;
 }
 
 .date-picker {
   display: block;
   width: 100%;
+}
+
+.date-picker :deep(.uni-date-x) {
+  background-color: $hej-color-surface !important;
+  border: 1rpx solid $hej-color-border !important;
+  border-radius: $hej-radius-control !important;
+  height: 72rpx !important;
+  padding: 0 $hej-space-3 !important;
+  box-sizing: border-box;
+}
+
+.date-picker :deep(.uni-date__x-input) {
+  color: $hej-color-text !important;
+  font-size: $hej-font-body !important;
 }
 
 .meal-choice :deep(.checklist-group),
@@ -1031,11 +1383,15 @@ onShow(() => {
 .payment-grid :deep(.checklist-box),
 .money-method-choice :deep(.checklist-box) {
   justify-content: center;
+  align-items: center;
   min-width: 0;
+  height: 72rpx;
   margin: 0;
-  padding: $hej-space-2 $hej-space-1;
-  border-color: $hej-color-border;
+  padding: 0 $hej-space-2;
+  border: 1rpx solid $hej-color-border !important;
   border-radius: $hej-radius-control;
+  background: $hej-color-surface !important;
+  box-sizing: border-box;
 }
 
 .meal-choice :deep(.checklist-box),
@@ -1043,10 +1399,20 @@ onShow(() => {
   flex: 1;
 }
 
+.meal-choice :deep(.radio__inner),
+.meal-choice :deep(.checkbox__inner),
+.payment-grid :deep(.radio__inner),
+.payment-grid :deep(.checkbox__inner),
+.money-method-choice :deep(.radio__inner),
+.money-method-choice :deep(.checkbox__inner) {
+  display: none !important;
+}
+
 .meal-choice :deep(.checklist-box.is-checked),
 .payment-grid :deep(.checklist-box.is-checked),
 .money-method-choice :deep(.checklist-box.is-checked) {
-  background: $hej-color-accent-soft;
+  border: 1rpx solid $hej-color-accent !important;
+  background: $hej-color-accent-soft !important;
 }
 
 .meal-choice :deep(.checklist-text),
@@ -1054,37 +1420,42 @@ onShow(() => {
 .money-method-choice :deep(.checklist-text) {
   margin-left: 0;
   color: $hej-color-text-secondary;
-  font-size: $hej-font-meta;
+  font-size: $hej-font-body;
+  font-weight: 500;
   line-height: 1.3;
   white-space: nowrap;
 }
 
+.meal-choice :deep(.checklist-box.is-checked .checklist-text),
+.payment-grid :deep(.checklist-box.is-checked .checklist-text),
+.money-method-choice :deep(.checklist-box.is-checked .checklist-text) {
+  color: $hej-color-accent !important;
+  font-weight: 600;
+}
+
 .entry-section {
-  padding: $hej-space-5;
+  padding: $hej-space-4 $hej-space-5;
 }
 
-.entry-section :deep(.uni-forms-item) {
-  margin-bottom: $hej-space-5;
+.entry-section--schedule :deep(.uni-forms-item:last-child) {
+  margin-bottom: 0;
 }
 
-.entry-section :deep(.uni-forms-item__label) {
-  color: $hej-color-text-secondary;
-  font-size: $hej-font-meta;
-}
-
-.entry-section--schedule :deep(.uni-forms-item:last-child),
-.entry-section--customer :deep(.uni-forms-item),
-.entry-section--note :deep(.uni-forms-item) {
+.entry-section--customer :deep(.uni-forms-item) {
   margin-bottom: 0;
 }
 
 .entry-section--customer .context-box {
-  margin-top: $hej-space-4;
+  margin-top: $hej-space-3;
 }
 
 .entry-section--note {
-  padding-top: $hej-space-4;
-  padding-bottom: $hej-space-4;
+  padding-top: $hej-space-3;
+  padding-bottom: $hej-space-3;
+}
+
+.entry-section--note :deep(.uni-forms-item) {
+  margin-bottom: 0;
 }
 
 .entry-divider {
@@ -1095,44 +1466,85 @@ onShow(() => {
 
 .context-box,
 .card-status {
-  padding: $hej-space-4 $hej-space-5;
+  padding: $hej-space-3 $hej-space-4;
   border-radius: $hej-radius-control;
-  color: $hej-color-text-secondary;
   font-size: $hej-font-meta;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .context-box {
   background: $hej-color-surface-subtle;
+  color: $hej-color-text-secondary;
 }
 
 .context-box--info {
-  background: $hej-color-accent-soft;
-  color: $hej-color-accent;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $hej-space-3;
+  background: $hej-color-pending-soft;
+  color: $hej-color-pending;
+  border: 1rpx solid rgba(101, 119, 137, 0.15);
+}
+
+.context-box__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.context-box__title {
+  display: block;
+  color: $hej-color-pending;
+  font-size: $hej-font-meta;
+  font-weight: 600;
 }
 
 .context-box--danger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $hej-space-3;
   background: $hej-color-danger-soft;
+  color: $hej-color-danger;
+  border: 1rpx solid rgba(141, 69, 69, 0.15);
+}
+
+.context-box--danger .context-box__title {
   color: $hej-color-danger;
 }
 
+.context-meta {
+  display: block;
+  margin-top: 4rpx;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-caption;
+}
+
 .link-button {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
   width: auto;
   min-width: 200rpx;
   height: 64rpx;
-  margin: $hej-space-2 0 0;
+  margin: 0;
   padding: 0 $hej-space-5;
-  border: 0;
+  border: 1rpx solid rgba(101, 119, 137, 0.3);
   border-radius: $hej-radius-control;
-  background: transparent;
+  background: $hej-color-surface;
   box-sizing: border-box;
-  color: inherit;
-  font-size: $hej-font-meta;
+  color: $hej-color-pending;
+  font-size: $hej-font-caption;
   font-weight: 600;
   line-height: 64rpx;
   text-align: center;
   white-space: nowrap;
+}
+
+.context-box--danger .link-button {
+  border-color: rgba(141, 69, 69, 0.3);
+  color: $hej-color-danger;
 }
 
 .link-button::after {
@@ -1140,17 +1552,30 @@ onShow(() => {
 }
 
 .mixed-payment-panel {
-  margin: 0 (-$hej-space-5) $hej-space-5;
-  padding: $hej-space-4 $hej-space-5;
+  margin: 0 (-$hej-space-5) $hej-space-4;
+  padding: $hej-space-3 $hej-space-5;
   background: $hej-color-surface;
 }
 
-.mixed-payment-panel :deep(.uni-forms-item) {
-  margin-bottom: $hej-space-4;
+.quantity-box :deep(.uni-numbox-btns),
+.mixed-count-box :deep(.uni-numbox-btns) {
+  background: $hej-color-surface-subtle !important;
+  border-radius: $hej-radius-control;
+  height: 72rpx !important;
+  line-height: 72rpx !important;
+}
+
+.quantity-box :deep(.uni-numbox__value),
+.mixed-count-box :deep(.uni-numbox__value) {
+  background: transparent !important;
+  color: $hej-color-text !important;
+  font-size: $hej-font-body !important;
+  font-weight: 600 !important;
+  height: 72rpx !important;
 }
 
 .card-status {
-  margin-bottom: $hej-space-5;
+  margin-bottom: $hej-space-4;
   background: $hej-color-warning-soft;
 }
 
@@ -1171,13 +1596,33 @@ onShow(() => {
   font-size: $hej-font-caption;
 }
 
-.quantity-box :deep(.uni-numbox-btns) {
-  background: $hej-color-surface-subtle !important;
+.amount-control {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 72rpx;
+  padding: 0 $hej-space-3;
+  border: 1rpx solid $hej-color-border;
+  border-radius: $hej-radius-control;
+  background: $hej-color-surface;
+  box-sizing: border-box;
+}
+
+.amount-prefix {
+  margin-right: $hej-space-2;
+  color: $hej-color-text;
+  font-size: $hej-font-body;
+  font-weight: 600;
+}
+
+.amount-input {
+  flex: 1;
+  min-width: 0;
 }
 
 .price-section {
   margin-top: 0;
-  padding-top: $hej-space-4;
+  padding-top: $hej-space-3;
   border-top: 1rpx solid $hej-color-border;
 }
 
@@ -1190,29 +1635,7 @@ onShow(() => {
   margin: $hej-space-2 0 0 var(--order-label-width);
   color: $hej-color-text-tertiary;
   font-size: $hej-font-caption;
-  line-height: 1.5;
-}
-
-.amount-control {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  padding: $hej-space-2 $hej-space-3;
-  border: 1rpx solid $hej-color-border;
-  border-radius: $hej-radius-control;
-  background: $hej-color-surface;
-}
-
-.amount-prefix {
-  margin-right: $hej-space-1;
-  color: $hej-color-text;
-  font-size: $hej-font-body;
-  font-weight: 600;
-}
-
-.amount-input {
-  flex: 1;
-  min-width: 0;
+  line-height: 1.4;
 }
 
 .inline-error {
@@ -1226,116 +1649,30 @@ onShow(() => {
   min-height: 72rpx;
 }
 
-.panel-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: $hej-space-3;
-  margin-bottom: $hej-space-4;
+.note-input :deep(.uni-easyinput__content) {
+  background: $hej-color-surface !important;
+  border: 1rpx solid $hej-color-border !important;
+  border-radius: $hej-radius-control !important;
+  min-height: 72rpx !important;
+  padding: 0 $hej-space-3 !important;
+  box-sizing: border-box;
 }
 
-.panel-title {
-  color: $hej-color-text;
-  font-size: $hej-font-body;
-  font-weight: 700;
+.form-scroll-spacer {
+  height: $hej-space-6;
 }
 
-.panel-meta {
-  color: $hej-color-text-tertiary;
-  font-size: $hej-font-caption;
-  text-align: right;
-}
-
-.row {
-  display: flex;
-  justify-content: space-between;
-  gap: $hej-space-4;
-  padding: $hej-space-3 0;
-  border-bottom: 1rpx solid $hej-color-border;
-  color: $hej-color-text-secondary;
-  font-size: $hej-font-body;
-}
-
-.row:last-child {
-  border-bottom: 0;
-}
-
-.row--top {
-  align-items: flex-start;
-}
-
-.note {
-  max-width: 70%;
-  overflow-wrap: anywhere;
-  color: $hej-color-text;
-  text-align: right;
-  white-space: normal;
-}
-
-.actions {
-  display: flex;
-  gap: $hej-space-3;
-  padding: 0 $hej-space-5;
-}
-
-.actions button {
-  margin: 0;
-}
-
-.primary,
-.secondary,
-.danger,
-.danger-outline {
-  flex: 1;
-  height: 88rpx;
-  margin: 0;
-  padding: 0;
-  border-radius: $hej-radius-control;
-  font-size: $hej-font-body;
-  font-weight: 600;
-  line-height: 88rpx;
-  text-align: center;
-}
-
-.primary {
-  background: $hej-color-accent;
-  color: $hej-color-surface;
-}
-
-.secondary {
-  background: $hej-color-surface-subtle;
-  color: $hej-color-text;
-}
-
-.danger {
-  background: $hej-color-danger;
-  color: $hej-color-surface;
-}
-
-.danger-zone {
-  margin-top: $hej-space-4;
-  padding: 0 $hej-space-5 $hej-space-5;
-}
-
-.danger-outline {
-  width: 100%;
-  border: 1rpx solid $hej-color-danger;
-  background: $hej-color-surface;
-  color: $hej-color-danger;
-}
-
-.form-bottom-spacer {
-  height: $hej-space-2;
-}
-
-.edit-submit-bar {
+/* Submit Bar */
+.submit-bar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: $hej-space-4;
-  flex: 0 0 auto;
-  padding: $hej-space-5 $hej-space-7;
+  padding: $hej-space-4 $hej-space-5 calc($hej-space-4 + constant(safe-area-inset-bottom));
+  padding: $hej-space-4 $hej-space-5 calc($hej-space-4 + env(safe-area-inset-bottom));
   border-top: 1rpx solid $hej-color-border;
   background: $hej-color-surface;
+  box-sizing: border-box;
 }
 
 .submit-summary {
@@ -1343,26 +1680,38 @@ onShow(() => {
   min-width: 0;
 }
 
-.submit-label,
-.submit-meta {
+.submit-label {
   display: block;
-  color: $hej-color-text-secondary;
+  color: $hej-color-text-tertiary;
   font-size: $hej-font-caption;
 }
 
-.submit-value {
-  display: block;
+.submit-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: $hej-space-1;
   margin-top: 2rpx;
   overflow: hidden;
+}
+
+.submit-value {
   color: $hej-color-text;
   font-size: $hej-font-title;
   font-weight: 700;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.submit-value--accent {
+  color: $hej-color-accent;
+  font-size: 38rpx;
+}
+
 .submit-meta {
-  margin-top: 2rpx;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-caption;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .edit-submit-actions {
@@ -1371,40 +1720,53 @@ onShow(() => {
   gap: $hej-space-3;
 }
 
-.edit-submit-actions .primary,
-.edit-submit-actions .secondary {
-  flex: 0 0 176rpx;
+.edit-btn {
+  height: 88rpx;
+  margin: 0;
+  padding: 0 $hej-space-4;
+  border: 0;
+  border-radius: $hej-radius-control;
+  box-sizing: border-box;
+  font-size: $hej-font-body;
+  font-weight: 600;
+  line-height: 88rpx;
+  text-align: center;
+  white-space: nowrap;
 }
 
-.primary:active,
-.secondary:active,
-.danger:active,
-.danger-outline:active,
-.edit-button:active {
+.edit-btn::after {
+  border: 0;
+}
+
+.edit-btn--primary {
+  min-width: 176rpx;
+  background: $hej-color-accent;
+  color: $hej-color-surface;
+}
+
+.edit-btn--secondary {
+  min-width: 176rpx;
+  border: 1rpx solid $hej-color-border;
+  background: $hej-color-surface-subtle;
+  color: $hej-color-text;
+}
+
+.action-btn:active,
+.hero-edit-btn:active,
+.edit-btn:active {
   opacity: 0.82;
 }
 
-.primary:focus-visible,
-.secondary:focus-visible,
-.danger:focus-visible,
-.danger-outline:focus-visible,
-.edit-button:focus-visible {
+.action-btn:focus-visible,
+.hero-edit-btn:focus-visible,
+.edit-btn:focus-visible {
   outline: 2rpx solid $hej-color-text;
   outline-offset: -4rpx;
 }
 
-.primary[disabled],
-.secondary[disabled],
-.danger[disabled],
-.danger-outline[disabled],
-.edit-button[disabled] {
+.action-btn[disabled],
+.hero-edit-btn[disabled],
+.edit-btn[disabled] {
   opacity: 0.5;
-}
-
-.empty {
-  padding: 120rpx 0;
-  color: $hej-color-text-tertiary;
-  font-size: $hej-font-body;
-  text-align: center;
 }
 </style>

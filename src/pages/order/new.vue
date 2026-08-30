@@ -170,7 +170,7 @@ const paymentSummaryText = computed(() => {
     if (!hasMixedCardQuantity.value) return '请选择次卡次数'
     return `次卡 ${cardQuantity.value} 次 · ${moneyPaymentSummary.value}`
   }
-  return hasMoney.value ? moneyPaymentSummary.value : '金额记 ¥0.00'
+  return hasMoney.value ? moneyPaymentSummary.value : `${form.quantity} 份次卡支付 · 金额记 ¥0.00`
 })
 const submitMeta = computed(() =>
   existingOrder.value?.status === 'pending'
@@ -399,7 +399,7 @@ function choosePostSaveAction(merged: boolean): Promise<'continue' | 'finish'> {
       content: merged ? '本次新增份数已合入已有订单。还要继续录下一单吗？' : '还要继续录下一单吗？',
       cancelText: '结束录单',
       confirmText: '继续下一单',
-      confirmColor: '#0070f3',
+      confirmColor: '#c96442',
       success: (result) => resolve(result.confirm ? 'continue' : 'finish'),
       fail: () => resolve('finish'),
     })
@@ -497,7 +497,8 @@ onShow(() => {
                 class="meal-choice"
                 mode="button"
                 :localdata="mealTypeOptions"
-                selected-color="#0070f3"
+                selected-color="#c96442"
+                selected-text-color="#c96442"
               />
             </uni-forms-item>
           </view>
@@ -518,18 +519,22 @@ onShow(() => {
               v-else-if="existingOrder?.status === 'pending'"
               class="context-box context-box--info"
             >
-              <text>将合并到已有待配送订单 #{{ existingOrder.id }}</text>
-              <text class="context-meta">
-                已有 {{ existingOrder.quantity }} 份 · {{ orderPaymentSummary(existingOrder) }}
-              </text>
-              <button class="link-button" @click="goExistingOrder">查看已有订单</button>
+              <view class="context-box__main">
+                <text class="context-box__title">将合并到已有待配送订单 #{{ existingOrder.id }}</text>
+                <text class="context-meta">
+                  已有 {{ existingOrder.quantity }} 份 · {{ orderPaymentSummary(existingOrder) }}
+                </text>
+              </view>
+              <button class="link-button" @click="goExistingOrder">查看已有订单 ›</button>
             </view>
             <view
               v-else-if="existingOrder?.status === 'delivered'"
               class="context-box context-box--danger"
             >
-              <text>这位客户这餐已经配送完成，不能再追加份数。</text>
-              <button class="link-button" @click="goExistingOrder">查看已配送订单</button>
+              <view class="context-box__main">
+                <text class="context-box__title">这位客户这餐已经配送完成，不能再追加份数。</text>
+              </view>
+              <button class="link-button" @click="goExistingOrder">查看已配送订单 ›</button>
             </view>
           </view>
 
@@ -555,10 +560,11 @@ onShow(() => {
                   class="payment-primary"
                   mode="button"
                   :localdata="primaryPaymentOptions"
-                  selected-color="#0070f3"
+                  selected-color="#c96442"
+                  selected-text-color="#c96442"
                 />
                 <view v-else class="mixed-mode-summary">
-                  <view>
+                  <view class="mixed-mode-main">
                     <text class="mixed-mode-title">组合支付</text>
                     <text class="mixed-mode-meta">次卡 + {{ paymentText(form.money_method) }}</text>
                   </view>
@@ -569,8 +575,11 @@ onShow(() => {
                   class="mixed-entry-button"
                   @click="startMixedPayment"
                 >
-                  <text>组合支付</text>
-                  <text class="mixed-entry-meta">次卡 + 微信/现金</text>
+                  <text class="mixed-entry-label">组合支付</text>
+                  <view class="mixed-entry-action">
+                    <text class="mixed-entry-meta">次卡 + 微信或现金</text>
+                    <text class="mixed-entry-arrow">›</text>
+                  </view>
                 </button>
               </view>
             </uni-forms-item>
@@ -592,7 +601,8 @@ onShow(() => {
                   class="money-method-choice"
                   mode="button"
                   :localdata="moneyMethodOptions"
-                  selected-color="#0070f3"
+                  selected-color="#c96442"
+                  selected-text-color="#c96442"
                 />
               </uni-forms-item>
 
@@ -659,8 +669,15 @@ onShow(() => {
     <view class="submit-bar">
       <view class="submit-summary">
         <text class="submit-label">{{ hasMoney ? '本次实际金额' : '本次支付方式' }}</text>
-        <text class="submit-value">{{ submitValue }}</text>
-        <text class="submit-meta">{{ submitMeta }}</text>
+        <view class="submit-value-row">
+          <text
+            class="submit-value"
+            :class="{ 'submit-value--accent': hasMoney && hasActualPrice && selectedCustomer }"
+          >
+            {{ submitValue }}
+          </text>
+          <text class="submit-meta">/ {{ submitMeta }}</text>
+        </view>
       </view>
       <button class="save" :disabled="!canSave" @click="save">
         {{ saveActionLabel }}
@@ -677,7 +694,7 @@ onShow(() => {
   overflow: hidden;
   background: $hej-color-canvas;
   box-sizing: border-box;
-  padding: 0 $hej-space-1;
+  padding: $hej-space-3 $hej-space-3 0;
 }
 
 .form-scroll {
@@ -693,6 +710,14 @@ onShow(() => {
 
 .form :deep(.uni-forms-item) {
   align-items: center;
+  margin-bottom: 0;
+  padding: $hej-space-3 0;
+}
+
+.form :deep(.uni-forms-item__label) {
+  color: $hej-color-text;
+  font-size: $hej-font-body;
+  font-weight: 500;
 }
 
 .form :deep(.uni-forms-item__content) {
@@ -701,12 +726,29 @@ onShow(() => {
 
 .order-card {
   overflow: hidden;
+  border-radius: $hej-radius-panel;
+  border: 1rpx solid $hej-color-border;
   background: $hej-color-surface;
+  box-shadow: $hej-shadow-panel;
 }
 
 .date-picker {
   display: block;
   width: 100%;
+}
+
+.date-picker :deep(.uni-date-x) {
+  background-color: $hej-color-surface !important;
+  border: 1rpx solid $hej-color-border !important;
+  border-radius: $hej-radius-control !important;
+  height: 72rpx !important;
+  padding: 0 $hej-space-3 !important;
+  box-sizing: border-box;
+}
+
+.date-picker :deep(.uni-date__x-input) {
+  color: $hej-color-text !important;
+  font-size: $hej-font-body !important;
 }
 
 .meal-choice :deep(.checklist-group),
@@ -722,17 +764,31 @@ onShow(() => {
 .money-method-choice :deep(.checklist-box) {
   flex: 1;
   justify-content: center;
+  align-items: center;
   min-width: 0;
+  height: 72rpx;
   margin: 0;
-  padding: $hej-space-2 $hej-space-1;
-  border-color: $hej-color-border;
+  padding: 0 $hej-space-2;
+  border: 1rpx solid $hej-color-border !important;
   border-radius: $hej-radius-control;
+  background: $hej-color-surface !important;
+  box-sizing: border-box;
+}
+
+.meal-choice :deep(.radio__inner),
+.meal-choice :deep(.checkbox__inner),
+.payment-primary :deep(.radio__inner),
+.payment-primary :deep(.checkbox__inner),
+.money-method-choice :deep(.radio__inner),
+.money-method-choice :deep(.checkbox__inner) {
+  display: none !important;
 }
 
 .meal-choice :deep(.checklist-box.is-checked),
 .payment-primary :deep(.checklist-box.is-checked),
 .money-method-choice :deep(.checklist-box.is-checked) {
-  background: $hej-color-accent-soft;
+  border: 1rpx solid $hej-color-accent !important;
+  background: $hej-color-accent-soft !important;
 }
 
 .meal-choice :deep(.checklist-text),
@@ -740,22 +796,21 @@ onShow(() => {
 .money-method-choice :deep(.checklist-text) {
   margin-left: 0;
   color: $hej-color-text-secondary;
-  font-size: $hej-font-meta;
+  font-size: $hej-font-body;
+  font-weight: 500;
   line-height: 1.3;
   white-space: nowrap;
 }
 
+.meal-choice :deep(.checklist-box.is-checked .checklist-text),
+.payment-primary :deep(.checklist-box.is-checked .checklist-text),
+.money-method-choice :deep(.checklist-box.is-checked .checklist-text) {
+  color: $hej-color-accent !important;
+  font-weight: 600;
+}
+
 .entry-section {
-  padding: $hej-space-5;
-}
-
-.entry-section :deep(.uni-forms-item) {
-  margin-bottom: $hej-space-5;
-}
-
-.entry-section :deep(.uni-forms-item__label) {
-  color: $hej-color-text-secondary;
-  font-size: $hej-font-meta;
+  padding: $hej-space-4 $hej-space-5;
 }
 
 .entry-section--schedule :deep(.uni-forms-item:last-child) {
@@ -767,12 +822,12 @@ onShow(() => {
 }
 
 .entry-section--customer .context-box {
-  margin-top: $hej-space-4;
+  margin-top: $hej-space-3;
 }
 
 .entry-section--note {
-  padding-top: $hej-space-4;
-  padding-bottom: $hej-space-4;
+  padding-top: $hej-space-3;
+  padding-bottom: $hej-space-3;
 }
 
 .entry-section--note :deep(.uni-forms-item) {
@@ -787,49 +842,85 @@ onShow(() => {
 
 .context-box,
 .card-status {
-  padding: $hej-space-4 $hej-space-5;
+  padding: $hej-space-3 $hej-space-4;
   border-radius: $hej-radius-control;
-  color: $hej-color-text-secondary;
   font-size: $hej-font-meta;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .context-box {
   background: $hej-color-surface-subtle;
+  color: $hej-color-text-secondary;
 }
 
 .context-box--info {
-  background: $hej-color-accent-soft;
-  color: $hej-color-accent;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $hej-space-3;
+  background: $hej-color-pending-soft;
+  color: $hej-color-pending;
+  border: 1rpx solid rgba(101, 119, 137, 0.15);
+}
+
+.context-box__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.context-box__title {
+  display: block;
+  color: $hej-color-pending;
+  font-size: $hej-font-meta;
+  font-weight: 600;
 }
 
 .context-box--danger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $hej-space-3;
   background: $hej-color-danger-soft;
+  color: $hej-color-danger;
+  border: 1rpx solid rgba(141, 69, 69, 0.15);
+}
+
+.context-box--danger .context-box__title {
   color: $hej-color-danger;
 }
 
 .context-meta {
   display: block;
-  margin-top: 6rpx;
+  margin-top: 4rpx;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-caption;
 }
 
 .link-button {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
   width: auto;
   min-width: 200rpx;
   height: 64rpx;
-  margin: $hej-space-2 0 0;
+  margin: 0;
   padding: 0 $hej-space-5;
-  border: 2rpx solid $hej-color-border;
+  border: 1rpx solid rgba(101, 119, 137, 0.3);
   border-radius: $hej-radius-control;
-  background: transparent;
+  background: $hej-color-surface;
   box-sizing: border-box;
-  color: inherit;
-  font-size: $hej-font-meta;
+  color: $hej-color-pending;
+  font-size: $hej-font-caption;
   font-weight: 600;
   line-height: 64rpx;
   text-align: center;
   white-space: nowrap;
+}
+
+.context-box--danger .link-button {
+  border-color: rgba(141, 69, 69, 0.3);
+  color: $hej-color-danger;
 }
 
 .link-button::after {
@@ -854,21 +945,35 @@ onShow(() => {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  height: 64rpx;
+  height: 72rpx;
   margin-top: $hej-space-3;
   padding: 0 $hej-space-3;
   border: 1rpx dashed $hej-color-border;
   border-radius: $hej-radius-control;
-  color: $hej-color-text-secondary;
-  font-size: $hej-font-meta;
-  line-height: 64rpx;
+  background: $hej-color-surface;
   box-sizing: border-box;
 }
 
-.mixed-entry-meta,
-.mixed-mode-meta {
+.mixed-entry-label {
+  color: $hej-color-text;
+  font-size: $hej-font-body;
+}
+
+.mixed-entry-action {
+  display: flex;
+  align-items: center;
+  gap: $hej-space-1;
+}
+
+.mixed-entry-meta {
   color: $hej-color-text-tertiary;
   font-size: $hej-font-caption;
+}
+
+.mixed-entry-arrow {
+  color: $hej-color-text-tertiary;
+  font-size: $hej-font-title;
+  line-height: 1;
 }
 
 .mixed-mode-summary {
@@ -876,20 +981,28 @@ onShow(() => {
   align-items: center;
   justify-content: space-between;
   gap: $hej-space-3;
-  padding: $hej-space-3;
+  padding: $hej-space-3 $hej-space-4;
   border-radius: $hej-radius-control;
   background: $hej-color-accent-soft;
 }
 
-.mixed-mode-title,
-.mixed-mode-meta {
-  display: block;
+.mixed-mode-main {
+  flex: 1;
+  min-width: 0;
 }
 
 .mixed-mode-title {
+  display: block;
   color: $hej-color-accent;
   font-size: $hej-font-meta;
   font-weight: 700;
+}
+
+.mixed-mode-meta {
+  display: block;
+  margin-top: 2rpx;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-caption;
 }
 
 .mixed-exit-button {
@@ -898,6 +1011,7 @@ onShow(() => {
   min-width: 200rpx;
   height: 64rpx;
   padding: 0 $hej-space-5;
+  border: 1rpx solid $hej-color-accent;
   border-radius: $hej-radius-control;
   background: $hej-color-surface;
   box-sizing: border-box;
@@ -914,17 +1028,14 @@ onShow(() => {
 }
 
 .mixed-payment-panel {
-  margin: 0 (-$hej-space-5) $hej-space-5;
-  padding: $hej-space-4 $hej-space-5;
+  margin: 0 (-$hej-space-5) $hej-space-4;
+  padding: $hej-space-3 $hej-space-5;
   background: $hej-color-surface;
-}
-
-.mixed-payment-panel :deep(.uni-forms-item) {
-  margin-bottom: $hej-space-4;
 }
 
 .mixed-calculation {
   display: block;
+  margin-top: $hej-space-2;
   color: $hej-color-text-secondary;
   font-size: $hej-font-caption;
   line-height: 1.5;
@@ -933,10 +1044,22 @@ onShow(() => {
 .quantity-box :deep(.uni-numbox-btns),
 .mixed-count-box :deep(.uni-numbox-btns) {
   background: $hej-color-surface-subtle !important;
+  border-radius: $hej-radius-control;
+  height: 72rpx !important;
+  line-height: 72rpx !important;
+}
+
+.quantity-box :deep(.uni-numbox__value),
+.mixed-count-box :deep(.uni-numbox__value) {
+  background: transparent !important;
+  color: $hej-color-text !important;
+  font-size: $hej-font-body !important;
+  font-weight: 600 !important;
+  height: 72rpx !important;
 }
 
 .card-status {
-  margin-bottom: $hej-space-5;
+  margin-bottom: $hej-space-4;
   background: $hej-color-warning-soft;
 }
 
@@ -961,14 +1084,16 @@ onShow(() => {
   display: flex;
   align-items: center;
   min-width: 0;
-  padding: $hej-space-2 $hej-space-3;
+  height: 72rpx;
+  padding: 0 $hej-space-3;
   border: 1rpx solid $hej-color-border;
   border-radius: $hej-radius-control;
   background: $hej-color-surface;
+  box-sizing: border-box;
 }
 
 .amount-prefix {
-  margin-right: $hej-space-1;
+  margin-right: $hej-space-2;
   color: $hej-color-text;
   font-size: $hej-font-body;
   font-weight: 600;
@@ -981,7 +1106,7 @@ onShow(() => {
 
 .price-section {
   margin-top: 0;
-  padding-top: $hej-space-4;
+  padding-top: $hej-space-3;
   border-top: 1rpx solid $hej-color-border;
 }
 
@@ -1008,17 +1133,29 @@ onShow(() => {
   min-height: 72rpx;
 }
 
+.note-input :deep(.uni-easyinput__content) {
+  background: $hej-color-surface !important;
+  border: 1rpx solid $hej-color-border !important;
+  border-radius: $hej-radius-control !important;
+  min-height: 72rpx !important;
+  padding: 0 $hej-space-3 !important;
+  box-sizing: border-box;
+}
+
 .form-scroll-spacer {
-  height: $hej-space-2;
+  height: $hej-space-6;
 }
 
 .submit-bar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: $hej-space-4;
-  padding: $hej-space-5 $hej-space-7;
+  padding: $hej-space-4 $hej-space-5 calc($hej-space-4 + constant(safe-area-inset-bottom));
+  padding: $hej-space-4 $hej-space-5 calc($hej-space-4 + env(safe-area-inset-bottom));
   border-top: 1rpx solid $hej-color-border;
   background: $hej-color-surface;
+  box-sizing: border-box;
 }
 
 .submit-summary {
@@ -1026,26 +1163,39 @@ onShow(() => {
   min-width: 0;
 }
 
-.submit-label,
-.submit-meta {
+.submit-label {
   display: block;
-  color: $hej-color-text-secondary;
+  color: $hej-color-text-tertiary;
   font-size: $hej-font-caption;
 }
 
-.submit-value {
-  display: block;
+.submit-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: $hej-space-1;
   margin-top: 2rpx;
   overflow: hidden;
+}
+
+.submit-value {
   color: $hej-color-text;
   font-size: $hej-font-title;
   font-weight: 700;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.submit-value--accent {
+  color: $hej-color-accent;
+  font-size: $hej-font-title;
+  font-weight: 700;
+}
+
 .submit-meta {
-  margin-top: 2rpx;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-caption;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .save {
@@ -1072,7 +1222,7 @@ onShow(() => {
 }
 
 .save[disabled] {
-  background: $hej-color-border;
+  background: $hej-color-surface-subtle;
   color: $hej-color-text-tertiary;
 }
 </style>

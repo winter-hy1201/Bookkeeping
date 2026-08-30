@@ -6,7 +6,7 @@ import { useCustomerStore } from '../../stores/customer'
 import { useOrderStore } from '../../stores/order'
 import type { MealType, Order, OrderStatus } from '../../types/domain'
 import { today } from '../../utils/date'
-import { addMoney } from '../../utils/format'
+import { addMoney, formatMoney } from '../../utils/format'
 import {
   initializeLunchPanelCollapse,
   markLunchPanelManually,
@@ -15,6 +15,10 @@ import {
   type LunchPanelCollapseState,
 } from '../../utils/order-rules'
 import { mealTypeText, orderSubtitle, showToast, statusText } from '../../utils/ui'
+
+const ICON_COLOR_TEXT = '#141413'
+const ICON_COLOR_MUTED = '#5E5D59'
+const ICON_COLOR_TERTIARY = '#87867F'
 
 const orderStore = useOrderStore()
 const customerStore = useCustomerStore()
@@ -183,10 +187,6 @@ function customerName(id: number): string {
 
 function statusClass(status: OrderStatus): string {
   return `status-chip--${status}`
-}
-
-function orderMetaText(order: Order): string {
-  return orderSubtitle(order)
 }
 
 function touchY(event: TouchEvent): number | null {
@@ -393,7 +393,7 @@ async function refresh(): Promise<boolean> {
     orderStore.$patch({ list: previousOrders, currentDate: previousDate })
     customerStore.$patch({ list: previousCustomers })
     loadError.value = true
-    uni.showToast({ title: '订单加载失败', icon: 'none' })
+    showToast('订单加载失败')
     return false
   }
   hasLoaded.value = true
@@ -444,9 +444,9 @@ onShow(() => {
         @change="handleDateChange"
       >
         <view class="date-selector" hover-class="date-selector--pressed">
-          <uni-icons type="calendar" size="20" color="#141413" class="date-selector__icon"></uni-icons>
+          <uni-icons type="calendar" size="20" :color="ICON_COLOR_TEXT" class="date-selector__icon"></uni-icons>
           <text class="date-selector__text">{{ formattedCurrentDate }}</text>
-          <uni-icons type="bottom" size="12" color="#5e5d59" class="date-selector__arrow"></uni-icons>
+          <uni-icons type="bottom" size="12" :color="ICON_COLOR_MUTED" class="date-selector__arrow"></uni-icons>
         </view>
       </uni-datetime-picker>
 
@@ -473,7 +473,7 @@ onShow(() => {
     <view v-else-if="orderStore.list.length === 0" class="empty-state-wrapper">
       <view class="state-card state-card--empty">
         <view class="empty-icon-box">
-          <uni-icons type="list" size="28" color="#87867F"></uni-icons>
+          <uni-icons type="list" size="28" :color="ICON_COLOR_TERTIARY"></uni-icons>
         </view>
         <text class="state-card__title">这一天还没有订单</text>
         <text class="state-card__description">录入订单后，会按午餐和晚餐在此分组展示并支持拖拽调整配送顺序。</text>
@@ -521,11 +521,11 @@ onShow(() => {
                   <uni-icons
                     :type="isSectionOpen(section.type) ? 'bottom' : 'right'"
                     size="16"
-                    color="#141413"
+                    :color="ICON_COLOR_TEXT"
                     class="section-header__arrow"
                   ></uni-icons>
                   <text class="section-header__title">{{ section.title }}</text>
-                  <text class="section-header__stats">{{ section.activeCount }}单 · {{ section.quantity }}份</text>
+                  <text class="section-header__stats">{{ section.activeCount }}单 · {{ section.quantity }}份 · {{ formatMoney(section.amount) }}</text>
                 </view>
               </view>
             </template>
@@ -576,7 +576,7 @@ onShow(() => {
                       </text>
                     </view>
                     <text class="order-meta">
-                      {{ orderMetaText(order) }}
+                      {{ orderSubtitle(order) }}
                     </text>
                   </view>
                 </view>
@@ -624,7 +624,7 @@ onShow(() => {
   display: flex;
   align-items: center;
   gap: $hej-space-2;
-  height: 80rpx;
+  height: 88rpx;
   box-sizing: border-box;
 
   &__icon {
@@ -652,7 +652,7 @@ onShow(() => {
 
 .add-button {
   flex: 0 0 auto;
-  height: 76rpx;
+  height: 88rpx;
   margin: 0;
   padding: 0 $hej-space-5;
   border: 0;
@@ -661,7 +661,7 @@ onShow(() => {
   color: $hej-color-surface;
   font-size: $hej-font-body;
   font-weight: 600;
-  line-height: 76rpx;
+  line-height: 88rpx;
   text-align: center;
   box-sizing: border-box;
   box-shadow: 0 2rpx 6rpx rgba(201, 100, 66, 0.2);
@@ -942,7 +942,7 @@ onShow(() => {
 }
 
 .empty-state-action {
-  height: 80rpx;
+  height: 88rpx;
   margin: $hej-space-5 0 0;
   padding: 0 $hej-space-6;
   border: 0;
@@ -951,7 +951,7 @@ onShow(() => {
   color: $hej-color-surface;
   font-size: $hej-font-body;
   font-weight: 600;
-  line-height: 80rpx;
+  line-height: 88rpx;
   text-align: center;
   box-shadow: 0 2rpx 6rpx rgba(201, 100, 66, 0.2);
 

@@ -2,9 +2,50 @@
 import { onShow } from '@dcloudio/uni-app'
 import { usePageReturnSnapshot } from '../../composables/usePageReturnSnapshot'
 
+const statusBarHeight = uni.getSystemInfoSync().statusBarHeight ?? 0
+
 const pageReturn = usePageReturnSnapshot({
-  mode: 'page',
+  mode: 'scroll-view',
 })
+
+const menuSections = [
+  {
+    title: '菜单管理',
+    subtitle: '每日菜单、复制文案、历史记录',
+    url: '/pages/me/menus/list',
+    icon: 'bars',
+  },
+  {
+    title: '文案模板',
+    subtitle: '默认模板、条件区块、历史版本',
+    url: '/pages/me/menu-templates/list',
+    icon: 'compose',
+  },
+  {
+    title: '月卡文案模板',
+    subtitle: '月卡说明、次数占位符、历史版本',
+    url: '/pages/me/meal-card-templates/list',
+    icon: 'vip',
+  },
+  {
+    title: '客户管理',
+    subtitle: '客户档案、历史订单、次卡',
+    url: '/pages/me/customers/list',
+    icon: 'staff',
+  },
+  {
+    title: '支出管理',
+    subtitle: '记录菜品、耗材、工具等支出',
+    url: '/pages/me/expenses/list',
+    icon: 'wallet',
+  },
+  {
+    title: '备份 / 恢复',
+    subtitle: '导出 JSON、导入覆盖、清空数据',
+    url: '/pages/me/settings/backup',
+    icon: 'loop',
+  },
+]
 
 function go(url: string): void {
   void pageReturn.navigateTo({ url })
@@ -17,99 +58,166 @@ onShow(() => {
 
 <template>
   <view class="page">
-    <view class="hero">
-      <text class="title">我的</text>
-      <text class="subtitle">菜单、客户、支出和数据备份</text>
-    </view>
+    <view class="status-bar" :style="{ height: statusBarHeight + 'px' }"></view>
+    <scroll-view
+      class="content"
+      scroll-y
+      :style="{ height: 'calc(100vh - ' + statusBarHeight + 'px)' }"
+      :scroll-top="pageReturn.scrollTopValue"
+      @scroll="pageReturn.onScroll"
+    >
+      <view class="content-inner">
+        <view class="header">
+          <text class="title">我的</text>
+          <text class="subtitle">菜单、客户、支出和数据备份</text>
+        </view>
 
-    <view class="menu">
-      <view class="menu-item" @click="go('/pages/me/menus/list')">
-        <view><text class="menu-title">菜单管理</text><text class="menu-sub">每日菜单、复制文案、历史记录</text></view>
-        <text class="arrow">›</text>
+        <view class="menu-card">
+          <view
+            v-for="(item, index) in menuSections"
+            :key="item.url"
+            class="menu-item"
+            :class="{ 'menu-item--last': index === menuSections.length - 1 }"
+            hover-class="menu-item--pressed"
+            @click="go(item.url)"
+          >
+            <view class="menu-item__icon-wrap">
+              <uni-icons :type="item.icon" size="22" color="inherit"></uni-icons>
+            </view>
+            <view class="menu-item__body">
+              <text class="menu-item__title">{{ item.title }}</text>
+              <text class="menu-item__subtitle">{{ item.subtitle }}</text>
+            </view>
+            <view class="menu-item__arrow">
+              <uni-icons type="right" size="16" color="inherit"></uni-icons>
+            </view>
+          </view>
+        </view>
       </view>
-      <view class="menu-item" @click="go('/pages/me/menu-templates/list')">
-        <view><text class="menu-title">文案模板</text><text class="menu-sub">默认模板、条件区块、历史版本</text></view>
-        <text class="arrow">›</text>
-      </view>
-      <view class="menu-item" @click="go('/pages/me/meal-card-templates/list')">
-        <view><text class="menu-title">月卡文案模板</text><text class="menu-sub">月卡说明、次数占位符、历史版本</text></view>
-        <text class="arrow">›</text>
-      </view>
-      <view class="menu-item" @click="go('/pages/me/customers/list')">
-        <view><text class="menu-title">客户管理</text><text class="menu-sub">客户档案、历史订单、次卡</text></view>
-        <text class="arrow">›</text>
-      </view>
-      <view class="menu-item" @click="go('/pages/me/expenses/list')">
-        <view><text class="menu-title">支出管理</text><text class="menu-sub">记录菜品、耗材、工具等支出</text></view>
-        <text class="arrow">›</text>
-      </view>
-      <view class="menu-item" @click="go('/pages/me/settings/backup')">
-        <view><text class="menu-title">备份 / 恢复</text><text class="menu-sub">导出 JSON、导入覆盖、清空数据</text></view>
-        <text class="arrow">›</text>
-      </view>
-    </view>
+    </scroll-view>
   </view>
 </template>
 
-<style scoped>
+<style lang="scss" scoped>
 .page {
-  min-height: 100vh;
-  padding: 28rpx 24rpx;
-  background: #f6f7f9;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  background: $hej-color-canvas;
+  color: $hej-color-text;
+  font-family: $hej-font-family;
   box-sizing: border-box;
 }
 
-.hero {
-  margin-bottom: 24rpx;
+.status-bar {
+  width: 100%;
+  flex-shrink: 0;
+  background: $hej-color-canvas;
 }
 
-.title,
-.menu-title,
-.menu-sub {
-  display: block;
+.content {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.content-inner {
+  box-sizing: border-box;
+  padding: 0 $hej-space-5 calc(140rpx + env(safe-area-inset-bottom));
+}
+
+.header {
+  padding: $hej-space-6 0 $hej-space-5;
 }
 
 .title {
-  color: #222222;
-  font-size: 42rpx;
-  font-weight: 700;
+  display: block;
+  color: $hej-color-text;
+  font-family: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', serif;
+  font-size: $hej-font-hero;
+  font-weight: 600;
+  letter-spacing: 2rpx;
+  line-height: 1.05;
 }
 
 .subtitle {
-  margin-top: 8rpx;
-  color: #8f8f94;
-  font-size: 26rpx;
+  display: block;
+  margin-top: $hej-space-2;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-meta;
+  line-height: 1.4;
 }
 
-.menu {
+.menu-card {
   overflow: hidden;
-  border-radius: 12rpx;
-  background: #ffffff;
+  border: 1rpx solid $hej-color-border;
+  border-radius: $hej-radius-panel;
+  background: $hej-color-surface;
+  box-shadow: $hej-shadow-panel;
+  box-sizing: border-box;
 }
 
 .menu-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  min-height: 126rpx;
-  padding: 0 24rpx;
-  border-bottom: 1rpx solid #f0f0f0;
+  min-height: 136rpx;
+  padding: $hej-space-4 $hej-space-5;
+  border-bottom: 1rpx solid $hej-color-border;
+  box-sizing: border-box;
+  transition: background-color 0.15s ease;
 }
 
-.menu-title {
-  color: #222222;
-  font-size: 32rpx;
-  font-weight: 700;
+.menu-item--last {
+  border-bottom: none;
 }
 
-.menu-sub {
-  margin-top: 8rpx;
-  color: #8f8f94;
-  font-size: 24rpx;
+.menu-item--pressed {
+  background: $hej-color-surface-subtle;
 }
 
-.arrow {
-  color: #999999;
-  font-size: 44rpx;
+.menu-item__icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80rpx;
+  height: 80rpx;
+  flex-shrink: 0;
+  margin-right: $hej-space-4;
+  border-radius: 16rpx;
+  background: $hej-color-surface-subtle;
+  color: $hej-color-text;
+}
+
+.menu-item__body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  flex: 1;
+}
+
+.menu-item__title {
+  display: block;
+  color: $hej-color-text;
+  font-size: $hej-font-title;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.menu-item__subtitle {
+  display: block;
+  margin-top: 6rpx;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-caption;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.menu-item__arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-left: $hej-space-3;
+  color: $hej-color-text-tertiary;
 }
 </style>

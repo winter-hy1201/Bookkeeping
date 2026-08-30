@@ -21,6 +21,8 @@ test('order page keeps the real data chain and user-facing states', () => {
   assert.match(orderPage, /customerName/)
   assert.match(orderPage, /shouldAutoCollapseTodayLunch/)
   assert.match(orderPage, /reconcileLunchPanelCollapse/)
+  assert.match(orderPage, /formatMoney/)
+  assert.match(orderPage, /section\.activeCount.+section\.quantity.+formatMoney/)
   assert.match(orderPage, /usePageReturnSnapshot/)
   assert.match(orderPage, /pageReturn\.restoreOnShow/)
   assert.match(orderPage, /status-chip/)

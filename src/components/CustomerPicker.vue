@@ -2,7 +2,13 @@
 import { computed, nextTick, ref } from 'vue'
 import { useCustomerStore } from '../stores/customer'
 import type { Customer } from '../types/domain'
-import { compareCustomerName, getCustomerInitial } from '../utils/pinyin'
+import {
+  compareCustomerName,
+  getCustomerInitial,
+  getCustomerPinyinInitials,
+  getCustomerPinyinKey,
+} from '../utils/pinyin'
+import { discountLabel, showToast } from '../utils/ui'
 
 const props = withDefaults(
   defineProps<{
@@ -36,16 +42,30 @@ function anchorId(letter: string): string {
 
 const selectedText = computed(() => props.modelValue?.name ?? '请选择客户')
 
+function normalizeSearchText(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, '')
+}
+
+function customerSearchText(customer: Customer): string {
+  const text = [
+    customer.name,
+    customer.phone,
+    customer.wechat,
+    getCustomerPinyinKey(customer.name),
+    getCustomerPinyinInitials(customer.name),
+  ]
+    .filter(Boolean)
+    .join('')
+
+  return normalizeSearchText(text)
+}
+
 const filteredCustomers = computed(() => {
-  const query = keyword.value.trim().toLowerCase()
+  const query = normalizeSearchText(keyword.value)
   const customers = [...customerStore.list].sort(compareCustomerName)
   if (!query) return customers
 
-  return customers.filter((customer) => {
-    return [customer.name, customer.wechat, customer.phone].some((value) =>
-      (value ?? '').toLowerCase().includes(query),
-    )
-  })
+  return customers.filter((customer) => customerSearchText(customer).includes(query))
 })
 
 const sections = computed<CustomerSection[]>(() => {
@@ -82,10 +102,7 @@ async function openSheet(): Promise<void> {
     try {
       await customerStore.refresh()
     } catch {
-      uni.showToast({
-        title: '客户加载失败',
-        icon: 'none',
-      })
+      showToast('客户加载失败')
     }
   }
 }
@@ -102,12 +119,6 @@ function selectCustomer(customer: Customer): void {
 function handleCreate(): void {
   emit('create')
   closeSheet()
-}
-
-function discountLabel(customer: Customer): string {
-  if (customer.discount_rate === 1) return ''
-  const value = Number((customer.discount_rate * 10).toFixed(1))
-  return `${value} 折`
 }
 </script>
 
@@ -188,7 +199,7 @@ function discountLabel(customer: Customer): string {
   </view>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .customer-picker {
   width: 100%;
 }
@@ -197,32 +208,33 @@ function discountLabel(customer: Customer): string {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 92rpx;
-  padding: 0 24rpx;
-  border: 1rpx solid #e5e5e5;
-  border-radius: 12rpx;
-  background: #ffffff;
+  min-height: 80rpx;
+  padding: 0 $hej-space-3;
+  border: 1rpx solid $hej-color-border;
+  border-radius: $hej-radius-control;
+  background: $hej-color-surface;
+  box-sizing: border-box;
 }
 
 .picker-value {
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  color: #333333;
-  font-size: 30rpx;
+  color: $hej-color-text;
+  font-size: $hej-font-body;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .picker-value--empty {
-  color: #999999;
+  color: $hej-color-text-tertiary;
 }
 
 .picker-arrow {
   flex: 0 0 auto;
-  margin-left: 16rpx;
-  color: #999999;
-  font-size: 42rpx;
+  margin-left: $hej-space-2;
+  color: $hej-color-text-tertiary;
+  font-size: $hej-font-title;
   line-height: 1;
 }
 
@@ -235,39 +247,40 @@ function discountLabel(customer: Customer): string {
   left: 0;
   display: flex;
   align-items: flex-end;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(20, 20, 19, 0.4);
 }
 
 .picker-panel {
   position: relative;
   width: 100%;
   max-height: 78vh;
-  padding: 18rpx 24rpx 28rpx;
-  border-radius: 24rpx 24rpx 0 0;
-  background: #ffffff;
+  padding: $hej-space-4 $hej-space-5 $hej-space-6;
+  border-radius: $hej-radius-panel $hej-radius-panel 0 0;
+  background: $hej-color-surface;
   box-sizing: border-box;
 }
 
 .picker-handle {
   width: 72rpx;
   height: 8rpx;
-  margin: 0 auto 22rpx;
-  border-radius: 999rpx;
-  background: #dddddd;
+  margin: 0 auto $hej-space-4;
+  border-radius: $hej-radius-pill;
+  background: $hej-color-border;
 }
 
 .search-box {
   display: flex;
   align-items: center;
-  padding: 18rpx 22rpx;
-  border-radius: 12rpx;
-  background: #f7f7f7;
+  padding: $hej-space-2 $hej-space-3;
+  border: 1rpx solid $hej-color-border;
+  border-radius: $hej-radius-control;
+  background: $hej-color-surface-subtle;
 }
 
 .search-icon {
   flex: 0 0 auto;
-  margin-right: 12rpx;
-  font-size: 26rpx;
+  margin-right: $hej-space-2;
+  font-size: $hej-font-meta;
   line-height: 1;
 }
 
@@ -278,16 +291,17 @@ function discountLabel(customer: Customer): string {
 
 .customer-list {
   max-height: 52vh;
-  margin-top: 18rpx;
-  padding-right: 38rpx;
+  margin-top: $hej-space-3;
+  padding-right: $hej-space-6;
   box-sizing: border-box;
 }
 
 .section-title {
   height: 48rpx;
-  padding: 0 4rpx;
-  color: #6b7280;
-  font-size: 24rpx;
+  padding: 0 $hej-space-1;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-meta;
+  font-weight: 600;
   line-height: 48rpx;
 }
 
@@ -295,8 +309,8 @@ function discountLabel(customer: Customer): string {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 96rpx;
-  border-bottom: 1rpx solid #f0f0f0;
+  min-height: 88rpx;
+  border-bottom: 1rpx solid $hej-color-border;
 }
 
 .customer-info {
@@ -307,8 +321,8 @@ function discountLabel(customer: Customer): string {
 .customer-name {
   display: block;
   overflow: hidden;
-  color: #333333;
-  font-size: 30rpx;
+  color: $hej-color-text;
+  font-size: $hej-font-body;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -316,35 +330,36 @@ function discountLabel(customer: Customer): string {
 
 .customer-meta {
   display: block;
-  margin-top: 6rpx;
+  margin-top: 4rpx;
   overflow: hidden;
-  color: #999999;
-  font-size: 24rpx;
+  color: $hej-color-text-tertiary;
+  font-size: $hej-font-caption;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .discount-badge {
   flex: 0 0 auto;
-  margin-left: 20rpx;
-  padding: 4rpx 12rpx;
-  border-radius: 999rpx;
-  background: #fff3e0;
-  color: #f57c00;
-  font-size: 22rpx;
+  margin-left: $hej-space-3;
+  padding: 4rpx $hej-space-2;
+  border-radius: $hej-radius-pill;
+  background: $hej-color-warning-soft;
+  color: $hej-color-warning;
+  font-size: $hej-font-caption;
+  font-weight: 600;
 }
 
 .empty-state {
   padding: 64rpx 0;
-  color: #999999;
-  font-size: 28rpx;
+  color: $hej-color-text-tertiary;
+  font-size: $hej-font-body;
   text-align: center;
 }
 
 .index-bar {
   position: absolute;
   top: 50%;
-  right: 8rpx;
+  right: $hej-space-1;
   z-index: 2;
   display: flex;
   flex-direction: column;
@@ -355,17 +370,25 @@ function discountLabel(customer: Customer): string {
 .index-letter {
   min-width: 32rpx;
   padding: 3rpx 0;
-  color: #4b5563;
-  font-size: 21rpx;
-  line-height: 25rpx;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-caption;
+  line-height: $hej-font-caption;
   text-align: center;
 }
 
 .create-button {
-  margin-top: 18rpx;
-  border-radius: 12rpx;
-  background: #007aff;
-  color: #ffffff;
-  font-size: 30rpx;
+  height: 80rpx;
+  margin-top: $hej-space-4;
+  border-radius: $hej-radius-control;
+  background: $hej-color-accent;
+  color: $hej-color-surface;
+  font-size: $hej-font-body;
+  font-weight: 600;
+  line-height: 80rpx;
+  text-align: center;
+}
+
+.create-button:active {
+  opacity: 0.82;
 }
 </style>

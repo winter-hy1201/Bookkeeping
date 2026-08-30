@@ -75,6 +75,7 @@ const sections = computed<CustomerSection[]>(() => {
 })
 
 const indexLetters = computed(() => sections.value.map((section) => section.letter))
+
 const pageReturn = usePageReturnSnapshot({
   mode: 'scroll-view',
   hasContent: () => filtered.value.length > 0,
@@ -100,6 +101,10 @@ function goDetail(id: number): void {
 
 function avatarLabel(customerId: number): '次' | '普' {
   return activeMealCardCustomerIds.value.has(customerId) ? '次' : '普'
+}
+
+function cleanDiscount(customer: Customer): string {
+  return discountLabel(customer).replace(/\s+/g, '')
 }
 
 async function refresh(): Promise<boolean> {
@@ -138,15 +143,17 @@ onShow(() => {
 <template>
   <view class="page">
     <view class="toolbar">
-      <uni-easyinput
-        v-model="keyword"
-        class="search"
-        prefix-icon="search"
-        placeholder="请输入搜索信息"
-        :input-border="false"
-        :clearable="true"
-      />
-      <button class="add" @click="goNew">+</button>
+      <view class="search-box">
+        <uni-easyinput
+          v-model="keyword"
+          class="search-input"
+          prefix-icon="search"
+          placeholder="搜索姓名、微信、手机或拼音"
+          :input-border="false"
+          :clearable="true"
+        />
+      </view>
+      <button class="add-button" @click="goNew">新增客户</button>
     </view>
 
     <scroll-view
@@ -162,32 +169,62 @@ onShow(() => {
         v-for="section in sections"
         :id="section.anchorId"
         :key="section.letter"
-        class="section"
+        class="section-group"
       >
-        <view class="section-title">{{ section.letter }}</view>
-        <view
-          v-for="customer in section.customers"
-          :key="customer.id"
-          class="item"
-          @click="goDetail(customer.id)"
-        >
-          <view class="avatar">{{ avatarLabel(customer.id) }}</view>
-          <view class="main">
-            <view class="name-row">
-              <text class="name">{{ customer.name }}</text>
-              <text v-if="discountLabel(customer)" class="badge">{{
-                discountLabel(customer)
-              }}</text>
+        <view class="section-letter">{{ section.letter }}</view>
+        <view class="section-card">
+          <view
+            v-for="(customer, idx) in section.customers"
+            :key="customer.id"
+            class="customer-item"
+            :class="{ 'customer-item--divided': idx > 0 }"
+            @click="goDetail(customer.id)"
+          >
+            <view class="avatar">
+              <text class="avatar-text">{{ avatarLabel(customer.id) }}</text>
             </view>
-            <text class="meta">{{ customer.wechat || customer.phone || '未填写联系方式' }}</text>
+            <view class="customer-main">
+              <view class="name-row">
+                <text class="customer-name">{{ customer.name }}</text>
+                <text v-if="cleanDiscount(customer)" class="discount-badge">
+                  {{ cleanDiscount(customer) }}
+                </text>
+              </view>
+              <text class="customer-meta">
+                {{ customer.wechat || customer.phone || '未填写联系方式' }}
+              </text>
+            </view>
+            <text class="item-arrow">›</text>
           </view>
         </view>
       </view>
+
+      <view class="list-footer">
+        <text class="footer-count">共 {{ filtered.length }} 位客户</text>
+      </view>
     </scroll-view>
-    <view v-else-if="pageLoading" class="empty">客户加载中...</view>
-    <view v-else-if="loadFailed" class="empty">客户加载失败</view>
-    <view v-else class="empty">
-      {{ keyword.trim() ? '未找到匹配客户' : '暂无客户' }}
+
+    <view v-else-if="pageLoading" class="state-card">
+      <text class="state-title">正在读取客户…</text>
+      <text class="state-hint">正在从本地数据库同步客户档案与次卡状态</text>
+    </view>
+
+    <view v-else-if="loadFailed" class="state-card">
+      <text class="state-title">客户加载失败</text>
+      <text class="state-hint">请检查本地数据库状态后重试</text>
+      <button class="state-button" @click="refresh">重新加载</button>
+    </view>
+
+    <view v-else class="state-card">
+      <template v-if="keyword.trim()">
+        <text class="state-title">未找到匹配客户</text>
+        <text class="state-hint">可尝试更换姓名、微信、手机或拼音首字母搜索</text>
+      </template>
+      <template v-else>
+        <text class="state-title">还没有客户档案</text>
+        <text class="state-hint">新建客户后可在此搜索、拼音分组并管理次卡</text>
+        <button class="state-button state-button--primary" @click="goNew">＋ 新增第一位客户</button>
+      </template>
     </view>
 
     <view v-if="!pageLoading && !loadFailed && indexLetters.length > 0" class="index-bar">
@@ -203,101 +240,137 @@ onShow(() => {
   </view>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .page {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
   height: 100vh;
-  padding: 20rpx 24rpx 0;
-  background: #f5f6f8;
+  padding: $hej-space-3 $hej-space-3 0;
+  background: $hej-color-canvas;
   box-sizing: border-box;
 }
 
-.toolbar,
-.item {
+.toolbar {
   display: flex;
   align-items: center;
+  gap: $hej-space-3;
+  margin-bottom: $hej-space-3;
 }
 
-.toolbar {
-  gap: 16rpx;
-  margin-bottom: 18rpx;
-}
-
-.search {
+.search-box {
   flex: 1;
-  overflow: hidden;
-  border-radius: 999rpx;
-  background: #eceef1;
+  min-width: 0;
 }
 
-.add {
-  width: 72rpx;
-  height: 72rpx;
-  margin: 0;
-  padding: 0;
-  border-radius: 50%;
-  background: #007aff;
+.search-input :deep(.uni-easyinput__content) {
+  height: 76rpx !important;
+  padding: 0 $hej-space-3 !important;
+  border: 1rpx solid $hej-color-border !important;
+  border-radius: $hej-radius-control !important;
+  background: $hej-color-surface !important;
+  box-sizing: border-box;
+}
+
+.search-input :deep(.uni-easyinput__placeholder-class) {
+  color: $hej-color-text-tertiary !important;
+  font-size: $hej-font-body !important;
+}
+
+.search-input :deep(.uni-input-input) {
+  color: $hej-color-text !important;
+  font-size: $hej-font-body !important;
+}
+
+.add-button {
+  flex: 0 0 auto;
+  min-width: 160rpx;
+  height: 76rpx;
+  padding: 0 $hej-space-4;
+  border: 0;
+  border-radius: $hej-radius-control;
+  background: $hej-color-accent;
   color: #ffffff;
-  font-size: 40rpx;
-  line-height: 72rpx;
+  font-size: $hej-font-body;
+  font-weight: 600;
+  line-height: 76rpx;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.add-button::after {
+  border: 0;
+}
+
+.add-button:active {
+  opacity: 0.85;
 }
 
 .list {
   flex: 1;
   min-height: 0;
-  padding-right: 44rpx;
+  padding-right: 48rpx;
   box-sizing: border-box;
 }
 
-.section {
+.section-group {
+  margin-bottom: $hej-space-3;
+}
+
+.section-letter {
+  display: flex;
+  align-items: center;
+  height: 52rpx;
+  padding: 0 $hej-space-2;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-body;
+  font-weight: 700;
+}
+
+.section-card {
   overflow: hidden;
+  border: 1rpx solid $hej-color-border;
+  border-radius: $hej-radius-control;
+  background: $hej-color-surface;
+  box-shadow: $hej-shadow-panel;
 }
 
-.section-title {
-  height: 54rpx;
-  padding: 0 4rpx;
-  color: #6b7280;
-  font-size: 26rpx;
-  line-height: 54rpx;
-}
-
-.item {
-  min-height: 112rpx;
-  padding: 16rpx 18rpx;
-  border-bottom: 1rpx solid #edf0f3;
-  background: #ffffff;
+.customer-item {
+  display: flex;
+  align-items: center;
+  min-height: 116rpx;
+  padding: $hej-space-3 $hej-space-4;
   box-sizing: border-box;
 }
 
-.section-title + .item {
-  border-top-left-radius: 12rpx;
-  border-top-right-radius: 12rpx;
+.customer-item:active {
+  background: $hej-color-surface-subtle;
 }
 
-.item:last-child {
-  border-bottom: 0;
-  border-bottom-right-radius: 12rpx;
-  border-bottom-left-radius: 12rpx;
+.customer-item--divided {
+  border-top: 1rpx solid $hej-color-border;
 }
 
 .avatar {
   display: flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 72rpx;
-  width: 72rpx;
-  height: 72rpx;
-  margin-right: 18rpx;
-  border-radius: 10rpx;
-  background: #eef5ff;
-  color: #2f6fde;
-  font-size: 30rpx;
-  font-weight: 700;
+  flex: 0 0 76rpx;
+  width: 76rpx;
+  height: 76rpx;
+  margin-right: $hej-space-3;
+  border-radius: 50%;
+  background: $hej-color-surface-subtle;
 }
 
-.main {
+.avatar-text {
+  color: $hej-color-text;
+  font-size: $hej-font-title;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.customer-main {
   flex: 1;
   min-width: 0;
 }
@@ -308,59 +381,135 @@ onShow(() => {
   min-width: 0;
 }
 
-.name,
-.meta {
-  display: block;
-}
-
-.name {
+.customer-name {
   overflow: hidden;
   min-width: 0;
-  color: #222222;
-  font-size: 30rpx;
+  color: $hej-color-text;
+  font-size: $hej-font-title;
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.meta,
-.empty {
-  color: #8f8f94;
-  font-size: 26rpx;
-}
-
-.badge {
+.discount-badge {
   flex: 0 0 auto;
-  margin-left: 12rpx;
-  padding: 6rpx 14rpx;
-  border-radius: 999rpx;
-  background: #fff7e6;
-  color: #fa8c16;
-  font-size: 24rpx;
+  margin-left: $hej-space-2;
+  padding: 2rpx 10rpx;
+  border: 1rpx solid rgba(201, 100, 66, 0.3);
+  border-radius: 8rpx;
+  background: $hej-color-accent-soft;
+  color: $hej-color-accent;
+  font-size: $hej-font-caption;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
-.empty {
-  padding: 120rpx 0;
+.customer-meta {
+  display: block;
+  margin-top: 4rpx;
+  overflow: hidden;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-meta;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-arrow {
+  flex: 0 0 auto;
+  margin-left: $hej-space-2;
+  color: $hej-color-text-tertiary;
+  font-size: 34rpx;
+  line-height: 1;
+}
+
+.list-footer {
+  padding: $hej-space-5 0 calc($hej-space-7 + env(safe-area-inset-bottom));
   text-align: center;
+}
+
+.footer-count {
+  color: $hej-color-text-tertiary;
+  font-size: $hej-font-meta;
+}
+
+.state-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-top: $hej-space-5;
+  padding: $hej-space-7 $hej-space-5;
+  border: 1rpx solid $hej-color-border;
+  border-radius: $hej-radius-card;
+  background: $hej-color-surface;
+  text-align: center;
+  box-shadow: $hej-shadow-panel;
+}
+
+.state-title {
+  color: $hej-color-text;
+  font-size: $hej-font-title;
+  font-weight: 700;
+}
+
+.state-hint {
+  display: block;
+  margin-top: $hej-space-2;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-meta;
+  line-height: 1.5;
+}
+
+.state-button {
+  min-width: 240rpx;
+  height: 72rpx;
+  margin-top: $hej-space-4;
+  padding: 0 $hej-space-5;
+  border: 1rpx solid $hej-color-border;
+  border-radius: $hej-radius-control;
+  background: $hej-color-surface-subtle;
+  color: $hej-color-text;
+  font-size: $hej-font-body;
+  font-weight: 600;
+  line-height: 72rpx;
+  text-align: center;
+}
+
+.state-button::after {
+  border: 0;
+}
+
+.state-button--primary {
+  border-color: $hej-color-accent;
+  background: $hej-color-accent;
+  color: #ffffff;
 }
 
 .index-bar {
   position: fixed;
   top: 50%;
-  right: 12rpx;
-  z-index: 5;
+  right: 8rpx;
+  z-index: 10;
   display: flex;
   flex-direction: column;
   align-items: center;
+  padding: $hej-space-2 4rpx;
+  border-radius: 20rpx;
+  background: rgba(232, 230, 220, 0.5);
   transform: translateY(-50%);
 }
 
 .index-letter {
-  min-width: 34rpx;
+  min-width: 32rpx;
   padding: 4rpx 0;
-  color: #4b5563;
+  color: $hej-color-text-secondary;
   font-size: 22rpx;
-  line-height: 26rpx;
+  font-weight: 600;
+  line-height: 28rpx;
   text-align: center;
+}
+
+.index-letter:active {
+  color: $hej-color-accent;
 }
 </style>

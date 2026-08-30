@@ -71,7 +71,9 @@
 | `tests/stats-timezone.test.cjs` | Node 内置回归测试：在 `Asia/Shanghai` 时区下验证 UTC 凌晨时间戳按设备本地日期计入首页次卡收入与日趋势 | 统计时区或次卡收入口径变化时 |
 | `tests/ui-style-preprocess.test.cjs` | Node 静态测试：扫描业务 Vue 样式块，使用 `$hej-*` token 时必须声明 `lang="scss"`，避免 token 原样输出使 App 回退默认样式 | token 样式页面变化时 |
 | `tests/page-return.test.cjs` | Node 纯函数回归：从生产 TypeScript 载入返回目标解析器，覆盖内容变化时仍恢复像素、空列表回顶部和负数像素归零。 | 页面返回现场的滚动恢复规则变化时 |
+| `tests/order-new-contract.test.cjs` | Node 静态契约测试：确保新建订单页与 CustomerPicker 连接真实 store / API、保留组合支付与合并/阻断状态机、不含 demo 硬编码，并使用暖纸张语义 token。 | 新建订单页面视觉契约或真实数据链路变化时 |
 | `tests/today-page-contract.test.cjs` | Node 静态契约测试：确保今日页连接真实 store / API、保留加载 / 空 / 失败状态、菜单入口与根路由，并使用暖纸张语义 token。 | 今日页面视觉契约或真实数据链路变化时 |
+| `tests/order-page-contract.test.cjs` | Node 静态契约测试：确保订单列表连接真实 store / API、保留三态状态标签、空/载/错状态卡片、自定义导航与暖纸张语义 token，不含 demo 硬编码。 | 订单列表页面视觉契约或真实数据链路变化时 |
 | `pnpm-lock.yaml` | pnpm 锁定文件（**不要**手动编辑） | pnpm install 后自动 |
 | `tsconfig.json` | TypeScript 配置；extends `@vue/tsconfig`，加 3 个 strict 选项；排除 `src/uni_modules` 第三方 uni-ui 源码 | 调整严格度时 |
 | `vite.config.ts` | Vite 配置；只注册 `uni()` 插件 | 加 Vite 插件时 |
@@ -284,6 +286,8 @@
 ---
 
 ## 更新日志
+
+- 2026-08-30：[UI 重构 03/14] 新建订单高频录单界面（Issue #4）——落地暖纸张画布（`$hej-color-canvas`）、象牙白连续录单卡（`$hej-color-surface`）、陶土色主动作（`$hej-color-accent`）；日期/餐次直接放在连续卡内并共享 80px 标签列，组合支付作为次级入口展开并使用步进器调整；客户选择器使用 `$hej-*` token 与拼音字母索引及全拼/首字母检索；同日同餐次待配送订单展示板岩蓝合并卡并支持“合并并保存”，已配送订单展示阻断提示并禁用提交；保存后提供“继续下一单”与“结束录单”弹窗；辅助操作按钮对齐 200rpx/64rpx 规范；新增 `tests/order-new-contract.test.cjs` 验证数据链与视觉契约；HBuilderX Android 模拟器验证默认表单、客户选择、组合支付、不足提示、待配送合并、已配送阻断、键盘输入、拼音检索、保存后继续录单与查看已有订单导航闭环。
 
 - 2026-08-30：[UI 重构 02/14] 订单列表视觉重构（Issue #3）——落地暖纸张画布（`$hej-color-canvas`）、自定义状态栏、顶部日期选择与陶土色操作按钮；午晚餐折叠面板采用暖白表面卡片，标题展示左侧展开指示、餐次与有效单数份数（`X单 · Y份`）；列表项采用 6 点拖拽把手、加粗客户名、3 态标签（待配送板岩蓝/灰、已配送橄榄绿、已取消暖棕），副标题完整组合餐次、份数、支付方式、单价/金额与备注并自然换行；空态、加载与错误反馈使用标准卡片承载；新增 `tests/order-page-contract.test.cjs` 验证数据链与视觉契约；HBuilderX Android 模拟器验证空态、录单、三态标签、拖拽重排持久化与返回快照恢复闭环。
 

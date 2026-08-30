@@ -6,7 +6,18 @@
 
 ---
 
-## 当前增量（Issue #3：[UI 重构 02/14] 订单列表视觉重构）
+## 当前增量（Issue #4：[UI 重构 03/14] 新建订单高频录单界面）
+
+| Step | 内容 | 状态 |
+|---|---|---|
+| 4.1 | 新建订单高频录单暖纸张视觉重构：连续象牙白卡（`$hej-color-surface`）、80px 共享标签列、陶土色单选芯片按钮（隐藏单选圆圈）、组合支付展开与步进器、板岩蓝待配送合并提示与阻断红已配送提示、底部固定实际金额与陶土色保存栏、CustomerPicker 暖纸张 token 与拼音字母索引 | ✅ 2026-08-30 |
+| 4.2 | 新建订单页契约测试（`tests/order-new-contract.test.cjs`）、62/62 Node 测试、类型检查、ESLint、H5 构建、git diff 检查 | ✅ 62/62 PASS；全部 CLI 检查通过 |
+| 4.3 | HBuilderX Android 模拟器：默认表单（明天/午餐/微信）、客户选择与拼音检索、组合支付与不足校验、待配送合并与保存、已配送阻断、键盘输入、保存后“继续下一单”/“结束录单”、查看已有订单详情导航闭环验收 | ✅ PASS（HBuilderX Android 模拟器截图存证） |
+| 4.4 | Code-Review 评审修复：CustomerPicker 补齐 `getCustomerPinyinKey`/`getCustomerPinyinInitials` 全拼与首字母检索、复用 `src/utils/ui.ts` 的 `discountLabel`、提示/退出辅助按钮尺寸对齐 `docs/design.md §4.4`（`min-width: 200rpx`, `height: 64rpx`, `padding: 0 $hej-space-5`）、更新契约测试，77/77 测试全量通过并在 Android 模拟器实测拼音搜索通过 | ✅ 77/77 PASS；Android 模拟器验证通过 |
+
+---
+
+## 历史增量（Issue #3：[UI 重构 02/14] 订单列表视觉重构）
 
 | Step | 内容 | 状态 |
 |---|---|---|
@@ -168,6 +179,8 @@
 ## 更新日志
 
 > 每条与 `memory-bank/architecture.md §更新日志` 同源，**改两边**。
+
+- 2026-08-30：[UI 重构 03/14] 新建订单高频录单界面（Issue #4）——落地暖纸张画布（`$hej-color-canvas`）、象牙白连续录单卡（`$hej-color-surface`）、陶土色主动作（`$hej-color-accent`）；日期/餐次直接放在连续卡内并共享 80px 标签列，组合支付作为次级入口展开并使用步进器调整；客户选择器使用 `$hej-*` token 与拼音字母索引及全拼/首字母检索；同日同餐次待配送订单展示板岩蓝合并卡并支持“合并并保存”，已配送订单展示阻断提示并禁用提交；保存后提供“继续下一单”与“结束录单”弹窗；辅助操作按钮对齐 200rpx/64rpx 规范；新增 `tests/order-new-contract.test.cjs` 验证数据链与视觉契约；HBuilderX Android 模拟器验证默认表单、客户选择、组合支付、不足提示、待配送合并、已配送阻断、键盘输入、拼音检索、保存后继续录单与查看已有订单导航闭环。
 
 - 2026-08-30：迁入已审核的全页面 UI 重构参考——`docs/ui-image-generation-prompts.md` 更新为 Claude-inspired warm paper 方案三，新增 `docs/ui-reference/`，收录 23 张 375×812 参考图和页面 / 路由 / 版本索引；不迁入 ImageGen source 原图，不改应用代码、业务行为或现行 `docs/design.md` 实现规范。
 

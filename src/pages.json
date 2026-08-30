@@ -30,13 +30,15 @@
     {
       "path": "pages/stats/index",
       "style": {
-        "navigationBarTitleText": "统计"
+        "navigationBarTitleText": "统计",
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/me/index",
       "style": {
-        "navigationBarTitleText": "我的"
+        "navigationBarTitleText": "我的",
+        "navigationStyle": "custom"
       }
     },
     {
