@@ -6,7 +6,7 @@ import { useCustomerStore } from '../../stores/customer'
 import { useOrderStore } from '../../stores/order'
 import type { MealType, Order, OrderStatus } from '../../types/domain'
 import { today } from '../../utils/date'
-import { addMoney, formatMoney } from '../../utils/format'
+import { addMoney } from '../../utils/format'
 import {
   initializeLunchPanelCollapse,
   markLunchPanelManually,
@@ -18,6 +18,10 @@ import { mealTypeText, orderSubtitle, showToast, statusText } from '../../utils/
 
 const orderStore = useOrderStore()
 const customerStore = useCustomerStore()
+
+const statusBarHeight = uni.getSystemInfoSync().statusBarHeight ?? 0
+const hasLoaded = ref(false)
+const loadError = ref(false)
 
 interface OrderSection {
   type: MealType
@@ -75,6 +79,18 @@ const dragItemHeightPx = computed(() => {
   }
 })
 
+const isInitialLoading = computed(() => !hasLoaded.value && !loadError.value)
+const isRefreshing = computed(() => orderStore.loading || customerStore.loading)
+
+const formattedCurrentDate = computed(() => {
+  if (!orderStore.currentDate) return ''
+  const parts = orderStore.currentDate.split('-')
+  if (parts.length === 3) {
+    return `${parts[0]}年${Number(parts[1])}月${Number(parts[2])}日`
+  }
+  return orderStore.currentDate
+})
+
 const displayedOrders = computed(() => dragOrders.value ?? orderStore.list)
 const orderSections = computed<OrderSection[]>(() =>
   mealTypes.map((type) => {
@@ -108,6 +124,10 @@ const lunchCollapseState = ref<LunchPanelCollapseState>(
   initializeLunchPanelCollapse(false, false),
 )
 let openSectionsInitialized = false
+
+function isSectionOpen(type: MealType): boolean {
+  return openSections.value.includes(type)
+}
 
 function resetOpenSections(): void {
   const nextOpenSections = [...defaultOpenSections.value]
@@ -151,13 +171,10 @@ function syncLunchCollapse(): void {
 }
 
 function onSectionsChange(value: MealType[]): void {
+  openSections.value = value
   const lunchOpen = value.includes('lunch')
   if (lunchOpen === lunchCollapseState.value.open) return
   lunchCollapseState.value = markLunchPanelManually(lunchCollapseState.value, lunchOpen)
-}
-
-function sectionTitle(section: OrderSection): string {
-  return `${section.title} · ${section.activeCount}单 ${section.quantity}份 ${formatMoney(section.amount)}`
 }
 
 function customerName(id: number): string {
@@ -165,7 +182,7 @@ function customerName(id: number): string {
 }
 
 function statusClass(status: OrderStatus): string {
-  return `status status--${status}`
+  return `status-chip--${status}`
 }
 
 function orderMetaText(order: Order): string {
@@ -261,7 +278,6 @@ function runEdgeAutoScroll(state: DragState, y: number): void {
     return
   }
   // 进入边缘区：必须临时打开 scroll-y，否则 scroll-y=false 会连带禁用 :scroll-top 的程序化滚屏
-  // （手指在底/顶边缘时原生手势滚动方向与程序化滚屏方向一致，合力而非冲突，不会抖）
   listScrollable.value = true
   if (edgeScrollDirection === direction && edgeScrollTimer != null) return
 
@@ -275,7 +291,6 @@ function runEdgeAutoScroll(state: DragState, y: number): void {
       return
     }
     // 滚屏一帧。scrollTop += direction*speed；要让 targetIndex 跟着滚屏方向前进，需把 startY 反向偏移
-    // （scrollTop 增大=内容上移=目标应往更高 index 走，此时 startY 要减小）
     listScrollTop.value += direction * DRAG_EDGE_SPEED
     dragState.value = { ...current, startY: current.startY - direction * DRAG_EDGE_SPEED }
     applyReorder(dragState.value, y)
@@ -366,6 +381,7 @@ function isDragging(orderId: number): boolean {
 }
 
 async function refresh(): Promise<boolean> {
+  loadError.value = false
   const previousOrders = [...orderStore.list]
   const previousDate = orderStore.currentDate
   const previousCustomers = [...customerStore.list]
@@ -376,9 +392,11 @@ async function refresh(): Promise<boolean> {
   if (results.some((result) => result.status === 'rejected')) {
     orderStore.$patch({ list: previousOrders, currentDate: previousDate })
     customerStore.$patch({ list: previousCustomers })
+    loadError.value = true
     uni.showToast({ title: '订单加载失败', icon: 'none' })
     return false
   }
+  hasLoaded.value = true
   if (!openSectionsInitialized) resetOpenSections()
   else syncLunchCollapse()
   return true
@@ -392,6 +410,10 @@ async function handleDateChange(value: string): Promise<void> {
   } catch {
     showToast('订单加载失败')
   }
+}
+
+function retry(): void {
+  void refresh()
 }
 
 function goNew(): void {
@@ -410,26 +432,57 @@ onShow(() => {
 
 <template>
   <view class="page">
+    <view class="status-bar" :style="{ height: statusBarHeight + 'px' }"></view>
+
     <view class="toolbar">
       <uni-datetime-picker
-        class="date-button"
+        class="date-picker-wrapper"
         type="date"
         :model-value="orderStore.currentDate"
         :clear-icon="false"
+        :border="false"
         @change="handleDateChange"
-      />
-      <button class="add-button" @click="goNew">+ 新建</button>
+      >
+        <view class="date-selector" hover-class="date-selector--pressed">
+          <uni-icons type="calendar" size="20" color="#141413" class="date-selector__icon"></uni-icons>
+          <text class="date-selector__text">{{ formattedCurrentDate }}</text>
+          <uni-icons type="bottom" size="12" color="#5e5d59" class="date-selector__arrow"></uni-icons>
+        </view>
+      </uni-datetime-picker>
+
+      <button class="add-button" hover-class="add-button--pressed" @click="goNew">
+        + 新建订单
+      </button>
     </view>
 
-    <view
-      v-if="orderStore.loading && (!pageReturn.isReturningValue || orderStore.list.length === 0)"
-      class="empty empty--loading"
-    >
-      订单加载中...
+    <view v-if="isInitialLoading" class="state-card state-card--loading">
+      <uni-icons type="refreshempty" size="24" color="inherit"></uni-icons>
+      <text class="state-card__title">正在读取订单数据</text>
+      <text class="state-card__description">订单和配送状态马上就绪。</text>
     </view>
-    <view v-else-if="orderStore.list.length === 0" class="empty-state">
-      <text class="empty-state-title">这一天还没有订单</text>
+
+    <view v-else-if="!hasLoaded && loadError" class="state-card state-card--error">
+      <uni-icons type="closeempty" size="24" color="inherit"></uni-icons>
+      <text class="state-card__title">订单数据加载失败</text>
+      <text class="state-card__description">请检查本地数据库状态后重试，已有数据不会被覆盖。</text>
+      <button class="retry-button" :disabled="isRefreshing" @click="retry">
+        {{ isRefreshing ? '重新加载中…' : '重新加载' }}
+      </button>
     </view>
+
+    <view v-else-if="orderStore.list.length === 0" class="empty-state-wrapper">
+      <view class="state-card state-card--empty">
+        <view class="empty-icon-box">
+          <uni-icons type="list" size="28" color="#87867F"></uni-icons>
+        </view>
+        <text class="state-card__title">这一天还没有订单</text>
+        <text class="state-card__description">录入订单后，会按午餐和晚餐在此分组展示并支持拖拽调整配送顺序。</text>
+        <button class="empty-state-action" hover-class="empty-state-action--pressed" @click="goNew">
+          新建订单
+        </button>
+      </view>
+    </view>
+
     <scroll-view
       v-else
       class="list"
@@ -440,56 +493,98 @@ onShow(() => {
       :show-scrollbar="false"
       @scroll="onListScroll"
     >
-      <uni-collapse v-model="openSections" @change="onSectionsChange">
-        <uni-collapse-item
-          v-for="section in orderSections"
-          :key="section.type"
-          :name="section.type"
-        >
-          <template #title>
-            <view class="section-title">
-              <text class="section-title-text">{{ sectionTitle(section) }}</text>
-            </view>
-          </template>
-          <view v-if="section.orders.length === 0" class="section-empty">
-            暂无{{ section.title }}订单
-          </view>
-          <template v-else>
-            <view class="order-list">
-              <view
-                v-for="(order, index) in section.orders"
-                :key="order.id"
-                class="order-item"
-                :class="{
-                  'order-item--dragging': isDragging(order.id),
-                  'order-item--saving': dragSaving,
-                }"
-                @click="goDetail(order.id)"
-              >
-                <view
-                  class="drag-handle"
-                  @click.stop
-                  @touchstart.stop="onHandleTouchStart($event, section.type, index, order.id)"
-                  @touchmove.stop="onHandleTouchMove($event)"
-                  @touchend="onHandleTouchEnd"
-                  @touchcancel="onHandleTouchEnd"
-                >
-                  <uni-icons type="bars" size="30" color="#8f8f94"></uni-icons>
-                </view>
-                <view class="order-main">
-                  <view class="order-title-row">
-                    <text class="order-name">{{ customerName(order.customer_id) }}</text>
-                    <text :class="statusClass(order.status)">{{ statusText(order.status) }}</text>
-                  </view>
-                  <text class="order-meta">
-                    {{ orderMetaText(order) }}
-                  </text>
+      <view v-if="loadError" class="inline-error">
+        <view class="inline-error__copy">
+          <text class="inline-error__title">订单数据刷新失败</text>
+          <text class="inline-error__description">当前仍保留上次成功读取的内容。</text>
+        </view>
+        <button class="retry-button retry-button--small" :disabled="isRefreshing" @click="retry">
+          {{ isRefreshing ? '加载中…' : '重新加载' }}
+        </button>
+      </view>
+
+      <view class="sections-container">
+        <uni-collapse v-model="openSections" @change="onSectionsChange">
+          <uni-collapse-item
+            v-for="section in orderSections"
+            :key="section.type"
+            :name="section.type"
+            :open="isSectionOpen(section.type)"
+            :show-arrow="false"
+            :border="false"
+            :title-border="'none'"
+            class="section-card"
+          >
+            <template #title>
+              <view class="section-header" hover-class="section-header--pressed">
+                <view class="section-header__left">
+                  <uni-icons
+                    :type="isSectionOpen(section.type) ? 'bottom' : 'right'"
+                    size="16"
+                    color="#141413"
+                    class="section-header__arrow"
+                  ></uni-icons>
+                  <text class="section-header__title">{{ section.title }}</text>
+                  <text class="section-header__stats">{{ section.activeCount }}单 · {{ section.quantity }}份</text>
                 </view>
               </view>
+            </template>
+
+            <view v-if="section.orders.length === 0" class="section-empty">
+              暂无{{ section.title }}订单
             </view>
-          </template>
-        </uni-collapse-item>
-      </uni-collapse>
+
+            <view v-else class="order-list">
+                <view
+                  v-for="(order, index) in section.orders"
+                  :key="order.id"
+                  class="order-item"
+                  :class="{
+                    'order-item--dragging': isDragging(order.id),
+                    'order-item--saving': dragSaving,
+                  }"
+                  hover-class="order-item--pressed"
+                  @click="goDetail(order.id)"
+                >
+                  <view
+                    class="drag-handle"
+                    @click.stop
+                    @touchstart.stop="onHandleTouchStart($event, section.type, index, order.id)"
+                    @touchmove.stop="onHandleTouchMove($event)"
+                    @touchend="onHandleTouchEnd"
+                    @touchcancel="onHandleTouchEnd"
+                  >
+                    <view class="drag-handle-icon">
+                      <view class="dot-col">
+                        <view class="dot"></view>
+                        <view class="dot"></view>
+                        <view class="dot"></view>
+                      </view>
+                      <view class="dot-col">
+                        <view class="dot"></view>
+                        <view class="dot"></view>
+                        <view class="dot"></view>
+                      </view>
+                    </view>
+                  </view>
+
+                  <view class="order-main">
+                    <view class="order-title-row">
+                      <text class="order-name">{{ customerName(order.customer_id) }}</text>
+                      <text class="status-chip" :class="statusClass(order.status)">
+                        {{ statusText(order.status) }}
+                      </text>
+                    </view>
+                    <text class="order-meta">
+                      {{ orderMetaText(order) }}
+                    </text>
+                  </view>
+                </view>
+              </view>
+            </uni-collapse-item>
+        </uni-collapse>
+      </view>
+      <view class="list-bottom-spacer"></view>
     </scroll-view>
   </view>
 </template>
@@ -502,112 +597,233 @@ onShow(() => {
   background: $hej-color-canvas;
   box-sizing: border-box;
   overflow: hidden;
+  font-family: $hej-font-family;
 }
 
-.toolbar,
-.order-item,
-.order-title-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.status-bar {
+  width: 100%;
+  flex-shrink: 0;
+  background: $hej-color-canvas;
 }
 
 .toolbar {
-  gap: $hej-space-3;
-  padding: $hej-space-3;
-  border: 1rpx solid $hej-color-border;
-  background: $hej-color-surface;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $hej-space-3 $hej-space-5 $hej-space-3;
+  background: $hej-color-canvas;
+  flex-shrink: 0;
 }
 
-.date-button {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+.date-picker-wrapper {
   flex: 1;
   min-width: 0;
-  min-height: 80rpx;
+}
+
+.date-selector {
+  display: flex;
+  align-items: center;
+  gap: $hej-space-2;
+  height: 80rpx;
   box-sizing: border-box;
+
+  &__icon {
+    display: flex;
+    align-items: center;
+  }
+
+  &__text {
+    font-size: $hej-font-title;
+    font-weight: 700;
+    color: $hej-color-text;
+    letter-spacing: -0.5rpx;
+  }
+
+  &__arrow {
+    display: flex;
+    align-items: center;
+    margin-left: 2rpx;
+  }
+
+  &--pressed {
+    opacity: 0.72;
+  }
 }
 
 .add-button {
-  flex: 0 0 180rpx;
-  height: 80rpx;
+  flex: 0 0 auto;
+  height: 76rpx;
   margin: 0;
   padding: 0 $hej-space-5;
-  border: 1rpx solid $hej-color-accent;
+  border: 0;
   border-radius: $hej-radius-control;
   background: $hej-color-accent;
   color: $hej-color-surface;
   font-size: $hej-font-body;
   font-weight: 600;
-  line-height: 80rpx;
+  line-height: 76rpx;
   text-align: center;
   box-sizing: border-box;
-}
+  box-shadow: 0 2rpx 6rpx rgba(201, 100, 66, 0.2);
 
-.add-button::after {
-  border: 0;
+  &::after {
+    border: 0;
+  }
+
+  &--pressed {
+    opacity: 0.88;
+  }
+
+  &:focus-visible {
+    outline: 2rpx solid $hej-color-text;
+    outline-offset: 2rpx;
+  }
 }
 
 .list {
   flex: 1;
   height: 0;
   min-height: 0;
+  box-sizing: border-box;
   overscroll-behavior: contain;
 }
 
-.order-item,
+.sections-container {
+  padding: 0 $hej-space-5;
+  display: flex;
+  flex-direction: column;
+  gap: $hej-space-4;
+}
+
+.section-card {
+  margin-bottom: $hej-space-4;
+  border: 1rpx solid $hej-color-border;
+  border-radius: $hej-radius-panel;
+  background: $hej-color-surface;
+  box-shadow: $hej-shadow-panel;
+  overflow: hidden;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  :deep(.uni-collapse-item__wrap),
+  :deep(.uni-collapse-item__wrap-content),
+  :deep(.uni-collapse-item__title-box) {
+    background-color: $hej-color-surface !important;
+  }
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 92rpx;
+  padding: 0 $hej-space-5;
+  box-sizing: border-box;
+  background: $hej-color-surface;
+
+  &__left {
+    display: flex;
+    align-items: center;
+    gap: $hej-space-3;
+  }
+
+  &__arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32rpx;
+    height: 32rpx;
+  }
+
+  &__title {
+    font-size: $hej-font-title;
+    font-weight: 700;
+    color: $hej-color-text;
+  }
+
+  &__stats {
+    font-size: $hej-font-meta;
+    font-weight: 500;
+    color: $hej-color-text-secondary;
+  }
+
+  &--pressed {
+    background: rgba(0, 0, 0, 0.02);
+  }
+}
+
 .section-empty {
-  padding: 22rpx 24rpx;
-  background: #ffffff;
-}
-
-.order-item {
-  min-height: 120rpx;
-  gap: 18rpx;
-}
-
-.order-item--dragging {
-  background: #eaf4ff;
-  box-shadow: 0 8rpx 24rpx rgba(0, 122, 255, 0.16);
-}
-
-.order-item--saving {
-  opacity: 0.72;
-}
-
-.order-item + .order-item {
-  border-top: 1px solid #f0f0f0;
+  padding: $hej-space-6 $hej-space-5;
+  color: $hej-color-text-tertiary;
+  font-size: $hej-font-body;
+  text-align: center;
+  border-top: 1rpx solid $hej-color-border;
 }
 
 .order-list {
-  margin: 0 0 16rpx;
-  border-radius: 12rpx;
-  background: #ffffff;
-  overflow: hidden;
+  border-top: 1rpx solid $hej-color-border;
 }
 
-.section-empty {
-  margin: 0 0 16rpx;
-  border-radius: 12rpx;
-}
-
-.section-title {
-  padding: 0 15px;
-  height: 48px;
-  line-height: 48px;
+.order-item {
+  display: flex;
+  align-items: flex-start;
+  min-height: 120rpx;
+  padding: $hej-space-4 $hej-space-5;
+  gap: $hej-space-3;
+  background: $hej-color-surface;
+  border-bottom: 1rpx solid $hej-color-border;
   box-sizing: border-box;
-  color: #1677ff;
-  font-weight: 700;
+
+  &:last-child {
+    border-bottom: 0;
+  }
+
+  &--dragging {
+    background: $hej-color-accent-soft;
+    box-shadow: 0 8rpx 24rpx rgba(201, 100, 66, 0.16);
+  }
+
+  &--saving {
+    opacity: 0.72;
+  }
+
+  &--pressed {
+    background: rgba(0, 0, 0, 0.02);
+  }
 }
 
-.section-title-text {
-  font-size: 16px;
-  font-weight: inherit;
-  color: inherit;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.drag-handle {
+  flex: 0 0 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  min-height: 76rpx;
+  touch-action: none;
+}
+
+.drag-handle-icon {
+  display: flex;
+  flex-direction: row;
+  gap: 6rpx;
+  align-items: center;
+  justify-content: center;
+  padding: 8rpx;
+}
+
+.dot-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+.dot {
+  width: 6rpx;
+  height: 6rpx;
+  border-radius: 50%;
+  background-color: $hej-color-text-tertiary;
 }
 
 .order-main {
@@ -615,119 +831,206 @@ onShow(() => {
   min-width: 0;
 }
 
-.drag-handle {
-  flex: 0 0 66rpx;
+.order-title-row {
   display: flex;
   align-items: center;
-  justify-content: center;
-  min-height: 76rpx;
+  justify-content: space-between;
+  gap: $hej-space-2;
 }
 
 .order-name {
-  overflow: hidden;
-  color: #222222;
-  font-size: 32rpx;
+  font-size: $hej-font-title;
   font-weight: 700;
+  color: $hej-color-text;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.order-meta,
-.empty {
-  color: #8f8f94;
-  font-size: 26rpx;
-}
-
 .order-meta {
   display: block;
-  margin-top: 10rpx;
+  margin-top: $hej-space-1;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-meta;
   line-height: 1.5;
   overflow-wrap: anywhere;
+  word-break: break-word;
   white-space: normal;
 }
 
-.status {
+.status-chip {
   flex: 0 0 auto;
-  margin-left: 16rpx;
-  padding: 4rpx 12rpx;
-  border-radius: 999rpx;
-  font-size: 22rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4rpx 14rpx;
+  border-radius: $hej-radius-pill;
+  font-size: $hej-font-caption;
+  font-weight: 600;
+  line-height: 1.4;
+
+  &--pending {
+    background: $hej-color-pending-soft;
+    color: $hej-color-pending;
+  }
+
+  &--delivered {
+    background: $hej-color-delivered-soft;
+    color: $hej-color-delivered;
+  }
+
+  &--cancelled {
+    background: $hej-color-warning-soft;
+    color: $hej-color-warning;
+  }
 }
 
-.status--pending {
-  background: #fff7e6;
-  color: #fa8c16;
+.empty-state-wrapper {
+  padding: 0 $hej-space-5;
 }
 
-.status--delivered {
-  background: #e8f7ee;
-  color: #07c160;
-}
-
-.status--cancelled {
-  background: #f0f0f0;
-  color: #8f8f94;
-}
-
-.empty {
-  color: $hej-color-text-secondary;
-  font-size: $hej-font-body;
-  text-align: center;
-}
-
-.empty--loading {
-  flex: 1;
-  padding: 120rpx 0;
-}
-
-.empty-state {
+.state-card {
   display: flex;
-  flex: 1;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: $hej-space-7 $hej-space-5;
+  margin: 0 $hej-space-5;
   border: 1rpx solid $hej-color-border;
   border-radius: $hej-radius-panel;
   background: $hej-color-surface;
+  box-shadow: $hej-shadow-panel;
   text-align: center;
+
+  &__title {
+    margin-top: $hej-space-3;
+    font-size: $hej-font-title;
+    font-weight: 700;
+    color: $hej-color-text;
+  }
+
+  &__description {
+    margin-top: $hej-space-2;
+    font-size: $hej-font-body;
+    line-height: 1.6;
+    color: $hej-color-text-secondary;
+    max-width: 520rpx;
+  }
+
+  &--loading {
+    color: $hej-color-text-secondary;
+    padding: 120rpx $hej-space-5;
+  }
+
+  &--error {
+    color: $hej-color-danger;
+  }
+
+  &--empty {
+    margin: 0;
+  }
 }
 
-.empty-state-title {
-  color: $hej-color-text;
-  font-size: $hej-font-title;
-  font-weight: 700;
-}
-
-.empty-state-copy {
-  margin-top: $hej-space-2;
-  color: $hej-color-text-secondary;
-  font-size: $hej-font-body;
-  line-height: 1.6;
+.empty-icon-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  background: $hej-color-surface-subtle;
 }
 
 .empty-state-action {
-  height: 84rpx;
+  height: 80rpx;
   margin: $hej-space-5 0 0;
-  padding: 0 $hej-space-5;
+  padding: 0 $hej-space-6;
+  border: 0;
   border-radius: $hej-radius-control;
   background: $hej-color-accent;
   color: $hej-color-surface;
   font-size: $hej-font-body;
   font-weight: 600;
-  line-height: 84rpx;
+  line-height: 80rpx;
   text-align: center;
+  box-shadow: 0 2rpx 6rpx rgba(201, 100, 66, 0.2);
+
+  &::after {
+    border: 0;
+  }
+
+  &--pressed {
+    opacity: 0.88;
+  }
+
+  &:focus-visible {
+    outline: 2rpx solid $hej-color-text;
+    outline-offset: 2rpx;
+  }
 }
 
-.add-button:focus-visible,
-.empty-state-action:focus-visible {
-  outline: 2rpx solid $hej-color-text;
-  outline-offset: 2rpx;
+.inline-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $hej-space-3;
+  margin: 0 $hej-space-5 $hej-space-4;
+  padding: $hej-space-3 $hej-space-4;
+  border: 1rpx solid $hej-color-danger-soft;
+  border-radius: $hej-radius-panel;
+  background: $hej-color-danger-soft;
+
+  &__copy {
+    display: flex;
+    flex-direction: column;
+    gap: 4rpx;
+  }
+
+  &__title {
+    font-size: $hej-font-body;
+    font-weight: 600;
+    color: $hej-color-danger;
+  }
+
+  &__description {
+    font-size: $hej-font-caption;
+    color: $hej-color-text-secondary;
+  }
 }
 
-.section-empty {
-  color: #8f8f94;
-  font-size: 26rpx;
+.retry-button {
+  height: 72rpx;
+  margin: $hej-space-5 0 0;
+  padding: 0 $hej-space-5;
+  border: 1rpx solid $hej-color-border;
+  border-radius: $hej-radius-control;
+  background: $hej-color-surface;
+  color: $hej-color-text;
+  font-size: $hej-font-body;
+  font-weight: 600;
+  line-height: 72rpx;
   text-align: center;
+
+  &::after {
+    border: 0;
+  }
+
+  &--small {
+    margin: 0;
+    height: 60rpx;
+    padding: 0 $hej-space-3;
+    line-height: 60rpx;
+    font-size: $hej-font-caption;
+    flex-shrink: 0;
+  }
+
+  &:focus-visible {
+    outline: 2rpx solid $hej-color-text;
+    outline-offset: 2rpx;
+  }
+}
+
+.list-bottom-spacer {
+  height: $hej-space-6;
 }
 </style>
