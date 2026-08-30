@@ -151,6 +151,10 @@
 
 > 每条与 `memory-bank/architecture.md §更新日志` 同源，**改两边**。
 
+- 2026-08-30：迁入已审核的全页面 UI 重构参考——`docs/ui-image-generation-prompts.md` 更新为 Claude-inspired warm paper 方案三，新增 `docs/ui-reference/`，收录 23 张 375×812 参考图和页面 / 路由 / 版本索引；不迁入 ImageGen source 原图，不改应用代码、业务行为或现行 `docs/design.md` 实现规范。
+
+- 2026-08-29：新增全页面 UI 概念图提示词——基于现有 23 个页面与业务闭环，采用适配 Android 高频操作的 Wise-inspired 友好金融方向，提供统一母提示词、负面提示词、逐页提示词和空态 / 校验 / 危险确认状态；本次只新增设计探索文档，不改应用 UI、业务行为或现行 `docs/design.md` 基线。
+
 - 2026-06-10：初始创建（与 `implementation-plan.md` v2 同步）。
 - 2026-06-10：Phase 1 脚手架 8/8 完成，里程碑 1.8 达成。
 - 2026-06-10：发现 CLI 模式编译不带 SQLite 原生模块；切到 HBuilderX 编译；`architecture.md` 新增「编译工具链」章节。

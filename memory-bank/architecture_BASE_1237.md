@@ -11,7 +11,7 @@
 - **已建文件**：`docs/archive/PRD-v1.0.md`、`CLAUDE.md`、`AGENTS.md`、`CONTEXT.md`、`memory-bank/` 活文档、uni-app Vue 3 + Vite + TS 模板、11 张表 DDL + 迁移 + seed + integrity_check + tx() 工具、domain/api 类型、日期/金额/菜单模板/月卡模板/页面/备份工具、完整 API 层、4 个 Pinia store、3 个通用 UI 组件、uni-ui 表单组件、4 个 Tab 与关键子页、App.vue 全局 onError 兜底
 - **DB 状态**：v0 基线（`memory-bank/bookkeeping-v0.db`，CLI sqlite smoke-test 生成）；v1 阶段基线（`memory-bank/bookkeeping-v1.db`，Phase 8 真机 E2E 通过后归档，`user_version=1`）；当前 schema 版本为 7，新增每日菜单、文案模板、月卡文案模板和两类模板版本历史，v5 → v7 真机迁移待回归
 - **UI 基线**：v1.13 新增 `docs/design.md` 与 `$hej-*` 语义 token，并由样式预处理检查保护；订单空态、新建 / 编辑确认区和统计对账趋势已按该基线改造；今日页按用户反馈保留既有布局，HBuilderX 视觉回归待执行
-- **最后更新**：2026-08-30
+- **最后更新**：2026-08-14
 
 ---
 
@@ -46,8 +46,6 @@
 | `docs/archive/PRD-v1.0.md` | v1.0 产品需求基线（已定稿，不修改；存于 archive/ 留作历史参考） | 永不更新 |
 | `docs/` | `archive/` 保留历史基线；`superpowers/specs/` 保留已批准的增量功能设计；根目录放当前 UI 规范与 AI 选型索引 | 新增/归档设计或协作指引时 |
 | `docs/design.md` | 盒记项目级 UI 设计规范：语义 token、按钮 / 状态 / 空态规则与页面验收清单；视觉改动前先读。 | 改动跨页面视觉语言、token 或 UI 验收标准时 |
-| `docs/ui-image-generation-prompts.md` | 盒记 23 个现有页面的 UI 概念图生成提示词：Claude-inspired warm paper 方向、母提示词、负面提示词、逐页内容和通用状态；仅用于视觉探索，不代表已实现。 | 页面范围、概念视觉方向或生图工作流变化时 |
-| `docs/ui-reference/` | 已审核的 23 张 375×812 UI 重构参考图及页面、路由、版本映射；`README.md` 是图片索引。图片只作为重构参考，现行实现规范仍以 `docs/design.md` 为准。 | 审核参考图、页面映射或推荐版本变化时 |
 | `docs/uni-modules-ai-index.md` | 本地 `src/uni_modules` 的 AI 选型索引：45 个包的版本、场景、状态、边界、本地 README 与项目内用例；新增 / 重做 UI 先查。 | 增删 / 升级本地组件，或形成新的项目内用例时 |
 | `docs/adr/0001-in-memory-page-return-snapshots.md` | 页面返回现场采用页面实例级像素快照与共享 composable、拒绝全局缓存和持久化的架构决策。 | 返回现场的状态归属、生命周期或持久化边界变化时 |
 | `docs/adr/0002-meal-card-message-templates-are-independent.md` | 月卡文案模板使用独立数据表、版本历史、默认状态和维护页面；只复用交互模式，不与菜单模板共享数据。 | 月卡模板数据边界、语法或维护入口变化时 |
@@ -283,10 +281,6 @@
 ---
 
 ## 更新日志
-
-- 2026-08-30：迁入已审核的全页面 UI 重构参考——`docs/ui-image-generation-prompts.md` 更新为 Claude-inspired warm paper 方案三，新增 `docs/ui-reference/`，收录 23 张 375×812 参考图和页面 / 路由 / 版本索引；不迁入 ImageGen source 原图，不改应用代码、业务行为或现行 `docs/design.md` 实现规范。
-
-- 2026-08-29：新增全页面 UI 概念图提示词——基于现有 23 个页面与业务闭环，采用适配 Android 高频操作的 Wise-inspired 友好金融方向，提供统一母提示词、负面提示词、逐页提示词和空态 / 校验 / 危险确认状态；本次只新增设计探索文档，不改应用 UI、业务行为或现行 `docs/design.md` 基线。
 
 - 2026-06-10：初始创建（仅文档阶段，src/ 全空）
 - 2026-06-10：Phase 1 脚手架 8/8 完成 — 补全所有顶层文件、src/ 入口、4 个 Tab 占位、版本快照、文件级作用说明
