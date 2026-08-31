@@ -1,7 +1,7 @@
 # Phase 2 SQLite 调试 — 归档（2026-06-11 已解决）
 
-> 2026-06-10 ~ 06-11 调试 v1.0 数据层时遇到 `this.getCallbackIDByFunction is not a function` 报错，跨 AI 协作定位根因。本文档归档：根因、误判复盘、5 条已确认的 5+ API 规则。
-> 5 条规则的速查表见 `AGENTS.md §4`（每次写 SQLite 代码前看）；本文供"想了解背景"时翻。
+> 2026-06-10 ~ 06-11 调试 v1.0 数据层时遇到 `this.getCallbackIDByFunction is not a function` 报错，跨 AI 协作定位根因。本文档归档：根因、误判复盘、6 条已确认的 5+ API 规则。
+> 6 条规则的速查表见 `AGENTS.md §7`（每次写 SQLite 代码前看）；本文供"想了解背景"时翻。
 
 ---
 
@@ -51,10 +51,9 @@ Phase 1+2 一次性跑完（v0.db CLI smoke-test 通过）→ 真机 `init()` �
 |---|---|
 | [5+ sqlite API 文档](https://www.html5plus.org/doc/zh_cn/sqlite.html) | openDatabase / executeSql / selectSql / transaction 正确签名 |
 | [HBuilderX 版本说明](https://ask.dcloud.net.cn/article/35765) | 3.4.6+ 统一标准包，SQLite 通过插件获得 |
-| `AGENTS.md §3` 编译工具链 | CLI 不带 SQLite → 必须 HBuilderX 真机编译 |
-| `AGENTS.md §4` 5+ SQLite 三大踩坑 | 速查表（每次写 SQLite 代码前看） |
+| `AGENTS.md §7` 编译工具链与 5+ SQLite 边界 | CLI 不带 SQLite → 必须 HBuilderX 真机编译 |
 | `memory-bank/architecture.md` §db/ | `src/db/index.ts` 当前实现说明 |
-| `memory-bank/design-document.md §2.1` | 5 张表 DDL |
+| `memory-bank/design-document.md §2.1` | 当前 schema DDL |
 
 ---
 

@@ -10,20 +10,20 @@
 - **项目阶段**：**v1.0 已发布**（Phase 1-9 全部完成；9.3 / 9.4 按用户决策跳过，用 HBuilderX 标准基座 debug APK 侧载；CHANGELOG.md v1.0 节已写好）
 - **已建文件**：`docs/archive/PRD-v1.0.md`、`CLAUDE.md`、`AGENTS.md`、`CONTEXT.md`、`memory-bank/` 活文档、uni-app Vue 3 + Vite + TS 模板、11 张表 DDL + 迁移 + seed + integrity_check + tx() 工具、domain/api 类型、日期/金额/菜单模板/月卡模板/页面/备份工具、完整 API 层、4 个 Pinia store、3 个通用 UI 组件、uni-ui 表单组件、4 个 Tab 与关键子页、App.vue 全局 onError 兜底
 - **DB 状态**：v0 基线（`memory-bank/bookkeeping-v0.db`，CLI sqlite smoke-test 生成）；v1 阶段基线（`memory-bank/bookkeeping-v1.db`，Phase 8 真机 E2E 通过后归档，`user_version=1`，保留历史 schema 与分类 emoji）；当前 schema 版本为 8，新增每日菜单、文案模板、月卡文案模板和两类模板版本历史，并把系统支出分类图标归一为 Lucide 名称，v5 → v8 真机迁移待回归
-- **UI 基线**：v1.13 新增 `docs/design.md` 与 `$hej-*` 语义 token，并由样式预处理检查保护；Issue #14 已将备份恢复页重构为暖纸张风险阶梯，保留真实 SQLite 全量导出 / 恢复与危险清空边界，并为导入事务增加提交前完整性校验；Issue #15 已完成 23 页集成验收（模拟器逐页对照参考图、真实数据链路、业务回归与备份破坏性闭环），应用代码零变更，物理真机回归待执行
+- **UI 基线**：v1.13 新增 `docs/design.md` 与 `$hej-*` 语义 token，并由样式预处理检查保护；Issue #14 已将备份恢复页重构为暖纸张风险阶梯，保留真实 SQLite 全量导出 / 恢复与危险清空边界，并为导入事务增加提交前完整性校验；Issue #15 已完成 23 页集成验收（模拟器逐页对照参考图、真实数据链路、业务回归与备份破坏性闭环），随后 UI.6 已按 23 张参考图完成 Lucide 图标对照与原生 TabBar PNG 接入；物理真机回归以及本轮新增图标的 Android 回归待执行
 - **最后更新**：2026-08-31
 
 ---
 
 ## 编译工具链（重要 — 2026-06-10 调整）
 
-> **CLI 模式（`pnpm dev:app-android`）不能编译 SQLite 原生模块**。`plus.sqlite` 的 JS 表面存在但底层是空壳，openDatabase 同步返回 undefined 且 callback 静默不触发。
+> **CLI H5 模式（`pnpm dev:h5` / `pnpm build:h5`）不能编译 SQLite 原生模块**。`plus.sqlite` 的 JS 表面存在但底层是空壳，openDatabase 同步返回 undefined 且 callback 静默不触发。
 > **必须用 HBuilderX 编译**才能把 SQLite 原生模块链进 APK。
 
 | 任务 | 用什么 |
 |---|---|
 | 写代码 / TS 类型检查 / lint | CLI：`pnpm type-check` / `pnpm lint` |
-| 跑 h5 编译验证 | CLI：`pnpm build:h5` / `pnpm dev:h5`；**Phase 5 起若坚持使用 HBuilderX 内置 Pinia 且不手动安装 npm `pinia`，CLI H5 构建会找不到 `pinia/dist/pinia.mjs`，本阶段以 type-check / lint + HBuilderX 真机验证为准** |
+| 跑 H5 编译验证 | CLI：`pnpm build:h5` / `pnpm dev:h5`；当前 `package.json` 已声明 `pinia`，H5 构建可作为 CLI 验证 |
 | **真机调试 Android** | **HBuilderX**："运行 → 运行到 Android App 基座" |
 | Release APK | HBuilderX："发行 → 原生 App-云打包"或"本地打包" |
 
@@ -53,11 +53,6 @@
 | `docs/adr/0002-meal-card-message-templates-are-independent.md` | 月卡文案模板使用独立数据表、版本历史、默认状态和维护页面；只复用交互模式，不与菜单模板共享数据。 | 月卡模板数据边界、语法或维护入口变化时 |
 | `docs/adr/0003-heji-theme-and-lucide-icons.md` | 盒记暖纸张主题、Lucide 图标统一入口与本地 uni-ui 源码维护边界；当前数据库分类统一保存 Lucide 原始名称，schema v8 / 旧备份导入负责归一化历史 emoji。 | 跨页面主题、图标依赖或本地组件维护策略变化时 |
 | `docs/third-party-licenses.md` | `@lucide/vue` 固定版本与 ISC 许可证，以及本地 uni-ui 源码补丁边界。 | 第三方依赖或本地组件来源变化时 |
-| `docs/superpowers/specs/2026-07-14-meal-card-recharge-records-design.md` | 次卡充值记录入口与总次数校正的已批准设计、数据边界和验收标准 | 该功能设计变更时 |
-| `docs/superpowers/specs/2026-07-14-customer-picker-pinyin-sort-design.md` | CustomerPicker 按客户姓名拼音分组并支持右侧索引跳转的已批准设计与验收标准 | 该分组索引行为变更时 |
-| `docs/superpowers/specs/2026-07-22-customer-picker-form-label-design.md` | CustomerPicker 的字段标签归属、调用页统一表单标签与验收标准 | 该标签归属或调用方式变更时 |
-| `docs/superpowers/specs/2026-07-14-customer-card-avatar-label-design.md` | 客户列表头像按当前可用次卡显示“次 / 普”的已批准设计与验收标准 | 该身份判定或展示变更时 |
-| `docs/superpowers/specs/2026-07-22-combined-payment-single-order-design.md` | 一餐一单、组合支付、次卡预占、合并改单价确认、schema v5 与备份兼容的已批准设计 | 该订单支付 / 合并规则变更时 |
 | `docs/superpowers/specs/2026-07-28-daily-menu-message-template-design.md` | 每日菜单、条件模板语法、版本历史、默认模板、备份与验收的已批准设计 | 菜单或社群文案工作流变更时 |
 | `docs/superpowers/specs/2026-08-09-page-return-snapshot-design.md` | 页面返回现场、像素滚动恢复、数据刷新、状态生命周期与验收边界的已批准设计。 | 返回现场的产品范围、交互规则或验收标准变化时 |
 | `.gitignore` | git 忽略规则（node_modules、dist、IDE 文件等） | 加新忽略项时 |
@@ -114,10 +109,10 @@
 
 | 文件 | 作用 |
 |---|---|
-| `src/main.ts` | App 入口；导出 `createApp()`（Vue 3 SSR 工厂）装载 `App.vue`；按 uni-app Pinia 文档 `import * as Pinia from 'pinia'`，`app.use(Pinia.createPinia())`，并从 `createApp()` 返回 `Pinia`。Pinia 由 HBuilderX / uni-app 内置提供，不在 `package.json` 手动安装。 |
+| `src/main.ts` | App 入口；导出 `createApp()`（Vue 3 SSR 工厂）装载 `App.vue`；按 uni-app Pinia 文档 `import * as Pinia from 'pinia'`，`app.use(Pinia.createPinia())`，并从 `createApp()` 返回 `Pinia`。运行时依赖来自 `package.json` 的 `pinia`。 |
 | `src/App.vue` | 根组件；处理 uni-app 全局生命周期 `onLaunch` / `onShow` / `onHide` / `onError`；`onLaunch` 调 `db.init()` 并在失败时 toast 提示；`onError` 全局兜底未捕获错误（含 DB 损坏），DB 损坏时提示"数据库损坏，请用备份恢复" |
 | `src/env.d.ts` | Vite 客户端类型（`/// <reference types="vite/client" />`）|
-| `src/manifest.json` | uni-app App 元数据：`name=盒记` / `appid=com.bookkeeping.app` / Android `minSdkVersion=21` `targetSdkVersion=30` |
+| `src/manifest.json` | uni-app App 元数据：`name=盒记` / `appid=__UNI__040649E` / `versionName=3.0.1` / `versionCode=301` / Android `minSdkVersion=21` `targetSdkVersion=30`；发布包名以 HBuilderX 生成配置为准 |
 | `src/pages.json` | uni-app 路由 + 全局样式 + `tabBar`（4 个 Tab：今日 / 订单 / 统计 / 我的） |
 | `src/uni.scss` | uni-app 全局 SCSS 变量，并定义盒记 `$hej-*` 语义 token（画布 / 表面 / 文字 / 状态 / 间距 / 圆角 / 阴影 / 字级）供订单和统计页使用；既有 `$uni-color-*` 主状态色保留原值，避免影响今日页基线样式。 |
 | `src/shime-uni.d.ts` | 扩展 Vue `ComponentCustomOptions` 加上 uni-app 的 App/Page 实例类型（**注：文件名是模板的拼写，保留不修**） |
@@ -224,7 +219,6 @@
 |---|---|
 | `src/types/domain.ts` | 与 schema snake_case 字段严格对齐的领域类型；含 `DailyMenu`、`MessageTemplate`、`TemplateVersion`、`MealCardMessageTemplate` 和 `MealCardTemplateVersion`。 |
 | `src/types/api.ts` | API 入参 / 出参契约；含每日菜单、菜单文案和月卡文案模板保存输入。 |
-| `src/types/pinia.d.ts` | 本地类型声明：在不手动安装 npm `pinia` 的前提下，让 `vue-tsc` 能识别 uni-app/HBuilderX 内置 Pinia 的 `createPinia` / `defineStore`。仅提供类型，不提供运行时代码。 |
 
 ---
 
@@ -288,8 +282,7 @@
 
 | 命令 | 作用 |
 |---|---|
-| `pnpm dev:app-android` | Android 真机/模拟器开发（热更新）；模板自带 |
-| `pnpm dev:h5` | H5 开发；用于无 Android 环境时验证编译 |
+| `pnpm dev:h5` | H5 开发；用于无 Android 环境时验证页面与编译 |
 | `pnpm build:h5` | H5 构建；Phase 1 验证用 |
 | `pnpm type-check` | `vue-tsc --noEmit` 类型检查（无产物） |
 | `pnpm lint` | `eslint --ext .ts,.vue src/` |

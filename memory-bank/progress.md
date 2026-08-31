@@ -92,7 +92,7 @@
 
 | Step | 内容 | 状态 |
 |---|---|---|
-| 7.1 | 「我的」业务入口页（`src/pages/me/index.vue`）暖纸张视觉重构：`src/pages.json` 配置 `navigationStyle: "custom"`，自动适配原生 Android 状态栏安全区（`statusBarHeight`）；Hero 头部衬线大字标「我的」与副标题「菜单、客户、支出和数据备份」；单张象牙白卡片表面（`$hej-color-surface`、`$hej-radius-panel`、`$hej-shadow-panel`、`$hej-color-border`）；6 个业务入口（菜单管理、文案模板、月卡文案模板、客户管理、支出管理、备份 / 恢复）采用克制线性图标（`bars`、`compose`、`vip`、`staff`、`wallet`、`loop`）与 `$hej-color-surface-subtle` 圆角方块容器，右侧浅色箭头；接入 `usePageReturnSnapshot({ mode: 'scroll-view' })` 返回现场保持；严格遵循反幻觉约束（无用户头像、无个人账户、无银行卡、无云同步等未存在能力）。 | ✅ 2026-08-31 |
+| 7.1 | 「我的」业务入口页（`src/pages/me/index.vue`）暖纸张视觉重构：`src/pages.json` 配置 `navigationStyle: "custom"`，自动适配原生 Android 状态栏安全区（`statusBarHeight`）；Hero 头部衬线大字标「我的」与副标题「菜单、客户、支出和数据备份」；单张象牙白卡片表面（`$hej-color-surface`、`$hej-radius-panel`、`$hej-shadow-panel`、`$hej-color-border`）；6 个业务入口（菜单管理、文案模板、月卡文案模板、客户管理、支出管理、备份 / 恢复）采用克制线性图标（`CookingPot`、`FileText`、`Ticket`、`UsersRound`、`WalletCards`、`DatabaseBackup`）与 `$hej-color-surface-subtle` 圆角方块容器，右侧浅色箭头；接入 `usePageReturnSnapshot({ mode: 'scroll-view' })` 返回现场保持；严格遵循反幻觉约束（无用户头像、无个人账户、无银行卡、无云同步等未存在能力）。 | ✅ 2026-08-31 |
 | 7.2 | 「我的」页面契约测试（`tests/me-page-contract.test.cjs`）、Node 测试全量、类型检查、ESLint、git diff 检查 | ✅ 71/71 PASS；全部 CLI 检查通过 |
 | 7.3 | HBuilderX Android 模拟器（`emulator-5554`）：375×812 标准设计基线像素级对齐验证；6 个业务入口逐一真实点击跳转（每日菜单、文案模板、月卡文案模板、客户管理、支出管理、备份恢复）并返回「我的」现场，全链路闭环验收通过 | ✅ PASS（HBuilderX Android 模拟器截图存证） |
 
