@@ -124,9 +124,7 @@ const defaultOpenSections = computed(() =>
     .map((section) => section.type),
 )
 const openSections = ref<MealType[]>([])
-const lunchCollapseState = ref<LunchPanelCollapseState>(
-  initializeLunchPanelCollapse(false, false),
-)
+const lunchCollapseState = ref<LunchPanelCollapseState>(initializeLunchPanelCollapse(false, false))
 let openSectionsInitialized = false
 
 function isSectionOpen(type: MealType): boolean {
@@ -159,11 +157,7 @@ function syncLunchCollapse(): void {
   const allLunchDelivered = lunchSection ? shouldCollapseCompletedLunch(lunchSection) : false
   const hasPendingLunch = lunchSection?.orders.some((order) => order.status === 'pending') ?? false
   const previousState = lunchCollapseState.value
-  const nextState = reconcileLunchPanelCollapse(
-    previousState,
-    allLunchDelivered,
-    hasPendingLunch,
-  )
+  const nextState = reconcileLunchPanelCollapse(previousState, allLunchDelivered, hasPendingLunch)
   lunchCollapseState.value = nextState
   if (nextState.open === previousState.open) return
 
@@ -444,9 +438,19 @@ onShow(() => {
         @change="handleDateChange"
       >
         <view class="date-selector" hover-class="date-selector--pressed">
-          <uni-icons type="calendar" size="20" :color="ICON_COLOR_TEXT" class="date-selector__icon"></uni-icons>
+          <uni-icons
+            type="calendar"
+            size="20"
+            :color="ICON_COLOR_TEXT"
+            class="date-selector__icon"
+          ></uni-icons>
           <text class="date-selector__text">{{ formattedCurrentDate }}</text>
-          <uni-icons type="bottom" size="12" :color="ICON_COLOR_MUTED" class="date-selector__arrow"></uni-icons>
+          <uni-icons
+            type="bottom"
+            size="12"
+            :color="ICON_COLOR_MUTED"
+            class="date-selector__arrow"
+          ></uni-icons>
         </view>
       </uni-datetime-picker>
 
@@ -476,7 +480,9 @@ onShow(() => {
           <uni-icons type="list" size="28" :color="ICON_COLOR_TERTIARY"></uni-icons>
         </view>
         <text class="state-card__title">这一天还没有订单</text>
-        <text class="state-card__description">录入订单后，会按午餐和晚餐在此分组展示并支持拖拽调整配送顺序。</text>
+        <text class="state-card__description"
+          >录入订单后，会按午餐和晚餐在此分组展示并支持拖拽调整配送顺序。</text
+        >
         <button class="empty-state-action" hover-class="empty-state-action--pressed" @click="goNew">
           新建订单
         </button>
@@ -525,7 +531,10 @@ onShow(() => {
                     class="section-header__arrow"
                   ></uni-icons>
                   <text class="section-header__title">{{ section.title }}</text>
-                  <text class="section-header__stats">{{ section.activeCount }}单 · {{ section.quantity }}份 · {{ formatMoney(section.amount) }}</text>
+                  <text class="section-header__stats"
+                    >{{ section.activeCount }}单 · {{ section.quantity }}份 ·
+                    {{ formatMoney(section.amount) }}</text
+                  >
                 </view>
               </view>
             </template>
@@ -535,53 +544,53 @@ onShow(() => {
             </view>
 
             <view v-else class="order-list">
+              <view
+                v-for="(order, index) in section.orders"
+                :key="order.id"
+                class="order-item"
+                :class="{
+                  'order-item--dragging': isDragging(order.id),
+                  'order-item--saving': dragSaving,
+                }"
+                hover-class="order-item--pressed"
+                @click="goDetail(order.id)"
+              >
                 <view
-                  v-for="(order, index) in section.orders"
-                  :key="order.id"
-                  class="order-item"
-                  :class="{
-                    'order-item--dragging': isDragging(order.id),
-                    'order-item--saving': dragSaving,
-                  }"
-                  hover-class="order-item--pressed"
-                  @click="goDetail(order.id)"
+                  class="drag-handle"
+                  @click.stop
+                  @touchstart.stop="onHandleTouchStart($event, section.type, index, order.id)"
+                  @touchmove.stop="onHandleTouchMove($event)"
+                  @touchend="onHandleTouchEnd"
+                  @touchcancel="onHandleTouchEnd"
                 >
-                  <view
-                    class="drag-handle"
-                    @click.stop
-                    @touchstart.stop="onHandleTouchStart($event, section.type, index, order.id)"
-                    @touchmove.stop="onHandleTouchMove($event)"
-                    @touchend="onHandleTouchEnd"
-                    @touchcancel="onHandleTouchEnd"
-                  >
-                    <view class="drag-handle-icon">
-                      <view class="dot-col">
-                        <view class="dot"></view>
-                        <view class="dot"></view>
-                        <view class="dot"></view>
-                      </view>
-                      <view class="dot-col">
-                        <view class="dot"></view>
-                        <view class="dot"></view>
-                        <view class="dot"></view>
-                      </view>
+                  <view class="drag-handle-icon">
+                    <view class="dot-col">
+                      <view class="dot"></view>
+                      <view class="dot"></view>
+                      <view class="dot"></view>
                     </view>
-                  </view>
-
-                  <view class="order-main">
-                    <view class="order-title-row">
-                      <text class="order-name">{{ customerName(order.customer_id) }}</text>
-                      <text class="status-chip" :class="statusClass(order.status)">
-                        {{ statusText(order.status) }}
-                      </text>
+                    <view class="dot-col">
+                      <view class="dot"></view>
+                      <view class="dot"></view>
+                      <view class="dot"></view>
                     </view>
-                    <text class="order-meta">
-                      {{ orderSubtitle(order) }}
-                    </text>
                   </view>
                 </view>
+
+                <view class="order-main">
+                  <view class="order-title-row">
+                    <text class="order-name">{{ customerName(order.customer_id) }}</text>
+                    <text class="status-chip" :class="statusClass(order.status)">
+                      {{ statusText(order.status) }}
+                    </text>
+                  </view>
+                  <text class="order-meta">
+                    {{ orderSubtitle(order) }}
+                  </text>
+                </view>
               </view>
-            </uni-collapse-item>
+            </view>
+          </uni-collapse-item>
         </uni-collapse>
       </view>
       <view class="list-bottom-spacer"></view>
@@ -692,13 +701,10 @@ onShow(() => {
   padding: 0 $hej-space-5;
   display: flex;
   flex-direction: column;
-  gap: $hej-space-4;
 }
 
 .section-card {
-  margin-bottom: $hej-space-4;
   border: 1rpx solid $hej-color-border;
-  border-radius: $hej-radius-panel;
   background: $hej-color-surface;
   box-shadow: $hej-shadow-panel;
   overflow: hidden;
@@ -953,7 +959,6 @@ onShow(() => {
   font-weight: 600;
   line-height: 88rpx;
   text-align: center;
-  box-shadow: 0 2rpx 6rpx rgba(201, 100, 66, 0.2);
 
   &::after {
     border: 0;

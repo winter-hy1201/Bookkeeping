@@ -94,7 +94,7 @@ onLoad((query) => {
 <template>
   <view class="page">
     <scroll-view class="form-scroll" scroll-y>
-      <uni-forms class="form" label-width="80px" label-align="left">
+      <uni-forms class="form" label-width="100px" label-align="left">
         <view class="form-card">
           <view class="entry-section">
             <uni-forms-item label="姓名" required>

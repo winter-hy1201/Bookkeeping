@@ -68,7 +68,9 @@
 
 - 新增或重做 UI 先走 §1 的组件索引路由；本地组件同时满足交互、Android App、设计规范和无多余行为时优先复用。不要因组件已存在而批量替换既有实现。
 - 纯 CSS、业务逻辑或数据层变更沿用现有实现，不触发组件选型。
-- 业务表单统一使用 `<uni-forms>` + `<uni-forms-item name="...">`；输入 / 选择控件放在对应 item 内，提交走 `formRef.validate()`。业务字段不使用原生 `input` / `textarea` / `picker` / `radio-group` / `slider`。
+- 业务表单统一使用 `<
+
+>` + `<uni-forms-item name="...">`；输入 / 选择控件放在对应 item 内，提交走 `formRef.validate()`。业务字段不使用原生 `input` / `textarea` / `picker` / `radio-group` / `slider`。
 - 表单视觉、标签列、控件对齐、表面、状态、底部确认区和迁移边界只以 `docs/design.md §4` 为准；引用 `$hej-*` 的 Vue 样式块声明 `lang="scss"`。
 - `uni-easyinput` 的 `@input` 传字符串；金额输入使用现有解析 helper。组件只承接展示和事件，不承接业务写入。
 

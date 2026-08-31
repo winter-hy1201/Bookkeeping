@@ -805,7 +805,7 @@ onShow(() => {
             :model-value="form"
             :rules="rules"
             validate-trigger="blur"
-            label-width="80px"
+            label-width="100px"
             label-align="left"
           >
             <view class="order-card">
@@ -1319,7 +1319,7 @@ onShow(() => {
 
 /* Form Styles */
 .form {
-  --order-label-width: 80px;
+  --order-label-width: 100px;
   display: block;
 }
 

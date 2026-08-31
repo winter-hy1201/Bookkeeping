@@ -477,7 +477,7 @@ onShow(() => {
         :model-value="form"
         :rules="rules"
         validate-trigger="blur"
-        label-width="80px"
+        label-width="100px"
         label-align="left"
       >
         <view class="order-card">
@@ -520,7 +520,9 @@ onShow(() => {
               class="context-box context-box--info"
             >
               <view class="context-box__main">
-                <text class="context-box__title">将合并到已有待配送订单 #{{ existingOrder.id }}</text>
+                <text class="context-box__title"
+                  >将合并到已有待配送订单 #{{ existingOrder.id }}</text
+                >
                 <text class="context-meta">
                   已有 {{ existingOrder.quantity }} 份 · {{ orderPaymentSummary(existingOrder) }}
                 </text>
@@ -704,7 +706,7 @@ onShow(() => {
 }
 
 .form {
-  --order-label-width: 80px;
+  --order-label-width: 100px;
   display: block;
 }
 

@@ -226,7 +226,7 @@ onShow(() => {
             class="form"
             :model-value="form"
             :rules="rules"
-            label-width="80px"
+            label-width="100px"
             label-align="left"
           >
             <!-- Date Field -->
@@ -264,9 +264,7 @@ onShow(() => {
 
         <!-- Danger Zone (Delete) for saved menu -->
         <view v-if="savedMenu" class="danger-zone">
-          <button class="delete-action-button" @click="remove">
-            删除本日菜单
-          </button>
+          <button class="delete-action-button" @click="remove">删除本日菜单</button>
         </view>
 
         <!-- Bottom scroll spacer to avoid overlap with fixed bar -->

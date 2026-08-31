@@ -209,7 +209,7 @@ onShow(() => {
           class="form"
           :model-value="form"
           :rules="rules"
-          label-width="80px"
+          label-width="100px"
           label-align="left"
         >
           <view class="form-card">

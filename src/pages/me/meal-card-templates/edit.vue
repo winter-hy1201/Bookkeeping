@@ -176,7 +176,7 @@ onLoad((query) => {
             class="form"
             :model-value="form"
             :rules="rules"
-            label-width="80px"
+            label-width="100px"
             label-align="left"
           >
             <uni-forms-item name="name" label="名称" required>
