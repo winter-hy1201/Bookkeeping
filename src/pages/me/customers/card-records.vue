@@ -59,6 +59,13 @@ function goEdit(card: MealCard): void {
   })
 }
 
+function goOpenCard(): void {
+  if (customerId.value === null) return
+  void pageReturn.navigateTo({
+    url: `/pages/me/customers/open-card?customerId=${customerId.value}`,
+  })
+}
+
 function showDeleteError(title: string, content: string): void {
   uni.showModal({ title, content, showCancel: false })
 }
@@ -69,7 +76,7 @@ async function deleteRecord(card: MealCard): Promise<void> {
   try {
     const confirmed = await confirmDialog(
       '删除次卡记录？',
-      `将删除 ${card.created_at.slice(0, 10)} 的 ${formatMoney(
+      `将删除 ${formatDate(card.created_at)} 的 ${formatMoney(
         card.amount,
       )} 开卡收入，并减少该客户 ${card.total_meals} 次可用余额。删除后无法恢复。`,
     )
@@ -118,209 +125,313 @@ onShow(() => {
 </script>
 
 <template>
-  <scroll-view
-    class="page"
-    scroll-y
-    :scroll-top="pageReturn.scrollTopValue"
-    @scroll="pageReturn.onScroll"
-  >
-    <view class="hero">
-      <text class="title">次卡充值记录</text>
-      <text class="subtitle">{{ customer?.name ?? '客户' }} · 共 {{ cards.length }} 笔</text>
-    </view>
+  <view class="page">
+    <scroll-view
+      class="records-scroll"
+      scroll-y
+      :scroll-top="pageReturn.scrollTopValue"
+      @scroll="pageReturn.onScroll"
+    >
+      <view class="hero">
+        <text class="hero-title">次卡充值记录</text>
+        <text class="hero-subtitle"
+          >{{ customer?.name ?? '客户' }} · 共 {{ cards.length }} 笔</text
+        >
+      </view>
 
-    <view v-if="loading" class="empty">加载中...</view>
-    <view v-else-if="!customer" class="empty">客户不存在</view>
-    <view v-else-if="cards.length === 0" class="empty">暂无充值记录</view>
-    <view v-else class="records">
-      <view
-        v-for="card in cards"
-        :key="card.id"
-        class="record"
-        @click="goEdit(card)"
-      >
-        <view class="record-head">
-          <view>
-            <text class="record-title">{{ formatMoney(card.amount) }}</text>
-            <text class="record-date">{{ formatDate(card.created_at) }} 充值</text>
+      <view v-if="loading" class="state-card">
+        <text class="state-title">正在读取充值记录…</text>
+      </view>
+      <view v-else-if="!customer" class="state-card">
+        <text class="state-title">客户不存在</text>
+      </view>
+      <view v-else-if="cards.length === 0" class="state-card empty-card">
+        <text class="empty-icon">🎫</text>
+        <text class="state-title">暂无充值记录</text>
+        <text class="state-desc">为客户开通次卡后，充值记录将展示在这里</text>
+        <button class="open-card-btn" @click="goOpenCard">开通次卡</button>
+      </view>
+      <view v-else class="records-list">
+        <view v-for="card in cards" :key="card.id" class="record-card">
+          <!-- Card Header -->
+          <view class="record-head">
+            <text class="record-amount">{{ formatMoney(card.amount) }}</text>
+            <view class="status-tag" :class="card.status">
+              <text class="status-tag-text">{{ cardStatusText(card) }}</text>
+            </view>
           </view>
-          <text class="status" :class="card.status">{{ cardStatusText(card) }}</text>
-        </view>
 
-        <view class="metrics">
-          <view class="metric">
-            <text class="metric-value">{{ card.total_meals }}</text>
-            <text class="metric-label">总次数</text>
+          <!-- Date Subhead -->
+          <view class="record-date-row">
+            <text class="record-date">📅 {{ formatDate(card.created_at) }}</text>
           </view>
-          <view class="metric">
-            <text class="metric-value">{{ card.used_meals }}</text>
-            <text class="metric-label">已用</text>
-          </view>
-          <view class="metric">
-            <text class="metric-value remaining">{{ remainingMeals(card) }}</text>
-            <text class="metric-label">剩余</text>
-          </view>
-        </view>
 
-        <view class="record-foot">
-          <text>记录 #{{ card.id }}</text>
-          <text class="edit-hint">修改总次数 ›</text>
-        </view>
+          <view class="card-divider" />
 
-        <view class="danger-zone" @click.stop>
-          <button
-            class="delete-button"
-            :disabled="operatingCardId !== null || card.used_meals > 0"
-            @click.stop="deleteRecord(card)"
-          >
-            {{
-              deletingCardId === card.id
-                ? '删除中…'
-                : operatingCardId === card.id
-                  ? '等待确认…'
-                  : card.used_meals > 0
-                    ? '已扣次，不能删除'
-                    : '删除记录'
-            }}
-          </button>
+          <!-- Metrics Row (3 Equal Columns) -->
+          <view class="metrics-row">
+            <view class="metric-col">
+              <text class="metric-label">总次数</text>
+              <text class="metric-num">{{ card.total_meals }}</text>
+            </view>
+            <view class="metric-col-divider" />
+            <view class="metric-col">
+              <text class="metric-label">已用</text>
+              <text class="metric-num">{{ card.used_meals }}</text>
+            </view>
+            <view class="metric-col-divider" />
+            <view class="metric-col">
+              <text class="metric-label">剩余</text>
+              <text class="metric-num metric-num--accent">{{ remainingMeals(card) }}</text>
+            </view>
+          </view>
+
+          <view class="card-divider" />
+
+          <!-- Footer Action Row -->
+          <view class="record-footer">
+            <text class="record-id">📄 记录 #{{ card.id }}</text>
+            <button class="edit-link-btn" @click="goEdit(card)">
+              <text class="edit-link-text">修改总次数</text>
+              <text class="edit-link-arrow"> ›</text>
+            </button>
+          </view>
+
+          <!-- Danger / Delete Zone -->
+          <view class="danger-zone">
+            <view v-if="card.used_meals > 0" class="delete-disabled-box">
+              <text class="delete-disabled-icon">🚫</text>
+              <text class="delete-disabled-text">已有扣次，不能删除</text>
+            </view>
+            <button
+              v-else
+              class="delete-btn"
+              :disabled="operatingCardId !== null"
+              @click="deleteRecord(card)"
+            >
+              {{
+                deletingCardId === card.id
+                  ? '删除中…'
+                  : operatingCardId === card.id
+                    ? '等待确认…'
+                    : '🗑️ 删除这笔记录'
+              }}
+            </button>
+          </view>
         </view>
       </view>
-    </view>
-  </scroll-view>
+
+      <view class="scroll-spacer" />
+    </scroll-view>
+  </view>
 </template>
 
 <style scoped lang="scss">
 .page {
-  min-height: 100vh;
-  padding: 24rpx;
-  background: #f6f7f9;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: $hej-color-canvas;
+  box-sizing: border-box;
+}
+
+.records-scroll {
+  flex: 1;
+  height: 0;
+  min-height: 0;
+  padding: $hej-space-3;
   box-sizing: border-box;
 }
 
 .hero {
-  padding: 12rpx 4rpx 28rpx;
+  padding: $hej-space-2 $hej-space-1 $hej-space-4;
 }
 
-.title,
-.subtitle,
-.record-title,
-.record-date,
-.metric-value,
-.metric-label {
+.hero-title {
   display: block;
-}
-
-.title {
-  color: #222222;
+  color: $hej-color-text;
   font-size: 40rpx;
   font-weight: 700;
+  letter-spacing: -0.5rpx;
 }
 
-.subtitle,
-.record-date,
-.metric-label,
-.record-foot,
-.empty {
-  color: #8f8f94;
-  font-size: 26rpx;
+.hero-subtitle {
+  display: block;
+  margin-top: $hej-space-1;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-body;
 }
 
-.subtitle {
-  margin-top: 8rpx;
-}
-
-.records {
+.records-list {
   display: flex;
   flex-direction: column;
-  gap: 20rpx;
+  gap: $hej-space-3;
 }
 
-.record {
-  padding: 24rpx;
-  border-radius: 16rpx;
-  background: #ffffff;
-  box-shadow: 0 6rpx 22rpx rgba(22, 35, 55, 0.05);
+.record-card {
+  padding: $hej-space-4;
+  border-radius: $hej-radius-panel;
+  border: 1rpx solid $hej-color-border;
+  background: $hej-color-surface;
+  box-shadow: $hej-shadow-panel;
 }
 
-.record-head,
-.record-foot,
-.metrics {
+.record-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.record-title {
-  color: #222222;
+.record-amount {
+  color: $hej-color-text;
+  font-size: 38rpx;
+  font-weight: 700;
+}
+
+.status-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4rpx 14rpx;
+  border-radius: 999rpx;
+}
+
+.status-tag.active {
+  background: $hej-color-delivered-soft;
+}
+
+.status-tag.active .status-tag-text {
+  color: $hej-color-delivered;
+}
+
+.status-tag.depleted {
+  background: $hej-color-surface-subtle;
+}
+
+.status-tag.depleted .status-tag-text {
+  color: $hej-color-text-tertiary;
+}
+
+.status-tag-text {
+  font-size: $hej-font-caption;
+  font-weight: 500;
+}
+
+.record-date-row {
+  margin-top: $hej-space-1;
+}
+
+.record-date {
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-caption;
+}
+
+.card-divider {
+  height: 1rpx;
+  margin: $hej-space-3 0;
+  border-top: 1rpx dashed $hej-color-border;
+}
+
+.metrics-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: $hej-space-1 0;
+}
+
+.metric-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.metric-label {
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-caption;
+}
+
+.metric-num {
+  margin-top: $hej-space-1;
+  color: $hej-color-text;
   font-size: 36rpx;
   font-weight: 700;
 }
 
-.record-date {
-  margin-top: 6rpx;
+.metric-num--accent {
+  color: $hej-color-accent;
 }
 
-.status {
-  padding: 8rpx 16rpx;
-  border-radius: 999rpx;
-  font-size: 24rpx;
+.metric-col-divider {
+  width: 1rpx;
+  height: 48rpx;
+  background: $hej-color-border;
 }
 
-.status.active {
-  background: #eaf8ef;
-  color: #07a44b;
+.record-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
-.status.depleted {
-  background: #f1f2f4;
-  color: #8f8f94;
+.record-id {
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-meta;
 }
 
-.metrics {
-  margin-top: 24rpx;
-  padding: 22rpx 0;
-  border-top: 1rpx solid #f1f1f1;
-  border-bottom: 1rpx solid #f1f1f1;
+.edit-link-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 48rpx;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: $hej-color-accent;
+  font-size: $hej-font-meta;
+  font-weight: 500;
+  line-height: 48rpx;
+  text-align: right;
 }
 
-.metric {
-  flex: 1;
-  text-align: center;
+.edit-link-btn::after {
+  border: 0;
 }
 
-.metric + .metric {
-  border-left: 1rpx solid #f1f1f1;
+.edit-link-text {
+  color: $hej-color-accent;
 }
 
-.metric-value {
-  color: #333333;
-  font-size: 34rpx;
-  font-weight: 700;
-}
-
-.metric-value.remaining {
-  color: #007aff;
-}
-
-.metric-label {
-  margin-top: 6rpx;
-}
-
-.record-foot {
-  margin-top: 18rpx;
-}
-
-.edit-hint {
-  color: #007aff;
+.edit-link-arrow {
+  color: $hej-color-accent;
+  font-size: $hej-font-title;
 }
 
 .danger-zone {
-  margin-top: 18rpx;
-  padding-top: 18rpx;
+  margin-top: $hej-space-3;
+  padding-top: $hej-space-3;
   border-top: 1rpx solid $hej-color-border;
 }
 
-.delete-button {
+.delete-disabled-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 72rpx;
+  border-radius: $hej-radius-control;
+  background: $hej-color-surface-subtle;
+  color: $hej-color-text-tertiary;
+  font-size: $hej-font-caption;
+}
+
+.delete-disabled-icon {
+  margin-right: $hej-space-1;
+  font-size: $hej-font-caption;
+}
+
+.delete-btn {
   width: 100%;
   height: 88rpx;
   margin: 0;
@@ -328,28 +439,77 @@ onShow(() => {
   border-radius: $hej-radius-control;
   background: $hej-color-danger-soft;
   color: $hej-color-danger;
-  font-size: 28rpx;
+  font-size: $hej-font-body;
+  font-weight: 600;
   line-height: 88rpx;
   text-align: center;
 }
 
-.delete-button::after {
+.delete-btn::after {
   border: 0;
 }
 
-.delete-button:active:not([disabled]) {
-  opacity: 0.78;
+.delete-btn:active:not([disabled]) {
+  opacity: 0.75;
 }
 
-.delete-button[disabled] {
-  border-color: $hej-color-border;
-  background: $hej-color-surface-subtle;
-  color: $hej-color-text-tertiary;
-  opacity: 1;
+.delete-btn[disabled] {
+  opacity: 0.5;
 }
 
-.empty {
-  padding: 120rpx 0;
+.state-card {
+  margin: 40rpx 0;
+  padding: 80rpx 32rpx;
   text-align: center;
+  background: $hej-color-surface;
+  border-radius: $hej-radius-panel;
+  border: 1rpx solid $hej-color-border;
+}
+
+.empty-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.empty-icon {
+  font-size: 64rpx;
+  margin-bottom: $hej-space-2;
+}
+
+.state-title {
+  display: block;
+  color: $hej-color-text;
+  font-size: $hej-font-title;
+  font-weight: 600;
+}
+
+.state-desc {
+  display: block;
+  margin-top: $hej-space-2;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-meta;
+}
+
+.open-card-btn {
+  margin-top: $hej-space-4;
+  height: 88rpx;
+  padding: 0 48rpx;
+  border: 0;
+  border-radius: $hej-radius-control;
+  background: $hej-color-accent;
+  color: #ffffff;
+  font-size: $hej-font-body;
+  font-weight: 600;
+  line-height: 88rpx;
+  text-align: center;
+}
+
+.open-card-btn::after {
+  border: 0;
+}
+
+.scroll-spacer {
+  height: 48rpx;
 }
 </style>
