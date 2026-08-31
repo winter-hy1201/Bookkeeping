@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import dayjs from 'dayjs'
 import { usePageReturnSnapshot } from '../../../composables/usePageReturnSnapshot'
 import {
   deleteDailyMenu,
@@ -10,7 +9,7 @@ import {
 } from '../../../api/daily-menus'
 import { getDefaultMessageTemplate } from '../../../api/message-templates'
 import type { DailyMenu } from '../../../types/domain'
-import { today } from '../../../utils/date'
+import { formatTodayLabel, today } from '../../../utils/date'
 import { renderMenuTemplate } from '../../../utils/menu-template'
 import { confirmDialog, showToast } from '../../../utils/ui'
 
@@ -25,7 +24,7 @@ const visibleMenus = computed(() =>
   scope.value === 'current' ? currentMenus.value : historyMenus.value,
 )
 const pageReturn = usePageReturnSnapshot({
-  mode: 'scroll-view',
+  mode: 'page',
   hasContent: () => visibleMenus.value.length > 0,
 })
 
@@ -60,8 +59,12 @@ function goTemplates(): void {
   void pageReturn.navigateTo({ url: '/pages/me/menu-templates/list' })
 }
 
-function dateText(value: string): string {
-  return dayjs(value).format('M月D日')
+function menuDateLabel(menuDate: string): string {
+  try {
+    return formatTodayLabel(menuDate)
+  } catch {
+    return menuDate
+  }
 }
 
 async function copyMenu(menu: DailyMenu): Promise<void> {
@@ -95,7 +98,7 @@ async function removeMenu(menu: DailyMenu): Promise<void> {
     .filter(Boolean)
     .join('、')
   const ok = await confirmDialog(
-    `删除 ${dateText(menu.menu_date)} 菜单？`,
+    `删除 ${menuDateLabel(menu.menu_date)} 菜单？`,
     `${summary}菜单将被永久删除，无法恢复。`,
   )
   if (!ok) return
@@ -117,49 +120,67 @@ onShow(() => {
 </script>
 
 <template>
-  <scroll-view
-    class="page"
-    scroll-y
-    :scroll-top="pageReturn.scrollTopValue"
-    @scroll="pageReturn.onScroll"
-  >
+  <view class="page">
+    <!-- Header Toolbar -->
     <view class="toolbar">
-      <view>
+      <view class="toolbar-info">
         <text class="page-title">每日菜单</text>
         <text class="page-subtitle">按日期维护，套用默认模板后复制到社群</text>
       </view>
-      <button class="add-button" @click="goNew">新建菜单</button>
+      <button class="add-button" @click="goNew">＋ 新建菜单</button>
     </view>
 
+    <!-- Scope Switcher -->
     <view class="scope-switch" role="tablist">
-      <button :class="['scope-button', { active: scope === 'current' }]" @click="scope = 'current'">
-        当前与未来 {{ currentMenus.length }}
+      <button
+        :class="['scope-button', { active: scope === 'current' }]"
+        @click="scope = 'current'"
+      >
+        当前
       </button>
-      <button :class="['scope-button', { active: scope === 'history' }]" @click="scope = 'history'">
-        历史菜单 {{ historyMenus.length }}
+      <button
+        :class="['scope-button', { active: scope === 'history' }]"
+        @click="scope = 'history'"
+      >
+        历史
       </button>
     </view>
 
-    <button class="template-entry" @click="goTemplates">
-      <text>文案模板</text>
-      <text class="template-entry__hint">管理默认模板与历史版本 ›</text>
-    </button>
+    <!-- Template Management Entry Card -->
+    <view class="template-entry" @click="goTemplates">
+      <view class="template-entry__left">
+        <view class="template-entry__icon-wrap">
+          <text class="template-entry__icon">📄</text>
+        </view>
+        <view class="template-entry__text-wrap">
+          <text class="template-entry__title">文案模板</text>
+          <text class="template-entry__hint">管理默认模板与历史版本</text>
+        </view>
+      </view>
+      <text class="template-entry__arrow">›</text>
+    </view>
 
-    <view v-if="loading" class="empty"><text>菜单加载中...</text></view>
-    <view v-else-if="visibleMenus.length === 0" class="empty">
-      <text class="empty-title">{{
+    <!-- Loading State -->
+    <view v-if="loading" class="state-card">
+      <text class="state-title">正在读取菜单记录…</text>
+    </view>
+
+    <!-- Empty State -->
+    <view v-else-if="visibleMenus.length === 0" class="state-card">
+      <text class="state-title">{{
         scope === 'current' ? '还没有待用菜单' : '还没有历史菜单'
       }}</text>
-      <text class="empty-text">
+      <text class="state-desc">
         {{
           scope === 'current'
-            ? '从今天开始录入午餐或晚餐，保存后即可复制社群文案。'
-            : '过去日期的菜单会自动出现在这里。'
+            ? '从今天开始录入午餐或晚餐，保存后即可套用模板复制社群文案。'
+            : '过去日期的菜单会自动保存在这里。'
         }}
       </text>
-      <button v-if="scope === 'current'" class="empty-action" @click="goNew">新建第一条菜单</button>
+      <button v-if="scope === 'current'" class="empty-action" @click="goNew">＋ 新建第一条菜单</button>
     </view>
 
+    <!-- Menu List -->
     <view v-else class="menu-list">
       <view
         v-for="menu in visibleMenus"
@@ -167,40 +188,70 @@ onShow(() => {
         class="menu-card"
         @click="goEdit(menu.id)"
       >
+        <!-- Card Header -->
         <view class="menu-card__header">
-          <text class="menu-date">{{ dateText(menu.menu_date) }}</text>
-          <text class="menu-year">{{ menu.menu_date }}</text>
+          <view class="menu-card__date-group">
+            <text class="menu-card__date-icon">📅</text>
+            <text class="menu-date">{{ menuDateLabel(menu.menu_date) }}</text>
+          </view>
         </view>
-        <view v-if="menu.lunch_text" class="meal-row">
-          <text class="meal-label">午餐</text>
-          <text class="meal-text">{{ menu.lunch_text }}</text>
+
+        <!-- Meals Box -->
+        <view class="meals-box">
+          <!-- Lunch Section -->
+          <view v-if="menu.lunch_text" class="meal-item">
+            <view class="meal-tag meal-tag--lunch">
+              <text class="meal-tag__icon">☀️</text>
+              <text class="meal-tag__label">午餐</text>
+            </view>
+            <text class="meal-text">{{ menu.lunch_text }}</text>
+          </view>
+
+          <!-- Divider if both meals exist -->
+          <view v-if="menu.lunch_text && menu.dinner_text" class="meal-divider" />
+
+          <!-- Dinner Section -->
+          <view v-if="menu.dinner_text" class="meal-item">
+            <view class="meal-tag meal-tag--dinner">
+              <text class="meal-tag__icon">🌙</text>
+              <text class="meal-tag__label">晚餐</text>
+            </view>
+            <text class="meal-text">{{ menu.dinner_text }}</text>
+          </view>
         </view>
-        <view v-if="menu.dinner_text" class="meal-row">
-          <text class="meal-label">晚餐</text>
-          <text class="meal-text">{{ menu.dinner_text }}</text>
-        </view>
+
+        <!-- Card Actions Footer -->
         <view class="menu-actions" @click.stop>
-          <button
-            class="action-button copy"
-            :disabled="actioningId !== null"
+          <view
+            class="action-item"
+            :class="{ disabled: actioningId !== null }"
             @click="copyMenu(menu)"
           >
-            复制文案
-          </button>
-          <button class="action-button" :disabled="actioningId !== null" @click="goEdit(menu.id)">
-            编辑
-          </button>
-          <button
-            class="action-button danger"
-            :disabled="actioningId !== null"
+            <text class="action-item__icon">📋</text>
+            <text class="action-item__text">复制文案</text>
+          </view>
+          <view class="action-separator" />
+          <view
+            class="action-item"
+            :class="{ disabled: actioningId !== null }"
+            @click="goEdit(menu.id)"
+          >
+            <text class="action-item__icon">✏️</text>
+            <text class="action-item__text">编辑</text>
+          </view>
+          <view class="action-separator" />
+          <view
+            class="action-item action-item--danger"
+            :class="{ disabled: actioningId !== null }"
             @click="removeMenu(menu)"
           >
-            删除
-          </button>
+            <text class="action-item__icon">🗑️</text>
+            <text class="action-item__text">删除</text>
+          </view>
         </view>
       </view>
     </view>
-  </scroll-view>
+  </view>
 </template>
 
 <style scoped lang="scss">
@@ -211,74 +262,86 @@ onShow(() => {
   box-sizing: border-box;
 }
 
-.toolbar,
-.menu-card__header,
-.meal-row,
-.menu-actions {
+.toolbar {
   display: flex;
   align-items: center;
-}
-
-.toolbar {
   justify-content: space-between;
-  gap: $hej-space-5;
+  gap: $hej-space-4;
 }
 
-.page-title,
-.page-subtitle,
-.menu-date,
-.menu-year,
-.meal-text,
-.empty-title,
-.empty-text {
-  display: block;
+.toolbar-info {
+  flex: 1;
+  min-width: 0;
 }
 
 .page-title {
+  display: block;
   color: $hej-color-text;
-  font-size: $hej-font-display;
+  font-family: $hej-font-family;
+  font-size: 48rpx;
   font-weight: 700;
+  line-height: 1.25;
 }
 
 .page-subtitle {
+  display: block;
   margin-top: $hej-space-1;
   color: $hej-color-text-secondary;
-  font-size: $hej-font-meta;
+  font-size: $hej-font-caption;
+  line-height: 1.4;
 }
 
-.add-button,
-.empty-action {
+.add-button {
   flex: 0 0 auto;
-  height: 88rpx;
+  height: 72rpx;
   margin: 0;
-  padding: 0 $hej-space-5;
+  padding: 0 $hej-space-4;
+  border: 0;
   border-radius: $hej-radius-control;
   background: $hej-color-accent;
   color: #fff;
-  font-size: $hej-font-body;
-  line-height: 88rpx;
+  font-size: $hej-font-meta;
+  font-weight: 600;
+  line-height: 72rpx;
   text-align: center;
+  white-space: nowrap;
+}
+
+.add-button::after {
+  border: 0;
+}
+
+.add-button:active {
+  opacity: 0.85;
 }
 
 .scope-switch {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: $hej-space-1;
-  margin-top: $hej-space-6;
-  padding: $hej-space-1;
+  gap: 4rpx;
+  margin-top: $hej-space-5;
+  padding: 6rpx;
   border-radius: $hej-radius-control;
   background: $hej-color-surface-subtle;
+  box-sizing: border-box;
 }
 
 .scope-button {
-  height: 76rpx;
+  height: 68rpx;
   margin: 0;
-  border-radius: 10rpx;
+  padding: 0;
+  border: 0;
+  border-radius: $hej-radius-control;
   background: transparent;
   color: $hej-color-text-secondary;
   font-size: $hej-font-meta;
-  line-height: 76rpx;
+  font-weight: 500;
+  line-height: 68rpx;
   text-align: center;
+}
+
+.scope-button::after {
+  border: 0;
 }
 
 .scope-button.active {
@@ -292,22 +355,106 @@ onShow(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
-  height: 88rpx;
-  margin: $hej-space-4 0 0;
-  padding: 0 $hej-space-5;
+  margin-top: $hej-space-4;
+  padding: $hej-space-4 $hej-space-5;
   border: 1rpx solid $hej-color-border;
-  border-radius: $hej-radius-control;
+  border-radius: $hej-radius-panel;
   background: $hej-color-surface;
+  box-sizing: border-box;
+}
+
+.template-entry:active {
+  background: $hej-color-surface-subtle;
+}
+
+.template-entry__left {
+  display: flex;
+  align-items: center;
+  gap: $hej-space-3;
+  min-width: 0;
+}
+
+.template-entry__icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48rpx;
+  height: 48rpx;
+}
+
+.template-entry__icon {
+  font-size: 32rpx;
+}
+
+.template-entry__text-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: $hej-space-3;
+  min-width: 0;
+}
+
+.template-entry__title {
   color: $hej-color-text;
   font-size: $hej-font-body;
-  line-height: 88rpx;
-  text-align: left;
+  font-weight: 600;
 }
 
 .template-entry__hint {
   color: $hej-color-text-secondary;
   font-size: $hej-font-caption;
+}
+
+.template-entry__arrow {
+  color: $hej-color-text-tertiary;
+  font-size: 36rpx;
+  font-weight: 400;
+}
+
+.state-card {
+  margin-top: $hej-space-5;
+  padding: 64rpx $hej-space-6;
+  border: 1rpx solid $hej-color-border;
+  border-radius: $hej-radius-panel;
+  background: $hej-color-surface;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.state-title {
+  display: block;
+  color: $hej-color-text;
+  font-size: $hej-font-title;
+  font-weight: 600;
+}
+
+.state-desc {
+  display: block;
+  margin-top: $hej-space-2;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-meta;
+  line-height: 1.6;
+}
+
+.empty-action {
+  height: 80rpx;
+  margin: $hej-space-5 auto 0;
+  padding: 0 $hej-space-5;
+  border: 0;
+  border-radius: $hej-radius-control;
+  background: $hej-color-accent;
+  color: #fff;
+  font-size: $hej-font-body;
+  font-weight: 600;
+  line-height: 80rpx;
+  text-align: center;
+}
+
+.empty-action::after {
+  border: 0;
+}
+
+.empty-action:active {
+  opacity: 0.85;
 }
 
 .menu-list {
@@ -321,12 +468,27 @@ onShow(() => {
   border-radius: $hej-radius-panel;
   background: $hej-color-surface;
   box-shadow: $hej-shadow-panel;
+  box-sizing: border-box;
+}
+
+.menu-card:active {
+  border-color: $hej-color-accent-soft;
 }
 
 .menu-card__header {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
-  padding-bottom: $hej-space-4;
-  border-bottom: 1rpx solid $hej-color-border;
+}
+
+.menu-card__date-group {
+  display: flex;
+  align-items: center;
+  gap: $hej-space-2;
+}
+
+.menu-card__date-icon {
+  font-size: 32rpx;
 }
 
 .menu-date {
@@ -335,87 +497,113 @@ onShow(() => {
   font-weight: 700;
 }
 
-.menu-year {
-  color: $hej-color-text-tertiary;
-  font-size: $hej-font-caption;
+.meals-box {
+  margin-top: $hej-space-4;
+  padding: $hej-space-4 $hej-space-4;
+  border: 1rpx solid $hej-color-border;
+  border-radius: $hej-radius-control;
+  background: $hej-color-surface;
+  box-sizing: border-box;
 }
 
-.meal-row {
+.meal-item {
+  display: flex;
   align-items: flex-start;
-  gap: $hej-space-4;
-  padding-top: $hej-space-4;
+  gap: $hej-space-3;
 }
 
-.meal-label {
-  flex: 0 0 auto;
-  padding: 4rpx 12rpx;
-  border-radius: $hej-radius-pill;
+.meal-tag {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 76rpx;
+  padding: 8rpx 0;
+  border-radius: $hej-radius-control;
+}
+
+.meal-tag--lunch {
   background: $hej-color-accent-soft;
   color: $hej-color-accent;
-  font-size: $hej-font-caption;
+}
+
+.meal-tag--dinner {
+  background: $hej-color-pending-soft;
+  color: $hej-color-pending;
+}
+
+.meal-tag__icon {
+  font-size: 28rpx;
+  line-height: 1.2;
+}
+
+.meal-tag__label {
+  margin-top: 2rpx;
+  font-size: 20rpx;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 .meal-text {
+  flex: 1;
   min-width: 0;
   color: $hej-color-text;
   font-size: $hej-font-body;
   line-height: 1.55;
   white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.meal-divider {
+  height: 1rpx;
+  margin: $hej-space-3 0;
+  background: $hej-color-border;
 }
 
 .menu-actions {
-  justify-content: flex-end;
-  gap: $hej-space-2;
-  margin-top: $hej-space-5;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  margin-top: $hej-space-4;
   padding-top: $hej-space-4;
   border-top: 1rpx solid $hej-color-border;
 }
 
-.action-button {
-  height: 68rpx;
-  margin: 0;
-  padding: 0 $hej-space-4;
-  border: 1rpx solid $hej-color-border;
-  border-radius: $hej-radius-control;
-  background: $hej-color-surface;
+.action-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  flex: 1;
+  height: 60rpx;
   color: $hej-color-text-secondary;
   font-size: $hej-font-meta;
-  line-height: 68rpx;
-  text-align: center;
 }
 
-.action-button.copy {
-  border-color: $hej-color-accent;
+.action-item:active {
   color: $hej-color-accent;
 }
 
-.action-button.danger {
-  border-color: $hej-color-danger-soft;
+.action-item--danger:active {
   color: $hej-color-danger;
 }
 
-.empty {
-  margin-top: $hej-space-7;
-  padding: 64rpx $hej-space-6;
-  border-radius: $hej-radius-panel;
-  background: $hej-color-surface;
-  text-align: center;
+.action-item.disabled {
+  opacity: 0.4;
+  pointer-events: none;
 }
 
-.empty-title {
-  color: $hej-color-text;
-  font-size: $hej-font-title;
-  font-weight: 600;
+.action-item__icon {
+  font-size: 26rpx;
 }
 
-.empty-text {
-  margin-top: $hej-space-2;
-  color: $hej-color-text-secondary;
-  font-size: $hej-font-meta;
-  line-height: 1.6;
+.action-item__text {
+  font-weight: 500;
 }
 
-.empty-action {
-  margin: $hej-space-5 auto 0;
+.action-separator {
+  width: 1rpx;
+  height: 32rpx;
+  background: $hej-color-border;
 }
 </style>

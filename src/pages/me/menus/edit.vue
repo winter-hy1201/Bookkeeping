@@ -13,7 +13,7 @@ import {
 } from '../../../api/daily-menus'
 import { getDefaultMessageTemplate } from '../../../api/message-templates'
 import type { DailyMenu } from '../../../types/domain'
-import { today } from '../../../utils/date'
+import { formatTodayLabel, today } from '../../../utils/date'
 import { renderMenuTemplate } from '../../../utils/menu-template'
 import { confirmDialog, showToast } from '../../../utils/ui'
 
@@ -105,7 +105,7 @@ async function save(continueNext = false): Promise<void> {
     showToast('菜单已保存')
 
     if (!continueNext) {
-      uni.setNavigationBarTitle({ title: '编辑菜单' })
+      uni.navigateBack()
       return
     }
 
@@ -158,10 +158,18 @@ async function copySavedMenu(): Promise<void> {
   }
 }
 
+function menuDateLabel(menuDate: string): string {
+  try {
+    return formatTodayLabel(menuDate)
+  } catch {
+    return menuDate
+  }
+}
+
 async function remove(): Promise<void> {
   if (!savedMenu.value) return
   const ok = await confirmDialog(
-    `删除 ${dayjs(savedMenu.value.menu_date).format('M月D日')} 菜单？`,
+    `删除 ${menuDateLabel(savedMenu.value.menu_date)} 菜单？`,
     '删除后无法恢复。',
   )
   if (!ok) return
@@ -192,64 +200,95 @@ onShow(() => {
       :scroll-top="pageReturn.scrollTopValue"
       @scroll="pageReturn.onScroll"
     >
-      <view v-if="loading" class="empty">菜单加载中...</view>
+      <view v-if="loading" class="empty-loading">
+        <text class="empty-loading-text">正在读取菜单内容…</text>
+      </view>
       <template v-else>
-        <view class="intro">
-          <text class="intro-title">{{ isNew ? '安排一天的菜单' : '修改菜单内容' }}</text>
+        <!-- Notice / Intro Card -->
+        <view class="intro-card">
+          <view class="intro-card__header">
+            <view class="intro-card__title-group">
+              <text class="intro-card__icon">📝</text>
+              <text class="intro-title">{{ isNew ? '安排一天的菜单' : '修改菜单内容' }}</text>
+            </view>
+            <view v-if="savedMenu" class="top-copy-btn" @click="copySavedMenu">
+              <text class="top-copy-icon">📋</text>
+              <text class="top-copy-text">复制文案</text>
+            </view>
+          </view>
           <text class="intro-text">午餐、晚餐至少填写一项；支持换行补充主食、汤品或临时说明。</text>
         </view>
 
-        <uni-forms ref="formRef" class="form" :model-value="form" :rules="rules" label-width="80px">
-          <uni-forms-item name="menu_date" label="日期" required>
-            <uni-datetime-picker v-model="form.menu_date" type="date" :clear-icon="false" />
-          </uni-forms-item>
-          <view class="divider" />
-          <uni-forms-item name="lunch_text" label="午餐">
-            <uni-easyinput
-              v-model="form.lunch_text"
-              type="textarea"
-              placeholder="例如：红烧肉➕宫保鸡丁➕手撕包菜"
-              :input-border="false"
-            />
-          </uni-forms-item>
-          <view class="divider" />
-          <uni-forms-item name="dinner_text" label="晚餐">
-            <uni-easyinput
-              v-model="form.dinner_text"
-              type="textarea"
-              placeholder="没有晚餐可以留空"
-              :input-border="false"
-            />
-          </uni-forms-item>
-        </uni-forms>
+        <!-- Continuous Form Container -->
+        <view class="form-container">
+          <uni-forms
+            ref="formRef"
+            class="form"
+            :model-value="form"
+            :rules="rules"
+            label-width="80px"
+            label-align="left"
+          >
+            <!-- Date Field -->
+            <uni-forms-item name="menu_date" label="日期" required>
+              <uni-datetime-picker v-model="form.menu_date" type="date" :clear-icon="false" />
+            </uni-forms-item>
 
-        <view v-if="savedMenu" class="saved-actions">
-          <view>
-            <text class="saved-title">已保存菜单</text>
-            <text class="saved-hint">复制始终使用当前默认模板</text>
-          </view>
-          <button class="copy-button" @click="copySavedMenu">复制文案</button>
+            <view class="divider" />
+
+            <!-- Lunch Field -->
+            <uni-forms-item name="lunch_text" label="午餐">
+              <uni-easyinput
+                v-model="form.lunch_text"
+                type="textarea"
+                :auto-height="true"
+                :placeholder="'例如：红烧排骨\n清炒时蔬\n番茄炒蛋\n紫菜蛋花汤\n米饭'"
+                :input-border="false"
+              />
+            </uni-forms-item>
+
+            <view class="divider" />
+
+            <!-- Dinner Field -->
+            <uni-forms-item name="dinner_text" label="晚餐">
+              <uni-easyinput
+                v-model="form.dinner_text"
+                type="textarea"
+                :auto-height="true"
+                placeholder="没有晚餐可以留空"
+                :input-border="false"
+              />
+            </uni-forms-item>
+          </uni-forms>
         </view>
 
+        <!-- Danger Zone (Delete) for saved menu -->
         <view v-if="savedMenu" class="danger-zone">
-          <text class="danger-title">删除菜单</text>
-          <text class="danger-hint">当前记录和历史列表中的对应菜单会永久删除。</text>
-          <button class="delete-button" @click="remove">删除菜单</button>
+          <button class="delete-action-button" @click="remove">
+            删除本日菜单
+          </button>
         </view>
+
+        <!-- Bottom scroll spacer to avoid overlap with fixed bar -->
+        <view class="scroll-spacer" />
       </template>
     </scroll-view>
 
+    <!-- Bottom Fixed Confirmation Bar -->
     <view class="confirm-bar">
       <view class="confirm-summary">
-        <text class="confirm-title">{{ hasMeal ? '菜单可以保存' : '至少填写午餐或晚餐' }}</text>
+        <view class="confirm-status-row">
+          <text class="confirm-icon">📄</text>
+          <text class="confirm-title">{{ hasMeal ? '菜单可以保存' : '至少填写午餐或晚餐' }}</text>
+        </view>
         <text class="confirm-date">{{ form.menu_date }}</text>
       </view>
       <view class="confirm-actions">
         <button v-if="isNew" class="next-button" :disabled="!canSave" @click="save(true)">
-          保存并新增下一天
+          保存并继续下一天
         </button>
         <button class="save-button" :disabled="!canSave" @click="save(false)">
-          {{ saving ? '保存中...' : '保存菜单' }}
+          {{ saving ? '保存中...' : isNew ? '保存菜单' : '保存修改' }}
         </button>
       </view>
     </view>
@@ -260,27 +299,53 @@ onShow(() => {
 .page {
   min-height: 100vh;
   background: $hej-color-canvas;
-}
-
-.content {
-  height: 100vh;
-  padding: $hej-space-6 $hej-space-1 240rpx;
   box-sizing: border-box;
 }
 
-.intro {
-  padding: 0 $hej-space-5 $hej-space-5;
+.content {
+  position: relative;
+  z-index: 10;
+  padding: $hej-space-5 $hej-space-5 240rpx;
+  box-sizing: border-box;
 }
 
-.intro-title,
-.intro-text,
-.saved-title,
-.saved-hint,
-.danger-title,
-.danger-hint,
-.confirm-title,
-.confirm-date {
-  display: block;
+.empty-loading {
+  padding: 80rpx $hej-space-5;
+  border: 1rpx solid $hej-color-border;
+  border-radius: $hej-radius-panel;
+  background: $hej-color-surface;
+  text-align: center;
+}
+
+.empty-loading-text {
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-meta;
+}
+
+.intro-card {
+  padding: $hej-space-4 $hej-space-5;
+  border: 1rpx solid $hej-color-border;
+  border-radius: $hej-radius-panel;
+  background: $hej-color-surface;
+  box-shadow: $hej-shadow-panel;
+  box-sizing: border-box;
+}
+
+.intro-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $hej-space-3;
+}
+
+.intro-card__title-group {
+  display: flex;
+  align-items: center;
+  gap: $hej-space-2;
+}
+
+.intro-card__icon {
+  font-size: 32rpx;
 }
 
 .intro-title {
@@ -289,22 +354,66 @@ onShow(() => {
   font-weight: 700;
 }
 
+.top-copy-btn {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  padding: 6rpx $hej-space-3;
+  border: 1rpx solid $hej-color-accent-soft;
+  border-radius: $hej-radius-control;
+  background: $hej-color-surface-subtle;
+}
+
+.top-copy-btn:active {
+  background: $hej-color-accent-soft;
+}
+
+.top-copy-icon {
+  font-size: 24rpx;
+}
+
+.top-copy-text {
+  color: $hej-color-accent;
+  font-size: $hej-font-caption;
+  font-weight: 600;
+}
+
 .intro-text {
-  margin-top: $hej-space-1;
+  display: block;
+  margin-top: $hej-space-2;
   color: $hej-color-text-secondary;
-  font-size: $hej-font-meta;
-  line-height: 1.55;
+  font-size: $hej-font-caption;
+  line-height: 1.5;
+}
+
+.form-container {
+  position: relative;
+  z-index: 30;
+  margin-top: $hej-space-4;
+  border: 1rpx solid $hej-color-border;
+  border-radius: $hej-radius-panel;
+  background: $hej-color-surface;
+  box-shadow: $hej-shadow-panel;
+  box-sizing: border-box;
 }
 
 .form {
   display: block;
-  padding: $hej-space-5;
-  background: $hej-color-surface;
+  padding: $hej-space-4 $hej-space-5;
 }
 
 .form :deep(.uni-forms-item) {
-  align-items: center;
+  display: flex;
+  align-items: flex-start;
   margin-bottom: 0;
+  padding: $hej-space-2 0;
+}
+
+.form :deep(.uni-forms-item__label) {
+  padding-top: $hej-space-2;
+  color: $hej-color-text;
+  font-size: $hej-font-body;
+  font-weight: 600;
 }
 
 .form :deep(.uni-forms-item__content) {
@@ -312,75 +421,49 @@ onShow(() => {
 }
 
 .form :deep(.uni-easyinput__content-textarea) {
-  min-height: 148rpx;
-  padding: $hej-space-3 0;
-  line-height: 1.5;
+  min-height: 160rpx;
+  padding: $hej-space-2 0;
+  color: $hej-color-text;
+  font-size: $hej-font-body;
+  line-height: 1.55;
 }
 
 .divider {
   height: 1rpx;
-  margin: $hej-space-4 0 $hej-space-4 80px;
+  margin: $hej-space-2 0 $hej-space-2 80px;
   background: $hej-color-border;
 }
 
-.saved-actions,
 .danger-zone {
-  margin: $hej-space-5 $hej-space-1 0;
-  padding: $hej-space-5;
-  border-radius: $hej-radius-panel;
-  background: $hej-color-surface;
-}
-
-.saved-actions {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: $hej-space-4;
-  border: 1rpx solid $hej-color-accent-soft;
+  justify-content: center;
+  margin-top: $hej-space-6;
+  padding: $hej-space-3 0;
 }
 
-.saved-title,
-.danger-title {
-  color: $hej-color-text;
-  font-size: $hej-font-body;
-  font-weight: 600;
-}
-
-.saved-hint,
-.danger-hint {
-  margin-top: 6rpx;
-  color: $hej-color-text-secondary;
-  font-size: $hej-font-caption;
-  line-height: 1.5;
-}
-
-.copy-button {
-  flex: 0 0 auto;
-  height: 72rpx;
+.delete-action-button {
+  height: 64rpx;
   margin: 0;
   padding: 0 $hej-space-4;
-  border-radius: $hej-radius-control;
-  background: $hej-color-accent-soft;
-  color: $hej-color-accent;
-  font-size: $hej-font-meta;
-  line-height: 72rpx;
-  text-align: center;
-}
-
-.danger-zone {
-  border: 1rpx solid $hej-color-danger-soft;
-}
-
-.delete-button {
-  height: 76rpx;
-  margin: $hej-space-4 0 0;
-  border: 1rpx solid $hej-color-danger;
-  border-radius: $hej-radius-control;
-  background: $hej-color-surface;
+  border: 0;
+  background: transparent;
   color: $hej-color-danger;
   font-size: $hej-font-meta;
-  line-height: 76rpx;
+  font-weight: 500;
+  line-height: 64rpx;
   text-align: center;
+}
+
+.delete-action-button::after {
+  border: 0;
+}
+
+.delete-action-button:active {
+  opacity: 0.7;
+}
+
+.scroll-spacer {
+  height: 80rpx;
 }
 
 .confirm-bar {
@@ -395,11 +478,23 @@ onShow(() => {
   padding: $hej-space-4 $hej-space-5 calc($hej-space-4 + env(safe-area-inset-bottom));
   border-top: 1rpx solid $hej-color-border;
   background: $hej-color-surface;
-  box-sizing: border-box;
+  box-shadow: $hej-shadow-panel;
+  z-index: 1;
 }
 
 .confirm-summary {
+  flex: 1;
   min-width: 0;
+}
+
+.confirm-status-row {
+  display: flex;
+  align-items: center;
+  gap: $hej-space-1;
+}
+
+.confirm-icon {
+  font-size: 28rpx;
 }
 
 .confirm-title {
@@ -409,7 +504,8 @@ onShow(() => {
 }
 
 .confirm-date {
-  margin-top: 4rpx;
+  display: block;
+  margin-top: 2rpx;
   color: $hej-color-text-secondary;
   font-size: $hej-font-caption;
 }
@@ -417,6 +513,7 @@ onShow(() => {
 .confirm-actions {
   display: flex;
   flex: 0 0 auto;
+  align-items: center;
   gap: $hej-space-2;
 }
 
@@ -427,28 +524,39 @@ onShow(() => {
   padding: 0 $hej-space-4;
   border-radius: $hej-radius-control;
   font-size: $hej-font-meta;
+  font-weight: 600;
   line-height: 88rpx;
   text-align: center;
+  white-space: nowrap;
+}
+
+.next-button::after,
+.save-button::after {
+  border: 0;
 }
 
 .next-button {
   border: 1rpx solid $hej-color-accent;
   background: $hej-color-surface;
+  box-sizing: border-box;
   color: $hej-color-accent;
 }
 
+.next-button:active {
+  background: $hej-color-accent-soft;
+}
+
 .save-button {
+  border: 0;
   background: $hej-color-accent;
   color: #fff;
 }
 
-button[disabled] {
-  opacity: 0.4;
+.save-button:active {
+  opacity: 0.85;
 }
 
-.empty {
-  padding: 64rpx;
-  color: $hej-color-text-secondary;
-  text-align: center;
+button[disabled] {
+  opacity: 0.4;
 }
 </style>
