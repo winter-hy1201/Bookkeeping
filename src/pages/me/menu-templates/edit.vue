@@ -51,8 +51,8 @@ const preview = computed(() => {
   try {
     return renderMenuTemplate(form.body, {
       menuDate: today(),
-      lunchText: '红烧肉烧鹌鹑蛋➕宫保鸡丁➕手撕包菜',
-      dinnerText: '干锅牛肉➕农家一碗香➕手撕包菜',
+      lunchText: '香菇滑鸡、清炒时蔬、番茄炒蛋',
+      dinnerText: '土豆烧牛肉、蒜蓉生菜、冬瓜海带汤',
     })
   } catch {
     return ''
@@ -158,8 +158,11 @@ onLoad((query) => {
 <template>
   <view class="page">
     <scroll-view class="content" scroll-y>
-      <view v-if="loading" class="empty">模板加载中...</view>
+      <view v-if="loading" class="state-card">
+        <text class="state-title">正在读取模板详情…</text>
+      </view>
       <template v-else>
+        <!-- Form Header Intro -->
         <view class="intro">
           <text class="intro-title">{{ template ? '编辑社群文案' : '新建社群文案' }}</text>
           <text class="intro-text"
@@ -167,44 +170,69 @@ onLoad((query) => {
           >
         </view>
 
-        <uni-forms ref="formRef" class="form" :model-value="form" :rules="rules" label-width="80px">
-          <uni-forms-item name="name" label="名称" required>
-            <uni-easyinput
-              v-model="form.name"
-              placeholder="例如：日常午晚餐"
-              :input-border="false"
-            />
-          </uni-forms-item>
-          <view class="divider" />
-          <uni-forms-item name="body" label="正文" required>
-            <uni-easyinput
-              v-model="form.body"
-              class="body-input"
-              type="textarea"
-              placeholder="输入固定文案，再插入日期和餐次区块"
-              :input-border="false"
-            />
-          </uni-forms-item>
-        </uni-forms>
+        <!-- Continuous Surface Form -->
+        <view class="form-card">
+          <uni-forms
+            ref="formRef"
+            class="form"
+            :model-value="form"
+            :rules="rules"
+            label-width="80px"
+            label-align="left"
+          >
+            <uni-forms-item name="name" label="名称" required>
+              <view class="input-row">
+                <uni-easyinput
+                  v-model="form.name"
+                  placeholder="例如：日常午晚餐"
+                  :maxlength="20"
+                  :input-border="false"
+                />
+                <text class="char-count">{{ form.name.length }}/20</text>
+              </view>
+            </uni-forms-item>
+            <view class="divider" />
+            <uni-forms-item name="body" label="正文" required>
+              <view class="textarea-wrap">
+                <uni-easyinput
+                  v-model="form.body"
+                  class="body-input"
+                  type="textarea"
+                  placeholder="输入固定文案，再插入日期和餐次区块"
+                  :maxlength="1000"
+                  :input-border="false"
+                  auto-height
+                />
+                <text class="char-count textarea-count">{{ form.body.length }}/1000</text>
+              </view>
+            </uni-forms-item>
+          </uni-forms>
+        </view>
 
+        <!-- Insert Content Panel -->
         <view class="insert-panel">
-          <view>
+          <view class="insert-header">
             <text class="panel-title">插入模板内容</text>
-            <text class="panel-hint">按钮会把内容追加到正文末尾，之后可以自由调整位置。</text>
+            <text class="panel-hint">点击追加标记到正文末尾，可自由编辑位置</text>
           </view>
           <view class="insert-actions">
-            <button class="insert-button" @click="insertDate">日期</button>
-            <button class="insert-button" @click="insertLunch">午餐区块</button>
-            <button class="insert-button" @click="insertDinner">晚餐区块</button>
-            <button class="insert-button subtle" @click="useDefaultBody">内置正文</button>
+            <button class="chip-btn" @click="insertDate">日期 ＋</button>
+            <button class="chip-btn" @click="insertLunch">午餐区块 ＋</button>
+            <button class="chip-btn" @click="insertDinner">晚餐区块 ＋</button>
+            <button class="chip-btn chip-btn--subtle" @click="useDefaultBody">内置正文 ＋</button>
           </view>
         </view>
 
+        <!-- Syntax Error Warning Card -->
         <view v-if="validationError" class="validation-card">
-          <text class="validation-title">模板还不能保存</text>
+          <view class="validation-header">
+            <text class="validation-icon">⚠️</text>
+            <text class="validation-title">模板还不能保存</text>
+          </view>
           <text class="validation-text">{{ validationError }}</text>
         </view>
 
+        <!-- Signature Preview Paper -->
         <view v-else class="preview-card">
           <view class="preview-header">
             <text class="preview-title">社群文案预览</text>
@@ -215,13 +243,22 @@ onLoad((query) => {
       </template>
     </scroll-view>
 
+    <!-- Fixed Bottom Confirmation Bar -->
     <view class="confirm-bar">
-      <view>
-        <text class="confirm-title">{{ validationError || '模板格式正确' }}</text>
-        <text class="confirm-hint">保存编辑后，旧内容会进入历史版本</text>
+      <view class="confirm-status">
+        <view class="status-indicator">
+          <text v-if="validationError" class="status-icon status-icon--error">✕</text>
+          <text v-else class="status-icon status-icon--success">✓</text>
+          <text :class="['confirm-title', { 'confirm-title--error': Boolean(validationError) }]">
+            {{ validationError ? '语法错误' : '模板格式正确' }}
+          </text>
+        </view>
+        <text class="confirm-hint">
+          {{ validationError ? '请修正占位符标记后再保存' : '保存编辑后，旧内容会进入历史版本' }}
+        </text>
       </view>
       <button class="save-button" :disabled="!canSave" @click="save">
-        {{ saving ? '保存中...' : '保存模板' }}
+        {{ saving ? '保存中...' : (templateId ? '保存修改' : '保存模板') }}
       </button>
     </view>
   </view>
@@ -235,155 +272,218 @@ onLoad((query) => {
 
 .content {
   height: 100vh;
-  padding: $hej-space-6 $hej-space-1 220rpx;
+  padding: $hej-space-6 $hej-space-5 240rpx;
   box-sizing: border-box;
 }
 
 .intro {
-  padding: 0 $hej-space-5 $hej-space-5;
-}
-
-.intro-title,
-.intro-text,
-.panel-title,
-.panel-hint,
-.validation-title,
-.validation-text,
-.preview-title,
-.preview-meta,
-.preview-paper,
-.confirm-title,
-.confirm-hint {
-  display: block;
+  margin-bottom: $hej-space-5;
 }
 
 .intro-title {
+  display: block;
   color: $hej-color-text;
-  font-size: $hej-font-title;
+  font-family: $hej-font-family;
+  font-size: $hej-font-display;
   font-weight: 700;
+  line-height: 1.25;
 }
 
 .intro-text {
+  display: block;
   margin-top: $hej-space-1;
   color: $hej-color-text-secondary;
-  font-size: $hej-font-meta;
-  line-height: 1.55;
+  font-size: $hej-font-caption;
+  line-height: 1.4;
 }
 
-.form {
-  display: block;
-  padding: $hej-space-5;
+.form-card {
+  border: 1rpx solid $hej-color-border;
+  border-radius: $hej-radius-panel;
   background: $hej-color-surface;
+  box-shadow: $hej-shadow-panel;
+  padding: $hej-space-3 $hej-space-4;
 }
 
 .form :deep(.uni-forms-item) {
-  align-items: center;
   margin-bottom: 0;
+}
+
+.form :deep(.uni-forms-item__label) {
+  color: $hej-color-text;
+  font-size: $hej-font-body;
+  font-weight: 600;
 }
 
 .form :deep(.uni-forms-item__content) {
   min-width: 0;
 }
 
+.input-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.char-count {
+  flex: 0 0 auto;
+  color: $hej-color-text-tertiary;
+  font-size: $hej-font-caption;
+  margin-left: $hej-space-2;
+}
+
+.textarea-wrap {
+  position: relative;
+  width: 100%;
+}
+
 .body-input :deep(.uni-easyinput__content-textarea) {
-  min-height: 480rpx;
-  padding: $hej-space-3 0;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  min-height: 380rpx;
+  padding: $hej-space-2 0 $hej-space-6;
+  font-family: $hej-font-family-mono;
+  font-size: $hej-font-meta;
   line-height: 1.55;
+}
+
+.textarea-count {
+  position: absolute;
+  right: 0;
+  bottom: 0;
 }
 
 .divider {
   height: 1rpx;
-  margin: $hej-space-4 0 $hej-space-4 80px;
+  margin: $hej-space-3 0 $hej-space-3 80px;
   background: $hej-color-border;
 }
 
-.insert-panel,
-.validation-card,
-.preview-card {
-  margin: $hej-space-5 $hej-space-1 0;
-  padding: $hej-space-5;
+.insert-panel {
+  margin-top: $hej-space-5;
+  padding: $hej-space-4 $hej-space-5;
+  border: 1rpx solid $hej-color-border;
   border-radius: $hej-radius-panel;
   background: $hej-color-surface;
+  box-shadow: $hej-shadow-panel;
 }
 
-.panel-title,
-.validation-title,
-.preview-title {
+.panel-title {
+  display: block;
   color: $hej-color-text;
   font-size: $hej-font-body;
   font-weight: 600;
 }
 
-.panel-hint,
-.validation-text,
-.preview-meta {
-  margin-top: 6rpx;
+.panel-hint {
+  display: block;
+  margin-top: 4rpx;
   color: $hej-color-text-secondary;
   font-size: $hej-font-caption;
-  line-height: 1.5;
 }
 
 .insert-actions {
   display: flex;
   flex-wrap: wrap;
   gap: $hej-space-2;
-  margin-top: $hej-space-4;
+  margin-top: $hej-space-3;
 }
 
-.insert-button {
-  height: 68rpx;
+.chip-btn {
+  height: 64rpx;
   margin: 0;
   padding: 0 $hej-space-4;
   border: 1rpx solid $hej-color-accent;
-  border-radius: $hej-radius-control;
+  border-radius: $hej-radius-pill;
   background: $hej-color-accent-soft;
   color: $hej-color-accent;
   font-size: $hej-font-meta;
-  line-height: 68rpx;
+  font-weight: 500;
+  line-height: 64rpx;
   text-align: center;
+
+  &:active {
+    opacity: 0.75;
+  }
 }
 
-.insert-button.subtle {
+.chip-btn--subtle {
   border-color: $hej-color-border;
-  background: $hej-color-surface;
+  background: $hej-color-surface-subtle;
   color: $hej-color-text-secondary;
 }
 
 .validation-card {
+  margin-top: $hej-space-5;
+  padding: $hej-space-4 $hej-space-5;
   border: 1rpx solid $hej-color-danger-soft;
+  border-radius: $hej-radius-panel;
   background: $hej-color-danger-soft;
 }
 
-.validation-title,
-.validation-text {
+.validation-header {
+  display: flex;
+  align-items: center;
+  gap: $hej-space-2;
+}
+
+.validation-icon {
+  font-size: $hej-font-body;
+}
+
+.validation-title {
   color: $hej-color-danger;
+  font-size: $hej-font-body;
+  font-weight: 600;
+}
+
+.validation-text {
+  display: block;
+  margin-top: $hej-space-1;
+  color: $hej-color-danger;
+  font-size: $hej-font-meta;
+  line-height: 1.5;
 }
 
 .preview-card {
+  margin-top: $hej-space-5;
+  padding: $hej-space-5;
   border: 1rpx solid $hej-color-border;
+  border-radius: $hej-radius-panel;
+  background: $hej-color-surface;
+  box-shadow: $hej-shadow-panel;
 }
 
 .preview-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: $hej-space-4;
+}
+
+.preview-title {
+  color: $hej-color-text;
+  font-size: $hej-font-body;
+  font-weight: 600;
 }
 
 .preview-meta {
-  margin-top: 0;
+  padding: 4rpx 14rpx;
+  border-radius: $hej-radius-pill;
+  background: $hej-color-warning-soft;
+  color: $hej-color-warning;
+  font-size: $hej-font-caption;
+  font-weight: 500;
 }
 
 .preview-paper {
-  margin-top: $hej-space-4;
-  padding: $hej-space-6;
+  display: block;
+  margin-top: $hej-space-3;
+  padding: $hej-space-4 $hej-space-5;
   border-left: 6rpx solid $hej-color-accent;
   border-radius: $hej-radius-control;
   background: $hej-color-surface-subtle;
   color: $hej-color-text;
-  font-size: $hej-font-body;
-  line-height: 1.7;
+  font-family: $hej-font-family-mono;
+  font-size: $hej-font-meta;
+  line-height: 1.65;
   white-space: pre-wrap;
 }
 
@@ -402,8 +502,28 @@ onLoad((query) => {
   box-sizing: border-box;
 }
 
-.confirm-bar > view {
+.confirm-status {
+  flex: 1;
   min-width: 0;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: $hej-space-1;
+}
+
+.status-icon {
+  font-size: $hej-font-meta;
+  font-weight: 700;
+}
+
+.status-icon--success {
+  color: $hej-color-delivered;
+}
+
+.status-icon--error {
+  color: $hej-color-danger;
 }
 
 .confirm-title {
@@ -415,10 +535,18 @@ onLoad((query) => {
   white-space: nowrap;
 }
 
+.confirm-title--error {
+  color: $hej-color-danger;
+}
+
 .confirm-hint {
+  display: block;
   margin-top: 4rpx;
   color: $hej-color-text-secondary;
   font-size: $hej-font-caption;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .save-button {
@@ -426,21 +554,38 @@ onLoad((query) => {
   height: 88rpx;
   margin: 0;
   padding: 0 $hej-space-6;
+  border: 0;
   border-radius: $hej-radius-control;
   background: $hej-color-accent;
   color: #fff;
   font-size: $hej-font-body;
+  font-weight: 600;
   line-height: 88rpx;
   text-align: center;
+
+  &:active {
+    opacity: 0.85;
+  }
+
+  &[disabled] {
+    opacity: 0.4;
+    pointer-events: none;
+  }
 }
 
-.save-button[disabled] {
-  opacity: 0.4;
-}
-
-.empty {
-  padding: 64rpx;
-  color: $hej-color-text-secondary;
+.state-card {
+  margin-top: $hej-space-5;
+  padding: 64rpx $hej-space-6;
+  border: 1rpx solid $hej-color-border;
+  border-radius: $hej-radius-panel;
+  background: $hej-color-surface;
+  box-shadow: $hej-shadow-panel;
   text-align: center;
+}
+
+.state-title {
+  color: $hej-color-text;
+  font-size: $hej-font-title;
+  font-weight: 600;
 }
 </style>

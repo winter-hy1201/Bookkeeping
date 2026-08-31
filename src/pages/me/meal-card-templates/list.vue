@@ -15,7 +15,7 @@ const templates = ref<MealCardMessageTemplate[]>([])
 const loading = ref(false)
 const actioningId = ref<number | null>(null)
 const pageReturn = usePageReturnSnapshot({
-  mode: 'scroll-view',
+  mode: 'page',
   hasContent: () => templates.value.length > 0,
 })
 
@@ -93,87 +93,126 @@ onShow(() => {
 </script>
 
 <template>
-  <scroll-view
-    class="page"
-    scroll-y
-    :scroll-top="pageReturn.scrollTopValue"
-    @scroll="pageReturn.onScroll"
-  >
+  <view class="page">
+    <!-- Header Toolbar -->
     <view class="toolbar">
-      <view>
+      <view class="toolbar-info">
         <text class="page-title">月卡文案模板</text>
         <text class="page-subtitle">默认模板会用于订单详情的月卡信息复制</text>
       </view>
-      <button class="add-button" @click="goNew">新建模板</button>
+      <button class="add-button" @click="goNew">＋ 新建模板</button>
     </view>
 
+    <!-- Warm Sand Syntax Note Banner -->
     <view class="syntax-note">
-      <text class="syntax-note__title">套餐说明直接写在正文中，只替换配送后的次数信息</text>
+      <text class="syntax-note__icon">💡</text>
       <text class="syntax-note__text"
-        >模板必须包含本次使用份数和当前可用份数两个占位符，套餐价格与总次数可直接修改。</text
+        >套餐说明直接写在正文中，只替换配送后的次数信息</text
       >
     </view>
 
-    <view v-if="loading" class="empty">月卡模板加载中...</view>
-    <view v-else-if="templates.length === 0" class="empty">
-      <text class="empty-title">还没有月卡文案模板</text>
-      <text class="empty-text">新建并设为默认后，已配送次卡订单才能复制月卡信息。</text>
-      <button class="empty-action" @click="goNew">新建第一个模板</button>
+    <!-- Available Placeholders Header -->
+    <view class="placeholders-bar">
+      <text class="placeholders-label">可替换的次数信息（下单时自动替换）</text>
+      <view class="placeholders-tags">
+        <text class="placeholder-chip">本次使用份数</text>
+        <text class="placeholder-chip">当前可用份数</text>
+      </view>
     </view>
 
+    <!-- Loading State -->
+    <view v-if="loading" class="state-card">
+      <text class="state-title">正在读取月卡模板列表…</text>
+    </view>
+
+    <!-- Empty State -->
+    <view v-else-if="templates.length === 0" class="state-card">
+      <text class="state-title">还没有月卡文案模板</text>
+      <text class="state-desc">新建并设为默认后，已配送次卡订单才能复制月卡信息。</text>
+      <button class="empty-action" @click="goNew">＋ 新建第一个模板</button>
+    </view>
+
+    <!-- Template List -->
     <view v-else class="template-list">
       <view
         v-for="template in templates"
         :key="template.id"
         class="template-card"
       >
+        <!-- Card Header -->
         <view class="template-header" @click="goEdit(template.id)">
           <view class="template-heading">
             <view class="name-row">
               <text class="template-name">{{ template.name }}</text>
-              <text v-if="template.is_default === 1" class="default-badge">默认</text>
+              <text v-if="template.is_default === 1" class="default-badge">默认模板</text>
             </view>
             <text class="updated-at"
-              >最后修改 {{ dayjs(template.updated_at).format('YYYY-MM-DD HH:mm') }}</text
+              >更新时间：{{ dayjs(template.updated_at).format('YYYY-MM-DD HH:mm') }}</text
             >
           </view>
           <text class="arrow">›</text>
         </view>
-        <text class="body-preview">{{ template.body }}</text>
-        <view class="template-actions">
-          <button
+
+        <!-- Body Preview -->
+        <view class="preview-wrap" @click="goEdit(template.id)">
+          <text class="body-preview">{{ template.body }}</text>
+        </view>
+
+        <!-- Template Actions Footer -->
+        <view class="template-actions" @click.stop>
+          <view
             v-if="template.is_default !== 1"
-            class="action-button accent"
-            :disabled="actioningId !== null"
+            class="action-item action-item--accent"
+            :class="{ disabled: actioningId !== null }"
             @click="makeDefault(template)"
           >
-            设为默认
-          </button>
-          <button
-            class="action-button"
-            :disabled="actioningId !== null"
+            <text class="action-item__icon">⭐</text>
+            <text class="action-item__text">设为默认</text>
+          </view>
+          <view
+            v-else
+            class="action-item action-item--active"
+          >
+            <text class="action-item__icon">★</text>
+            <text class="action-item__text">默认模板</text>
+          </view>
+          <view class="action-separator" />
+          <view
+            class="action-item"
+            :class="{ disabled: actioningId !== null }"
             @click="goEdit(template.id)"
           >
-            编辑
-          </button>
-          <button
-            class="action-button"
-            :disabled="actioningId !== null"
+            <text class="action-item__icon">✏️</text>
+            <text class="action-item__text">编辑</text>
+          </view>
+          <view class="action-separator" />
+          <view
+            class="action-item"
+            :class="{ disabled: actioningId !== null }"
             @click="goHistory(template.id)"
           >
-            历史
-          </button>
-          <button
-            class="action-button danger"
-            :disabled="actioningId !== null"
+            <text class="action-item__icon">🕒</text>
+            <text class="action-item__text">历史</text>
+          </view>
+          <view class="action-separator" />
+          <view
+            class="action-item action-item--danger"
+            :class="{ disabled: actioningId !== null }"
             @click="remove(template)"
           >
-            删除
-          </button>
+            <text class="action-item__icon">🗑️</text>
+            <text class="action-item__text">删除</text>
+          </view>
         </view>
       </view>
+
+      <!-- Bottom Hint Note -->
+      <view class="footer-hint">
+        <text class="footer-hint__icon">ⓘ</text>
+        <text class="footer-hint__text">提示：模板内容会复制到订单详情的月卡信息</text>
+      </view>
     </view>
-  </scroll-view>
+  </view>
 </template>
 
 <style scoped lang="scss">
@@ -184,102 +223,188 @@ onShow(() => {
   box-sizing: border-box;
 }
 
-.toolbar,
-.template-header,
-.name-row,
-.template-actions {
+.toolbar {
   display: flex;
   align-items: center;
-}
-
-.toolbar,
-.template-header {
   justify-content: space-between;
-  gap: $hej-space-5;
+  gap: $hej-space-4;
 }
 
-.page-title,
-.page-subtitle,
-.syntax-note__title,
-.syntax-note__text,
-.template-name,
-.updated-at,
-.body-preview,
-.empty-title,
-.empty-text {
-  display: block;
+.toolbar-info {
+  flex: 1;
+  min-width: 0;
 }
 
 .page-title {
+  display: block;
   color: $hej-color-text;
+  font-family: $hej-font-family;
   font-size: $hej-font-display;
   font-weight: 700;
+  line-height: 1.25;
 }
 
 .page-subtitle {
+  display: block;
   margin-top: $hej-space-1;
   color: $hej-color-text-secondary;
-  font-size: $hej-font-meta;
+  font-size: $hej-font-caption;
+  line-height: 1.4;
 }
 
-.add-button,
-.empty-action {
-  height: 88rpx;
+.add-button {
+  flex: 0 0 auto;
+  height: 72rpx;
   margin: 0;
-  padding: 0 $hej-space-5;
+  padding: 0 $hej-space-4;
+  border: 0;
   border-radius: $hej-radius-control;
   background: $hej-color-accent;
   color: #fff;
-  font-size: $hej-font-body;
-  line-height: 88rpx;
+  font-size: $hej-font-meta;
+  font-weight: 600;
+  line-height: 72rpx;
   text-align: center;
+
+  &:active {
+    opacity: 0.85;
+  }
 }
 
 .syntax-note {
-  margin-top: $hej-space-6;
-  padding: $hej-space-5;
-  border: 1rpx solid $hej-color-accent-soft;
+  display: flex;
+  align-items: flex-start;
+  gap: $hej-space-2;
+  margin-top: $hej-space-5;
+  padding: $hej-space-4 $hej-space-5;
+  border: 1rpx solid $hej-color-warning-soft;
   border-radius: $hej-radius-panel;
-  background: $hej-color-accent-soft;
+  background: $hej-color-warning-soft;
 }
 
-.syntax-note__title {
-  color: $hej-color-text;
+.syntax-note__icon {
+  flex: 0 0 auto;
+  color: $hej-color-warning;
   font-size: $hej-font-body;
-  font-weight: 600;
+  line-height: 1.4;
 }
 
 .syntax-note__text {
-  margin-top: $hej-space-1;
-  color: $hej-color-text-secondary;
+  flex: 1;
+  color: $hej-color-text;
   font-size: $hej-font-meta;
   line-height: 1.5;
 }
 
-.template-list {
+.placeholders-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: $hej-space-2;
+  margin-top: $hej-space-4;
+  padding: 0 4rpx;
+}
+
+.placeholders-label {
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-caption;
+}
+
+.placeholders-tags {
+  display: flex;
+  align-items: center;
+  gap: $hej-space-2;
+}
+
+.placeholder-chip {
+  padding: 4rpx 14rpx;
+  border: 1rpx solid $hej-color-accent-soft;
+  border-radius: $hej-radius-pill;
+  background: $hej-color-surface;
+  color: $hej-color-accent;
+  font-size: 22rpx;
+  font-weight: 500;
+}
+
+.state-card {
   margin-top: $hej-space-5;
+  padding: 64rpx $hej-space-6;
+  border: 1rpx solid $hej-color-border;
+  border-radius: $hej-radius-panel;
+  background: $hej-color-surface;
+  box-shadow: $hej-shadow-panel;
+  text-align: center;
+}
+
+.state-title {
+  display: block;
+  color: $hej-color-text;
+  font-size: $hej-font-title;
+  font-weight: 600;
+}
+
+.state-desc {
+  display: block;
+  margin-top: $hej-space-2;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-meta;
+  line-height: 1.6;
+}
+
+.empty-action {
+  height: 88rpx;
+  margin: $hej-space-5 auto 0;
+  padding: 0 $hej-space-6;
+  border: 0;
+  border-radius: $hej-radius-control;
+  background: $hej-color-accent;
+  color: #fff;
+  font-size: $hej-font-body;
+  font-weight: 600;
+  line-height: 88rpx;
+  text-align: center;
+
+  &:active {
+    opacity: 0.85;
+  }
+}
+
+.template-list {
+  margin-top: $hej-space-4;
 }
 
 .template-card {
   margin-bottom: $hej-space-4;
-  padding: $hej-space-5;
   border: 1rpx solid $hej-color-border;
   border-radius: $hej-radius-panel;
   background: $hej-color-surface;
   box-shadow: $hej-shadow-panel;
 }
 
+.template-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $hej-space-4;
+  padding: $hej-space-5 $hej-space-5 0;
+}
+
 .template-heading {
+  flex: 1;
   min-width: 0;
 }
 
 .name-row {
+  display: flex;
+  align-items: center;
   gap: $hej-space-2;
 }
 
 .template-name {
   overflow: hidden;
   color: $hej-color-text;
+  font-family: $hej-font-family;
   font-size: $hej-font-title;
   font-weight: 700;
   text-overflow: ellipsis;
@@ -288,14 +413,16 @@ onShow(() => {
 
 .default-badge {
   flex: 0 0 auto;
-  padding: 4rpx 12rpx;
+  padding: 4rpx 14rpx;
   border-radius: $hej-radius-pill;
-  background: $hej-color-success-soft;
-  color: $hej-color-success;
+  background: $hej-color-warning-soft;
+  color: $hej-color-warning;
   font-size: $hej-font-caption;
+  font-weight: 600;
 }
 
 .updated-at {
+  display: block;
   margin-top: 6rpx;
   color: $hej-color-text-tertiary;
   font-size: $hej-font-caption;
@@ -303,17 +430,22 @@ onShow(() => {
 
 .arrow {
   color: $hej-color-text-tertiary;
-  font-size: 44rpx;
+  font-size: 40rpx;
+  line-height: 1;
+}
+
+.preview-wrap {
+  padding: $hej-space-3 $hej-space-5 $hej-space-4;
 }
 
 .body-preview {
   display: -webkit-box;
   overflow: hidden;
-  margin-top: $hej-space-4;
   padding: $hej-space-4;
   border-radius: $hej-radius-control;
   background: $hej-color-surface-subtle;
   color: $hej-color-text-secondary;
+  font-family: $hej-font-family-mono;
   font-size: $hej-font-meta;
   line-height: 1.55;
   white-space: pre-wrap;
@@ -322,63 +454,89 @@ onShow(() => {
 }
 
 .template-actions {
-  justify-content: flex-end;
-  gap: $hej-space-2;
-  margin-top: $hej-space-4;
-  padding-top: $hej-space-4;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: $hej-space-3 0;
   border-top: 1rpx solid $hej-color-border;
 }
 
-.action-button {
-  height: 68rpx;
-  margin: 0;
-  padding: 0 $hej-space-3;
-  border: 1rpx solid $hej-color-border;
-  border-radius: $hej-radius-control;
-  background: $hej-color-surface;
+.action-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  flex: 1;
+  height: 64rpx;
   color: $hej-color-text-secondary;
-  font-size: $hej-font-caption;
-  line-height: 68rpx;
-  text-align: center;
-}
-
-.action-button.accent {
-  border-color: $hej-color-accent;
-  color: $hej-color-accent;
-}
-
-.action-button.danger {
-  border-color: $hej-color-danger-soft;
-  color: $hej-color-danger;
-}
-
-.empty {
-  margin-top: $hej-space-7;
-  padding: 64rpx $hej-space-6;
-  border-radius: $hej-radius-panel;
-  background: $hej-color-surface;
-  color: $hej-color-text-secondary;
-  text-align: center;
-}
-
-.empty-title,
-.empty-text {
-  display: block;
-}
-
-.empty-title {
-  color: $hej-color-text;
-  font-size: $hej-font-title;
-  font-weight: 600;
-}
-
-.empty-text {
-  margin-top: $hej-space-2;
   font-size: $hej-font-meta;
-  line-height: 1.6;
+  cursor: pointer;
+
+  &:active {
+    opacity: 0.7;
+  }
+
+  &.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+  }
 }
 
-.empty-action {
-  margin: $hej-space-5 auto 0;
+.action-item__icon {
+  font-size: 28rpx;
+  line-height: 1;
+}
+
+.action-item__text {
+  font-size: $hej-font-meta;
+  font-weight: 500;
+}
+
+.action-item--accent {
+  color: $hej-color-accent;
+  .action-item__text {
+    color: $hej-color-accent;
+    font-weight: 600;
+  }
+}
+
+.action-item--active {
+  color: $hej-color-warning;
+  .action-item__text {
+    color: $hej-color-warning;
+    font-weight: 600;
+  }
+}
+
+.action-item--danger {
+  color: $hej-color-danger;
+  .action-item__text {
+    color: $hej-color-danger;
+  }
+}
+
+.action-separator {
+  width: 1rpx;
+  height: 32rpx;
+  background: $hej-color-border;
+}
+
+.footer-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $hej-space-2;
+  margin-top: $hej-space-6;
+  padding: 0 $hej-space-4;
+}
+
+.footer-hint__icon {
+  color: $hej-color-text-tertiary;
+  font-size: $hej-font-caption;
+}
+
+.footer-hint__text {
+  color: $hej-color-text-tertiary;
+  font-size: $hej-font-caption;
 }
 </style>

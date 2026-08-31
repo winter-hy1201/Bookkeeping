@@ -76,6 +76,11 @@
 | `tests/me-page-contract.test.cjs` | Node 静态契约测试：确保「我的」业务入口页保留 6 个真实业务入口与路由、反未存在功能幻觉（无头像/账户/银行卡/云同步）、使用暖纸张与象牙白卡语义 token、自定义状态栏与返回现场接入。 | 「我的」页面视觉契约或业务入口变化时 |
 | `tests/order-page-contract.test.cjs` | Node 静态契约测试：确保订单列表连接真实 store / API、保留三态状态标签、空/载/错状态卡片、自定义导航与暖纸张语义 token，不含 demo 硬编码。 | 订单列表页面视觉契约或真实数据链路变化时 |
 | `tests/customer-pages-contract.test.cjs` | Node 静态契约测试：确保客户列表、新建客户档案与客户详情连接真实 store / API、保留拼音首字母检索、80px 标签列、次卡身份徽标与删除依赖保护，并使用暖纸张语义 token。 | 客户页面视觉契约或真实数据链路变化时 |
+| `tests/expense-pages-contract.test.cjs` | Node 静态契约测试：确保支出列表、新建支出与支出详情连接真实 store / API、保留 80px 标签列、净支出实时公式与删除保护，并使用暖纸张语义 token。 | 支出页面视觉契约或真实数据链路变化时 |
+| `tests/meal-card-pages-contract.test.cjs` | Node 静态契约测试：确保次卡开卡/充值修改与充值记录页连接真实 store / API、保留已扣次记录删除禁用与收入影响提示，并使用暖纸张语义 token。 | 次卡页面视觉契约或真实数据链路变化时 |
+| `tests/menu-pages-contract.test.cjs` | Node 静态契约测试：确保每日菜单列表与编辑页连接真实 store / API、80px 标签列、多行菜品录入与返回快照，并使用暖纸张语义 token。 | 每日菜单页面视觉契约变化时 |
+| `tests/menu-template-pages-contract.test.cjs` | Node 静态契约测试：确保文案模板列表、编辑与历史版本页连接真实 API、80px 标签列、快捷插入按钮、示例文案预览与版本恢复，并使用暖纸张语义 token。 | 文案模板页面视觉契约变化时 |
+| `tests/meal-card-template-pages-contract.test.cjs` | Node 静态契约测试：确保月卡文案模板列表、编辑与历史版本页连接真实 API、80px 标签列、两个次数占位符校验与示例文案预览，并使用暖纸张语义 token。 | 月卡文案模板页面视觉契约变化时 |
 | `pnpm-lock.yaml` | pnpm 锁定文件（**不要**手动编辑） | pnpm install 后自动 |
 | `tsconfig.json` | TypeScript 配置；extends `@vue/tsconfig`，加 3 个 strict 选项；排除 `src/uni_modules` 第三方 uni-ui 源码 | 调整严格度时 |
 | `vite.config.ts` | Vite 配置；只注册 `uni()` 插件 | 加 Vite 插件时 |
@@ -288,6 +293,8 @@
 ---
 
 ## 更新日志
+
+- 2026-08-31：[UI 重构 11/14] 社群文案模板与版本历史（Issue #12）——`src/pages/me/menu-templates/list.vue`、`edit.vue` 与 `history.vue` 完成暖纸张视觉重构；列表页落地顶部“文案模板”标题与“+ 新建模板”陶土色主动作、Warm Sand 占位符语法说明横幅、象牙白模板卡片（默认标签、更新时间、等宽正文预览、底部 4 按钮操作行：设为默认/编辑/历史/删除）、删除默认模板接替选择 ActionSheet 与硬删除二次确认；编辑页落地 `<uni-forms>` 80px 统一标签列、字数统计（名称 0/20、正文 0/1000）、快捷插入胶囊 Chip 按钮、示例文案预览纸条、实时语法校验与浅红告警卡片阻断、以及底部固定操作栏；历史版本页落地版本卡片列表、时间戳、等宽正文、恢复版本确认弹窗与底部汇总卡；新增 `tests/menu-template-pages-contract.test.cjs`；HBuilderX Android 模拟器验证默认模板查看、新建模板、插入内置正文、格式校验、保存、设为默认、编辑修改保存快照、历史版本查看与恢复、以及删除默认模板接替选择全链路闭环。
 
 - 2026-08-31：[UI 重构 10/14] 每日菜单维护闭环（Issue #11）——`src/pages/me/menus/list.vue` 与 `src/pages/me/menus/edit.vue` 完成暖纸张视觉重构；列表页落地顶部“每日菜单”标题、副标题与“+ 新建菜单”陶土色主动作、“当前/历史”分段选项卡、“文案模板”快捷入口卡、每日菜单卡（☀️ 午餐 / 🌙 晚餐徽章及多行菜品展示，底部 3 按钮操作区支持“📋 复制文案”、“✏️ 编辑”、“🗑️ 删除”），以及加载骨架与暖纸张空态；编辑页落地顶部说明卡（含编辑态快捷复制文案按钮）、80px 统一标签列与单行日期及多行菜品文本框、居中浅红危险删除入口（含确认弹窗）、以及底部固定确认栏（左侧图标/状态/日期，右侧“保存并继续下一天”与“保存菜单/保存修改”）；新增 `tests/menu-pages-contract.test.cjs` 验证数据链、token 引用、80px 标签宽度、禁用模拟菜品及路由语义；HBuilderX Android 模拟器（`emulator-5554`）验证空态展示、新建菜单、午晚餐多行输入、“保存并继续下一天”自动递增日期清空输入、“保存菜单”成功返回、双菜单卡片展示、“📋 复制文案”剪贴板复制、进入“✏️ 编辑”载入既有记录、删除二次确认与硬删除、以及“当前/历史”切换与子页面返回快照恢复闭环。
 
