@@ -277,7 +277,7 @@ onShow(() => {
     <view class="confirm-bar">
       <view class="confirm-summary">
         <view class="confirm-status-row">
-          <HejiIcon class="confirm-icon" name="FileText" :size="18" />
+          <HejiIcon class="confirm-icon" name="FileCheck2" :size="18" />
           <text class="confirm-title">{{ hasMeal ? '菜单可以保存' : '至少填写午餐或晚餐' }}</text>
         </view>
         <text class="confirm-date">{{ form.menu_date }}</text>

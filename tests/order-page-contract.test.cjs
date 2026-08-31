@@ -22,7 +22,7 @@ test('order page keeps the real data chain and user-facing states', () => {
   assert.match(orderPage, /shouldAutoCollapseTodayLunch/)
   assert.match(orderPage, /reconcileLunchPanelCollapse/)
   assert.match(orderPage, /formatMoney/)
-  assert.match(orderPage, /section\.activeCount.+section\.quantity.+formatMoney/)
+  assert.match(orderPage, /section\.activeCount[\s\S]+section\.quantity[\s\S]+formatMoney/)
   assert.match(orderPage, /usePageReturnSnapshot/)
   assert.match(orderPage, /pageReturn\.restoreOnShow/)
   assert.match(orderPage, /status-chip/)
@@ -35,7 +35,7 @@ test('order page keeps the real data chain and user-facing states', () => {
   assert.match(orderPage, /重新加载/)
   assert.match(orderPage, /这一天还没有订单/)
   assert.match(orderPage, /新建订单/)
-  assert.match(orderPage, /\+ 新建订单/)
+  assert.match(orderPage, /name="Plus"[\s\S]+新建订单/)
 
   const demoNames = [
     '张姐',

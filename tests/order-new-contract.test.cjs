@@ -6,6 +6,10 @@ const test = require('node:test')
 const root = join(__dirname, '..')
 const newPage = readFileSync(join(root, 'src/pages/order/new.vue'), 'utf8')
 const customerPicker = readFileSync(join(root, 'src/components/CustomerPicker.vue'), 'utf8')
+const numberBox = readFileSync(
+  join(root, 'src/uni_modules/uni-number-box/components/uni-number-box/uni-number-box.vue'),
+  'utf8',
+)
 const tokens = readFileSync(join(root, 'src/uni.scss'), 'utf8')
 const pages = JSON.parse(readFileSync(join(root, 'src/pages.json'), 'utf8'))
 const design = readFileSync(join(root, 'docs/design.md'), 'utf8')
@@ -57,6 +61,20 @@ test('order new page visual contract uses warm paper semantic tokens', () => {
   assert.match(customerPicker, /getCustomerPinyinInitials/)
   assert.match(customerPicker, /discountLabel/)
   assert.match(design, /暖纸张|warm-paper/i)
+})
+
+test('shared number box matches the portions stepper visual contract', () => {
+  assert.match(numberBox, /<HejiIcon name="Minus"/)
+  assert.match(numberBox, /<HejiIcon name="Plus"/)
+  assert.match(numberBox, /width: 100%/)
+  assert.match(numberBox, /height: 72rpx/)
+  assert.match(numberBox, /border-radius: \$hej-radius-control/)
+  assert.match(numberBox, /border-radius: 50%/)
+  assert.match(numberBox, /uni-numbox--focused/)
+  assert.match(numberBox, /uni-numbox-btns--disabled/)
+  assert.match(numberBox, /v-model="inputValue"/)
+  assert.match(numberBox, /this\.\$emit\("change"/)
+  assert.doesNotMatch(newPage, /quantity-box :deep\(\.uni-numbox-btns\)/)
 })
 
 test('order new page retains sub-page navigation semantics in pages.json', () => {

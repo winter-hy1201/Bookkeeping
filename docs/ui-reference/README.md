@@ -8,6 +8,7 @@
 - 视觉实现必须同时遵守上一级 [`../design.md`](../design.md) 的现行 token、组件和表单规范。
 - 业务字段、状态机和流程仍以 `AGENTS.md`、`memory-bank/design-document.md` 及现有代码为准；参考图不得用于新增业务能力。
 - 完整生图提示词见 [`../ui-image-generation-prompts.md`](../ui-image-generation-prompts.md)。
+- 逐页面的 Lucide 图标对应关系见 [`icon-map.md`](icon-map.md)。
 - 本仓库只保存 375×812 参考图，不保存 ImageGen `source.png` 母版。
 
 ## 页面与图片映射

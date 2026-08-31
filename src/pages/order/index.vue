@@ -465,7 +465,7 @@ onShow(() => {
     <view v-else-if="orderStore.list.length === 0" class="empty-state-wrapper">
       <view class="state-card state-card--empty">
         <view class="empty-icon-box">
-          <HejiIcon name="List" :size="28" />
+          <HejiIcon name="ClipboardList" :size="28" />
         </view>
         <text class="state-card__title">这一天还没有订单</text>
         <text class="state-card__description"
@@ -552,16 +552,7 @@ onShow(() => {
                   @touchcancel="onHandleTouchEnd"
                 >
                   <view class="drag-handle-icon">
-                    <view class="dot-col">
-                      <view class="dot"></view>
-                      <view class="dot"></view>
-                      <view class="dot"></view>
-                    </view>
-                    <view class="dot-col">
-                      <view class="dot"></view>
-                      <view class="dot"></view>
-                      <view class="dot"></view>
-                    </view>
+                    <HejiIcon name="GripVertical" :size="18" />
                   </view>
                 </view>
 
@@ -804,24 +795,9 @@ onShow(() => {
 
 .drag-handle-icon {
   display: flex;
-  flex-direction: row;
-  gap: 6rpx;
   align-items: center;
   justify-content: center;
   padding: 8rpx;
-}
-
-.dot-col {
-  display: flex;
-  flex-direction: column;
-  gap: 6rpx;
-}
-
-.dot {
-  width: 6rpx;
-  height: 6rpx;
-  border-radius: 50%;
-  background-color: $hej-color-text-tertiary;
 }
 
 .order-main {

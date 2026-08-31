@@ -152,7 +152,7 @@ onShow(() => {
 
         <view class="menu-shortcut" hover-class="menu-shortcut--pressed" @click="goDailyMenus">
           <view class="menu-shortcut__icon">
-            <HejiIcon name="NotebookPen" :size="20" />
+            <HejiIcon name="ClipboardList" :size="20" />
           </view>
           <view class="menu-shortcut__content">
             <text class="menu-shortcut__eyebrow">社群菜单</text>
@@ -189,7 +189,7 @@ onShow(() => {
           <view class="metrics">
             <view class="metric-card metric-card--orders">
               <view class="metric-card__icon metric-card__icon--accent">
-                <HejiIcon name="List" :size="18" />
+                <HejiIcon name="ClipboardList" :size="18" />
               </view>
               <view class="metric-card__copy">
                 <text class="metric-card__label">订单</text>
@@ -205,7 +205,7 @@ onShow(() => {
 
             <view class="metric-card">
               <view class="metric-card__icon metric-card__icon--success">
-                <HejiIcon name="Wallet" :size="18" />
+                <HejiIcon name="WalletCards" :size="18" />
               </view>
               <view class="metric-card__copy">
                 <text class="metric-card__label">收入</text>
@@ -215,7 +215,7 @@ onShow(() => {
 
             <view class="metric-card">
               <view class="metric-card__icon metric-card__icon--warning">
-                <HejiIcon name="Bell" :size="18" />
+                <HejiIcon name="ShoppingBag" :size="18" />
               </view>
               <view class="metric-card__copy">
                 <text class="metric-card__label">支出</text>
@@ -225,7 +225,7 @@ onShow(() => {
 
             <view class="metric-card">
               <view class="metric-card__icon metric-card__icon--profit">
-                <HejiIcon name="CircleCheck" :size="18" />
+                <HejiIcon name="ChartNoAxesCombined" :size="18" />
               </view>
               <view class="metric-card__copy">
                 <text class="metric-card__label">利润</text>
@@ -254,7 +254,7 @@ onShow(() => {
             <view class="status-summary">
               <view class="status-summary__item status-summary__item--pending">
                 <view class="status-summary__label">
-                  <HejiIcon name="Bell" :size="14" />
+                  <HejiIcon name="Clock3" :size="14" />
                   <text>待配送</text>
                 </view>
                 <text class="status-summary__value">{{ pendingOrders.length }}单 / {{ pendingQuantity }}份</text>
@@ -268,7 +268,7 @@ onShow(() => {
               </view>
               <view class="status-summary__item status-summary__item--cancelled">
                 <view class="status-summary__label">
-                  <HejiIcon name="CircleX" :size="14" />
+                  <HejiIcon name="CircleAlert" :size="14" />
                   <text>已取消</text>
                 </view>
                 <text class="status-summary__value">{{ cancelledOrders.length }}单 / {{ cancelledQuantity }}份</text>
@@ -277,7 +277,7 @@ onShow(() => {
 
             <view v-if="orderStore.list.length === 0" class="empty-state">
               <view class="empty-state__icon">
-                <HejiIcon name="List" :size="22" />
+                <HejiIcon name="ClipboardList" :size="22" />
               </view>
               <text class="empty-state__title">今天还没有订单</text>
               <text class="empty-state__description">订单录入后，会在这里显示配送进度和收款信息。</text>

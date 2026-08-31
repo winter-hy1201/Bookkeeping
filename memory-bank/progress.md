@@ -13,8 +13,9 @@
 | UI.1 | 新增 `$hej-color-control` / disabled / strong-border 语义 token，并通过 `App.vue` CSS 变量桥接到 `uni-easyinput`、`uni-data-checkbox`、`uni-data-select`、`uni-datetime-picker`、`uni-number-box`、`uni-collapse-item`；输入内容区、选择弹层、日期面板与数字步进器不再使用刺眼纯白默认底色。 | ✅ PASS（源码与 H5 编译） |
 | UI.2 | 引入固定版本 `@lucide/vue@1.38.0`，新增 `HejiIcon` 与静态图形注册表；业务页面和本轮可见的本地 uni-ui 组件统一使用 Lucide 原始导出名（如 `CalendarDays`、`Plus`、`CircleCheck`），允许直接维护 `src/uni_modules`；app-plus 使用 CSS mask 输出同一份 Lucide 图形节点。 | ✅ 2026-08-31 |
 | UI.3 | 支出分类数据库与 `src/db/seed.ts` 统一保存 Lucide 原始名称：`菜品/工具/耗材/配送/其他` 对应 `Utensils/Wrench/Package/Bike/Wallet`；schema v8 会把已有库中的五个系统分类 emoji 迁移为这些名称，旧备份导入也会归一化；内容模板中的 emoji 继续保留。 | ✅ 2026-08-31 |
-| UI.4 | `node_modules/.bin/eslint --ext .ts,.vue src/`、`node_modules/.bin/vue-tsc --noEmit`、`node_modules/.bin/uni build`、`git diff --check` 均通过；H5 只有既有 Sass 弃用警告。业务表单的 `label-width` 与关联标签列缩进已统一为 `100px`，相关定向契约测试 33/33 通过；全量 `node --test tests/*.test.cjs` 实际 115/116，唯一失败为既有订单列表契约与当前模板结构漂移。新增 `tests/icon-rendering-contract.test.cjs` 已通过。 | 🔄 BLOCKED（既有订单列表契约漂移） |
+| UI.4 | `node_modules/.bin/eslint --ext .ts,.vue src/`、`node_modules/.bin/vue-tsc --noEmit`、`node_modules/.bin/uni build`、`git diff --check` 均通过；H5 只有既有 Sass 弃用警告。业务表单的 `label-width` 与关联标签列缩进已统一为 `100px`，相关定向契约测试 33/33 通过；订单列表契约断言已按当前模板的跨行结构修正，新增 `tests/icon-rendering-contract.test.cjs` 已通过。 | ✅ PASS（Node 全量测试在 UI.6 复核） |
 | UI.5 | HBuilderX Android app-plus 图标绘制回归：内联 SVG 在 `emulator-5554` 上复现为不绘制，改为 CSS mask 后日期、按钮和支出分类图标均实际显示；物理真机视觉、触摸回归仍待执行。 | ✅ PASS（Android 模拟器）；物理真机 NOT_RUN |
+| UI.6 | 对照 `docs/ui-reference/images/01–23` 逐页校准业务图标：扩充 Lucide 注册表，替换首页 / 统计指标、订单状态与动作、客户档案、支出金额与危险区、菜单入口等图标；新增 `docs/ui-reference/icon-map.md`；原生四栏 TabBar 接入透明 PNG（`House` / `ClipboardList` / `ChartNoAxesCombined` / `UserRound`）。不改变业务字段、状态机、分类持久化和内容 emoji。 | ✅ CLI 等价检查：type-check / ESLint / H5 / diff-check PASS；Node 118/118 PASS；Android 本轮新增图标回归 NOT_RUN |
 
 ## 当前增量（Issue #15：[UI 重构 14/14] 23 页集成验收与文档收口）
 

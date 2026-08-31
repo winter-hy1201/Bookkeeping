@@ -109,7 +109,7 @@ const rules = {
 }
 
 const mealTypeOptions = [
-  { text: '午餐', value: 'lunch', icon: 'Utensils' },
+  { text: '午餐', value: 'lunch', icon: 'CookingPot' },
   { text: '晚餐', value: 'dinner', icon: 'Moon' },
 ]
 const paymentOptions = computed(() => [
@@ -197,6 +197,12 @@ const orderMoneyPaymentLabel = computed(() => {
   const current = order.value
   return current ? `${paymentText(current.payment_method)}支付份数` : '支付份数'
 })
+
+function orderStatusIcon(status: Order['status']) {
+  if (status === 'pending') return 'Clock3'
+  if (status === 'delivered') return 'CircleCheck'
+  return 'CircleAlert'
+}
 
 watch(selectedCustomer, (value) => {
   form.customer_id = value?.id ?? ''
@@ -648,7 +654,7 @@ onShow(() => {
                   <text v-else class="hero-meta">仅用于配送沟通</text>
                 </view>
                 <view class="hero-badge-wrap">
-                  <text
+                  <view
                     class="status-chip"
                     :class="{
                       'status-chip--pending': order.status === 'pending',
@@ -656,13 +662,15 @@ onShow(() => {
                       'status-chip--cancelled': order.status === 'cancelled',
                     }"
                   >
-                    {{ statusText(order.status) }}
-                  </text>
+                    <HejiIcon :name="orderStatusIcon(order.status)" :size="14" />
+                    <text>{{ statusText(order.status) }}</text>
+                  </view>
                 </view>
               </view>
               <view v-if="canEdit" class="hero-action-row">
                 <button class="hero-edit-btn" :disabled="actioning" @click="startEdit">
-                  编辑订单
+                  <HejiIcon name="SquarePen" :size="16" />
+                  <text>编辑订单</text>
                 </button>
               </view>
             </view>
@@ -720,11 +728,17 @@ onShow(() => {
                 <text class="panel-meta">仅用于配送沟通</text>
               </view>
               <view class="panel-row">
-                <text class="row-label">微信</text>
+                <view class="row-label row-label--with-icon">
+                  <HejiIcon name="MessageCircle" :size="16" />
+                  <text>微信</text>
+                </view>
                 <text class="row-value">{{ customer.wechat || '—' }}</text>
               </view>
               <view class="panel-row">
-                <text class="row-label">手机</text>
+                <view class="row-label row-label--with-icon">
+                  <HejiIcon name="Phone" :size="16" />
+                  <text>手机</text>
+                </view>
                 <text class="row-value">{{ customer.phone || '—' }}</text>
               </view>
             </view>
@@ -736,7 +750,8 @@ onShow(() => {
                 :disabled="actioning"
                 @click="markDelivered"
               >
-                标记已配送
+                <HejiIcon name="Bike" :size="18" />
+                <text>标记已配送</text>
               </button>
 
               <view v-if="order.status === 'pending'" class="action-btn-row">
@@ -745,14 +760,16 @@ onShow(() => {
                   :disabled="actioning"
                   @click="copyOrderInfo"
                 >
-                  复制信息
+                  <HejiIcon name="Copy" :size="17" />
+                  <text>复制信息</text>
                 </button>
                 <button
                   class="action-btn action-btn--secondary"
                   :disabled="actioning"
                   @click="cancelOrder"
                 >
-                  取消订单
+                  <HejiIcon name="Trash2" :size="17" />
+                  <text>取消订单</text>
                 </button>
               </view>
 
@@ -763,14 +780,16 @@ onShow(() => {
                   :disabled="actioning || copyingMealCard"
                   @click="copyMealCardInfo"
                 >
-                  {{ copyingMealCard ? '生成中...' : '复制月卡信息' }}
+                  <HejiIcon name="Copy" :size="17" />
+                  <text>{{ copyingMealCard ? '生成中...' : '复制月卡信息' }}</text>
                 </button>
                 <button
                   class="action-btn action-btn--secondary"
                   :disabled="actioning"
                   @click="copyOrderInfo"
                 >
-                  复制信息
+                  <HejiIcon name="Copy" :size="17" />
+                  <text>复制信息</text>
                 </button>
               </view>
 
@@ -780,7 +799,8 @@ onShow(() => {
                   :disabled="actioning"
                   @click="copyOrderInfo"
                 >
-                  复制信息
+                  <HejiIcon name="Copy" :size="17" />
+                  <text>复制信息</text>
                 </button>
               </view>
             </view>
@@ -793,7 +813,8 @@ onShow(() => {
                 :disabled="actioning"
                 @click="deleteOrder"
               >
-                删除订单
+                <HejiIcon name="Trash2" :size="18" />
+                <text>删除订单</text>
               </button>
             </view>
           </template>
@@ -1130,6 +1151,7 @@ onShow(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: $hej-space-1;
   padding: 4rpx $hej-space-3;
   border-radius: $hej-radius-control;
   font-size: $hej-font-caption;
@@ -1165,6 +1187,7 @@ onShow(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: $hej-space-1;
   min-width: 180rpx;
   height: 64rpx;
   margin: 0;
@@ -1241,6 +1264,12 @@ onShow(() => {
   font-size: $hej-font-body;
 }
 
+.row-label--with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: $hej-space-2;
+}
+
 .row-value {
   flex: 1;
   min-width: 0;
@@ -1288,6 +1317,7 @@ onShow(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: $hej-space-2;
   width: 100%;
   height: 88rpx;
   margin: 0;
@@ -1607,23 +1637,6 @@ onShow(() => {
   margin: 0 (-$hej-space-5) $hej-space-4;
   padding: $hej-space-3 $hej-space-5;
   background: $hej-color-surface;
-}
-
-.quantity-box :deep(.uni-numbox-btns),
-.mixed-count-box :deep(.uni-numbox-btns) {
-  background: $hej-color-surface-subtle !important;
-  border-radius: $hej-radius-control;
-  height: 72rpx !important;
-  line-height: 72rpx !important;
-}
-
-.quantity-box :deep(.uni-numbox__value),
-.mixed-count-box :deep(.uni-numbox__value) {
-  background: transparent !important;
-  color: $hej-color-text !important;
-  font-size: $hej-font-body !important;
-  font-weight: 600 !important;
-  height: 72rpx !important;
 }
 
 .card-status {

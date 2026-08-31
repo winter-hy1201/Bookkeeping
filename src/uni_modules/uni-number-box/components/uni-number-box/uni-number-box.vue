@@ -1,18 +1,25 @@
 <template>
-	<view class="uni-numbox">
-		<view @click="_calcValue('minus')" class="uni-numbox__minus uni-numbox-btns" :style="{background}">
-			<text class="uni-numbox--text" :class="{ 'uni-numbox--disabled': inputValue <= min || disabled }"
-				:style="{color}">-</text>
+	<view class="uni-numbox" :class="{ 'uni-numbox--disabled': disabled, 'uni-numbox--focused': focused }"
+		:style="{background}">
+		<view @click="_calcValue('minus')" class="uni-numbox__minus uni-numbox-btns"
+			:class="{ 'uni-numbox-btns--disabled': inputValue <= min || disabled }"
+			:style="{background, color}" role="button" aria-label="减少"
+			:aria-disabled="inputValue <= min || disabled">
+			<HejiIcon name="Minus" :size="16" />
 		</view>
 		<input :disabled="disabled" @focus="_onFocus" @blur="_onBlur" class="uni-numbox__value"
 			:type="step<1?'digit':'number'" v-model="inputValue" :style="{background, color, width:widthWithPx}" />
-		<view @click="_calcValue('plus')" class="uni-numbox__plus uni-numbox-btns" :style="{background}">
-			<text class="uni-numbox--text" :class="{ 'uni-numbox--disabled': inputValue >= max || disabled }"
-				:style="{color}">+</text>
+		<view @click="_calcValue('plus')" class="uni-numbox__plus uni-numbox-btns"
+			:class="{ 'uni-numbox-btns--disabled': inputValue >= max || disabled }"
+			:style="{background, color}" role="button" aria-label="增加"
+			:aria-disabled="inputValue >= max || disabled">
+			<HejiIcon name="Plus" :size="16" />
 		</view>
 	</view>
 </template>
 <script>
+	import HejiIcon from "../../../../components/HejiIcon.vue";
+
 	/**
 	 * NumberBox 数字输入框
 	 * @description 带加减按钮的数字输入框
@@ -32,6 +39,9 @@
 
 	export default {
 		name: "UniNumberBox",
+		components: {
+			HejiIcon
+		},
 		emits: ['change', 'input', 'update:modelValue', 'blur', 'focus'],
 		props: {
 			value: {
@@ -73,7 +83,8 @@
 		},
 		data() {
 			return {
-				inputValue: 0
+				inputValue: 0,
+				focused: false
 			};
 		},
 		watch: {
@@ -142,6 +153,7 @@
 				return scale;
 			},
 			_onBlur(event) {
+				this.focused = false;
 				this.$emit('blur', event)
 				let value = event.detail.value;
 				if (isNaN(value)) {
@@ -161,22 +173,27 @@
 				this.$emit("change", +this.inputValue);
 			},
 			_onFocus(event) {
+				this.focused = true;
 				this.$emit('focus', event)
 			}
 		}
 	};
 </script>
 <style lang="scss">
-	$box-height: 26px;
-	$bg: $hej-color-control;
-	$br: 2px;
-	$color: $hej-color-text;
-
 	.uni-numbox {
 		/* #ifndef APP-NVUE */
 		display: flex;
 		/* #endif */
 		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		box-sizing: border-box;
+		width: 100%;
+		height: 72rpx;
+		padding: 0 $hej-space-3;
+		border: 1rpx solid $hej-color-border;
+		border-radius: $hej-radius-control;
+		background-color: $hej-color-control;
 	}
 
 	.uni-numbox-btns {
@@ -186,47 +203,63 @@
 		flex-direction: row;
 		align-items: center;
 		justify-content: center;
-		padding: 0 8px;
-		background-color: $bg;
+		flex: 0 0 40rpx;
+		box-sizing: border-box;
+		width: 40rpx;
+		height: 40rpx;
+		padding: 0;
+		border: 1rpx solid $hej-color-border-strong;
+		border-radius: 50%;
+		background-color: $hej-color-control;
+		color: $hej-color-text;
+		font-size: 0;
 		/* #ifdef H5 */
 		cursor: pointer;
 		/* #endif */
 	}
 
 	.uni-numbox__value {
-		margin: 0 2px;
-		background-color: $bg;
-		width: 40px;
-		height: $box-height;
+		flex: 1 1 auto;
+		min-width: 0;
+		height: 72rpx;
+		margin: 0 $hej-space-3;
+		padding: 0;
+		box-sizing: border-box;
+		background-color: transparent;
 		text-align: center;
-		font-size: 14px;
+		font-size: $hej-font-body;
+		font-weight: 600;
 		border-width: 0;
-		color: $color;
+		color: $hej-color-text;
 	}
 
-	.uni-numbox__minus {
-		border-top-left-radius: $br;
-		border-bottom-left-radius: $br;
+	.uni-numbox--focused {
+		border-color: $hej-color-accent;
 	}
 
-	.uni-numbox__plus {
-		border-top-right-radius: $br;
-		border-bottom-right-radius: $br;
+	.uni-numbox--disabled {
+		background-color: $hej-color-control-disabled !important;
+		border-color: $hej-color-border !important;
 	}
 
-	.uni-numbox--text {
-		// fix nvue
-		line-height: 20px;
-		margin-bottom: 2px;
-		font-size: 20px;
-		font-weight: 300;
-		color: $color;
-	}
-
-	.uni-numbox .uni-numbox--disabled {
+	.uni-numbox--disabled .uni-numbox__value {
+		background: transparent !important;
 		color: $hej-color-text-tertiary !important;
-		/* #ifdef H5 */
-		cursor: not-allowed;
-		/* #endif */
 	}
+
+	.uni-numbox--disabled .uni-numbox-btns {
+		background-color: $hej-color-control-disabled !important;
+	}
+
+	.uni-numbox-btns--disabled {
+		border-color: $hej-color-border !important;
+		color: $hej-color-text-tertiary !important;
+		cursor: not-allowed !important;
+	}
+
+	.uni-numbox-btns:not(.uni-numbox-btns--disabled):active {
+		border-color: $hej-color-accent;
+		background-color: $hej-color-accent-soft !important;
+	}
+
 </style>

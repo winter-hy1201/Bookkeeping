@@ -307,7 +307,7 @@ onLoad((query) => {
           </view>
           <view class="summary-metric-divider" />
           <view class="summary-metric">
-            <HejiIcon class="metric-icon" name="Wallet" :size="18" />
+            <HejiIcon class="metric-icon" name="WalletCards" :size="18" />
             <text class="metric-text"
               >入账 <text class="metric-emphasis">{{ formatMoney(amountValue) }}</text></text
             >

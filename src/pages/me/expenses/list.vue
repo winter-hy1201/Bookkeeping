@@ -136,7 +136,14 @@ onShow(() => {
     <!-- Date Section Header -->
     <view class="section-header">
       <text class="section-date">{{ formatTodayLabel(expenseStore.currentDate) }}</text>
-      <text class="section-meta">共 {{ expenseStore.list.length }} 笔</text>
+      <view class="section-header__right">
+        <text class="section-meta">共 {{ expenseStore.list.length }} 笔</text>
+        <view class="sort-indicator" aria-label="按时间排序">
+          <HejiIcon name="ArrowDownUp" :size="14" />
+          <text>按时间</text>
+          <HejiIcon name="ChevronDown" :size="12" />
+        </view>
+      </view>
     </view>
 
     <!-- State Views -->
@@ -289,6 +296,12 @@ onShow(() => {
   margin-bottom: $hej-space-2;
 }
 
+.section-header__right {
+  display: inline-flex;
+  align-items: center;
+  gap: $hej-space-3;
+}
+
 .section-date {
   color: $hej-color-text;
   font-size: $hej-font-body;
@@ -297,6 +310,14 @@ onShow(() => {
 
 .section-meta {
   color: $hej-color-text-tertiary;
+  font-size: $hej-font-caption;
+}
+
+.sort-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: $hej-space-1;
+  color: $hej-color-text-secondary;
   font-size: $hej-font-caption;
 }
 

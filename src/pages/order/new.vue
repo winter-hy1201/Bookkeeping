@@ -100,7 +100,7 @@ const rules = {
 }
 
 const mealTypeOptions = [
-  { text: '午餐', value: 'lunch', icon: 'Utensils' },
+  { text: '午餐', value: 'lunch', icon: 'CookingPot' },
   { text: '晚餐', value: 'dinner', icon: 'Moon' },
 ]
 const primaryPaymentOptions = [
@@ -1093,23 +1093,6 @@ onShow(() => {
   color: $hej-color-text-secondary;
   font-size: $hej-font-caption;
   line-height: 1.5;
-}
-
-.quantity-box :deep(.uni-numbox-btns),
-.mixed-count-box :deep(.uni-numbox-btns) {
-  background: $hej-color-surface-subtle !important;
-  border-radius: $hej-radius-control;
-  height: 72rpx !important;
-  line-height: 72rpx !important;
-}
-
-.quantity-box :deep(.uni-numbox__value),
-.mixed-count-box :deep(.uni-numbox__value) {
-  background: transparent !important;
-  color: $hej-color-text !important;
-  font-size: $hej-font-body !important;
-  font-weight: 600 !important;
-  height: 72rpx !important;
 }
 
 .card-status {

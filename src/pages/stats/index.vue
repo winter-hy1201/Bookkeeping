@@ -258,7 +258,7 @@ onShow(() => {
             <view class="metric-card">
               <view class="metric-card__header">
                 <view class="metric-card__icon metric-card__icon--income">
-                  <HejiIcon name="Wallet" :size="16" />
+                  <HejiIcon name="WalletCards" :size="16" />
                 </view>
                 <text class="metric-card__label">入账收入</text>
               </view>
@@ -268,7 +268,7 @@ onShow(() => {
             <view class="metric-card">
               <view class="metric-card__header">
                 <view class="metric-card__icon metric-card__icon--expense">
-                  <HejiIcon name="ShoppingCart" :size="16" />
+                  <HejiIcon name="ShoppingBag" :size="16" />
                 </view>
                 <text class="metric-card__label">支出</text>
               </view>
@@ -278,7 +278,7 @@ onShow(() => {
             <view class="metric-card">
               <view class="metric-card__header">
                 <view class="metric-card__icon metric-card__icon--profit">
-                  <HejiIcon name="Send" :size="16" />
+                  <HejiIcon name="ChartNoAxesCombined" :size="16" />
                 </view>
                 <text class="metric-card__label">利润</text>
               </view>
@@ -290,7 +290,7 @@ onShow(() => {
             <view class="metric-card">
               <view class="metric-card__header">
                 <view class="metric-card__icon metric-card__icon--orders">
-                  <HejiIcon name="List" :size="16" />
+                  <HejiIcon name="ClipboardList" :size="16" />
                 </view>
                 <text class="metric-card__label">有效订单</text>
               </view>

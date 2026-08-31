@@ -14,13 +14,13 @@ const menuSections = [
     title: '菜单管理',
     subtitle: '每日菜单、复制文案、历史记录',
     url: '/pages/me/menus/list',
-    icon: 'Menu',
+    icon: 'CookingPot',
   },
   {
     title: '文案模板',
     subtitle: '默认模板、条件区块、历史版本',
     url: '/pages/me/menu-templates/list',
-    icon: 'NotebookPen',
+    icon: 'FileText',
   },
   {
     title: '月卡文案模板',
@@ -38,7 +38,7 @@ const menuSections = [
     title: '支出管理',
     subtitle: '记录菜品、耗材、工具等支出',
     url: '/pages/me/expenses/list',
-    icon: 'Wallet',
+    icon: 'WalletCards',
   },
   {
     title: '备份 / 恢复',

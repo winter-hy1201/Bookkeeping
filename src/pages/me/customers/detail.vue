@@ -59,6 +59,12 @@ function formatDateShort(dateStr: string): string {
   return parts.length >= 3 ? `${parts[1]}-${parts[2]}` : dateStr
 }
 
+function orderStatusIcon(status: Order['status']) {
+  if (status === 'pending') return 'Clock3'
+  if (status === 'delivered') return 'CircleCheck'
+  return 'CircleAlert'
+}
+
 async function refresh(): Promise<boolean> {
   if (customerId.value === null) return false
   loading.value = true
@@ -171,33 +177,54 @@ onShow(() => {
               {{ customer.wechat || customer.phone || '未填写联系方式' }}
             </text>
           </view>
-          <button class="edit-button" @click="goEdit">编辑</button>
+          <button class="edit-button" @click="goEdit">
+            <HejiIcon name="SquarePen" :size="16" />
+            <text>编辑</text>
+          </button>
         </view>
 
         <!-- Profile Panel -->
         <view class="panel-card">
           <view class="row">
-            <text class="row-label">手机</text>
+            <view class="row-label">
+              <HejiIcon name="Phone" :size="16" />
+              <text>手机</text>
+            </view>
             <text class="row-value">{{ customer.phone || '—' }}</text>
           </view>
           <view class="row">
-            <text class="row-label">微信</text>
+            <view class="row-label">
+              <HejiIcon name="MessageCircle" :size="16" />
+              <text>微信</text>
+            </view>
             <text class="row-value">{{ customer.wechat || '—' }}</text>
           </view>
           <view class="row">
-            <text class="row-label">午餐价</text>
+            <view class="row-label">
+              <HejiIcon name="CookingPot" :size="16" />
+              <text>午餐价</text>
+            </view>
             <text class="row-value">{{ formatMoney(customer.default_lunch_price) }}</text>
           </view>
           <view class="row">
-            <text class="row-label">晚餐价</text>
+            <view class="row-label">
+              <HejiIcon name="Moon" :size="16" />
+              <text>晚餐价</text>
+            </view>
             <text class="row-value">{{ formatMoney(customer.default_dinner_price) }}</text>
           </view>
           <view class="row">
-            <text class="row-label">折扣</text>
+            <view class="row-label">
+              <HejiIcon name="Tag" :size="16" />
+              <text>折扣</text>
+            </view>
             <text class="row-value">{{ formatDiscount(customer.discount_rate) }}</text>
           </view>
           <view class="row row--last">
-            <text class="row-label">备注</text>
+            <view class="row-label">
+              <HejiIcon name="StickyNote" :size="16" />
+              <text>备注</text>
+            </view>
             <text class="row-value row-value--wrap">{{ customer.note || '—' }}</text>
           </view>
         </view>
@@ -208,7 +235,8 @@ onShow(() => {
             <text class="panel-title">次卡</text>
             <view class="panel-actions">
               <button class="action-chip action-chip--secondary" @click="goCardRecords">
-                充值记录
+                <HejiIcon name="FileText" :size="14" />
+                <text>充值记录</text>
               </button>
               <button class="action-chip action-chip--accent" @click="goOpenCard">
                 <HejiIcon name="Plus" :size="14" />
@@ -269,6 +297,7 @@ onShow(() => {
                     'status-chip--warning': order.status === 'cancelled',
                   }"
                 >
+                  <HejiIcon :name="orderStatusIcon(order.status)" :size="13" />
                   <text class="status-chip-text">{{ statusText(order.status) }}</text>
                 </view>
               </view>
@@ -345,6 +374,10 @@ onShow(() => {
 }
 
 .edit-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $hej-space-1;
   flex: 0 0 auto;
   min-width: 130rpx;
   height: 64rpx;
@@ -392,6 +425,9 @@ onShow(() => {
 }
 
 .row-label {
+  display: inline-flex;
+  align-items: center;
+  gap: $hej-space-2;
   flex: 0 0 140rpx;
   color: $hej-color-text-secondary;
   font-size: $hej-font-body;
@@ -626,6 +662,7 @@ onShow(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: $hej-space-1;
   padding: 2rpx 12rpx;
   border-radius: 6rpx;
   font-size: 22rpx;

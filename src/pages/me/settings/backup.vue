@@ -300,7 +300,7 @@ async function doClear(): Promise<void> {
     <view class="panel danger-zone">
       <view class="section-heading danger-heading">
         <view class="section-icon section-icon--danger">
-          <HejiIcon name="Info" :size="21" />
+          <HejiIcon name="TriangleAlert" :size="21" />
         </view>
         <view class="section-copy">
           <text class="section-title section-title--danger">3. 危险区（清空所有数据）</text>
@@ -312,15 +312,15 @@ async function doClear(): Promise<void> {
 
       <view class="danger-checklist">
         <view class="check-row">
-          <text class="danger-bullet">•</text>
+          <HejiIcon class="danger-bullet" name="ShieldCheck" :size="16" />
           <text>清空前先确认重要数据已经导出备份</text>
         </view>
         <view class="check-row">
-          <text class="danger-bullet">•</text>
+          <HejiIcon class="danger-bullet" name="ShieldCheck" :size="16" />
           <text>自定义支出分类和两类模板历史也会被删除</text>
         </view>
         <view class="check-row">
-          <text class="danger-bullet">•</text>
+          <HejiIcon class="danger-bullet" name="ShieldCheck" :size="16" />
           <text>清空后恢复内置文案模板、月卡文案模板和 5 个默认支出分类</text>
         </view>
       </view>
@@ -590,7 +590,6 @@ async function doClear(): Promise<void> {
 .danger-bullet {
   flex: 0 0 auto;
   color: $hej-color-danger;
-  font-weight: 700;
 }
 
 .danger-button {

@@ -158,19 +158,27 @@
     "list": [
       {
         "pagePath": "pages/index/index",
-        "text": "今日"
+        "text": "今日",
+        "iconPath": "static/tabbar/today.png",
+        "selectedIconPath": "static/tabbar/today-active.png"
       },
       {
         "pagePath": "pages/order/index",
-        "text": "订单"
+        "text": "订单",
+        "iconPath": "static/tabbar/orders.png",
+        "selectedIconPath": "static/tabbar/orders-active.png"
       },
       {
         "pagePath": "pages/stats/index",
-        "text": "统计"
+        "text": "统计",
+        "iconPath": "static/tabbar/stats.png",
+        "selectedIconPath": "static/tabbar/stats-active.png"
       },
       {
         "pagePath": "pages/me/index",
-        "text": "我的"
+        "text": "我的",
+        "iconPath": "static/tabbar/me.png",
+        "selectedIconPath": "static/tabbar/me-active.png"
       }
     ]
   }
