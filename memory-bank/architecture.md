@@ -10,8 +10,8 @@
 - **项目阶段**：**v1.0 已发布**（Phase 1-9 全部完成；9.3 / 9.4 按用户决策跳过，用 HBuilderX 标准基座 debug APK 侧载；CHANGELOG.md v1.0 节已写好）
 - **已建文件**：`docs/archive/PRD-v1.0.md`、`CLAUDE.md`、`AGENTS.md`、`CONTEXT.md`、`memory-bank/` 活文档、uni-app Vue 3 + Vite + TS 模板、11 张表 DDL + 迁移 + seed + integrity_check + tx() 工具、domain/api 类型、日期/金额/菜单模板/月卡模板/页面/备份工具、完整 API 层、4 个 Pinia store、3 个通用 UI 组件、uni-ui 表单组件、4 个 Tab 与关键子页、App.vue 全局 onError 兜底
 - **DB 状态**：v0 基线（`memory-bank/bookkeeping-v0.db`，CLI sqlite smoke-test 生成）；v1 阶段基线（`memory-bank/bookkeeping-v1.db`，Phase 8 真机 E2E 通过后归档，`user_version=1`）；当前 schema 版本为 7，新增每日菜单、文案模板、月卡文案模板和两类模板版本历史，v5 → v7 真机迁移待回归
-- **UI 基线**：v1.13 新增 `docs/design.md` 与 `$hej-*` 语义 token，并由样式预处理检查保护；订单空态、新建 / 编辑确认区和统计对账趋势已按该基线改造；Issue #2 已将今日页切换到暖纸张 token、自定义安全区头部、紧凑指标和真实订单状态摘要，HBuilderX Android 模拟器视觉回归待执行
-- **最后更新**：2026-08-30
+- **UI 基线**：v1.13 新增 `docs/design.md` 与 `$hej-*` 语义 token，并由样式预处理检查保护；Issue #14 已将备份恢复页重构为暖纸张风险阶梯，保留真实 SQLite 全量导出 / 恢复与危险清空边界，并为导入事务增加提交前完整性校验
+- **最后更新**：2026-08-31
 
 ---
 
@@ -68,6 +68,7 @@
 | `tests/menu-template.test.cjs` | Node 纯函数测试：模板条件区块、缺餐删除、日期格式、多行 / `$` 字符保真、空行整理和语法错误 | 模板语法或复制文案变化时 |
 | `tests/meal-card-template.test.cjs` | Node 纯函数与页面契约测试：月卡模板默认正文、次数占位符替换、未知 / 缺失 / 未闭合占位符校验，以及复制时使用实际剩余次数 | 月卡模板语法或复制文案变化时 |
 | `tests/backup-v6.test.cjs` | Node 备份兼容测试：v5 无菜单数组仍可解析，v6 / v7 必须显式携带对应模板和版本数组（含空数组状态） | schema 或备份格式变化时 |
+| `tests/backup-page-contract.test.cjs` | Issue #14 备份页契约测试：三种恢复入口只暂存、覆盖与危险清空文案、暖纸张层级、原生子页导航，以及导入提交前 SQLite 完整性检查 | 备份页、恢复入口或导入事务边界变化时 |
 | `tests/stats-timezone.test.cjs` | Node 内置回归测试：在 `Asia/Shanghai` 时区下验证 UTC 凌晨时间戳按设备本地日期计入首页次卡收入与日趋势 | 统计时区或次卡收入口径变化时 |
 | `tests/ui-style-preprocess.test.cjs` | Node 静态测试：扫描业务 Vue 样式块，使用 `$hej-*` token 时必须声明 `lang="scss"`，避免 token 原样输出使 App 回退默认样式 | token 样式页面变化时 |
 | `tests/page-return.test.cjs` | Node 纯函数回归：从生产 TypeScript 载入返回目标解析器，覆盖内容变化时仍恢复像素、空列表回顶部和负数像素归零。 | 页面返回现场的滚动恢复规则变化时 |
@@ -149,7 +150,7 @@
 | `src/pages/me/meal-card-templates/list.vue` | 月卡文案模板列表：独立维护月卡模板的默认状态、新建、编辑、历史和硬删除；套餐描述直接写在可编辑正文中，仅允许两个次数占位符。 |
 | `src/pages/me/meal-card-templates/edit.vue` | 月卡模板新增 / 编辑表单：插入两个次数占位符，实时校验并用配送示例预览复制结果；实际修改由 API 留存编辑前快照。 |
 | `src/pages/me/meal-card-templates/history.vue` | 月卡模板版本历史：按时间倒序展示完整名称 / 正文，可确认恢复；恢复前先快照当前内容，默认状态不回滚。 |
-| `src/pages/me/settings/backup.vue` | 备份恢复页：导出 JSON 到 `_doc/backup_YYYYMMDD_HHmmss.json` 并复制到 `_downloads/`；恢复支持粘贴、已保存备份和本地文件；危险区清空菜单、月卡模板、客户、订单、次卡和支出，并恢复内置两类文案模板与 5 个默认支出分类。 |
+| `src/pages/me/settings/backup.vue` | 备份恢复页：以暖纸张“备份 → 恢复 → 危险清空”风险阶梯展示真实操作状态；导出 JSON 到 `_doc/backup_YYYYMMDD_HHmmss.json` 并复制到 `_downloads/`；粘贴、已保存备份和本地文件三入口都只载入待导入区，点击“导入覆盖”并确认后才替换数据；危险区三次确认后清空业务数据，并恢复内置两类文案模板与 5 个默认支出分类。 |
 
 ### components/ — 跨页组件
 
@@ -208,7 +209,7 @@
 | `src/utils/order-rules.ts` | 订单纯规则模块：支付拆分、次卡可用判断、备注合并去重、支付兼容与合并改单价预览，以及今日午餐自动折叠状态转移；API 与 Node 测试共享，金额计算只走 big.js helper。 |
 | `src/utils/menu-template.ts` | 社群菜单模板纯函数：内置默认正文、语法校验、条件餐次区块删除、`M月D日` 替换、多行 / 特殊字符保真和多余空行整理。 |
 | `src/utils/ui.ts` | 页面层小工具：toast / confirm / actionSheet、数值与状态文案、客户默认价提示，以及组合支付摘要和列表副标题拼接。 |
-| `src/utils/backup.ts` | JSON 全量备份恢复；v6 / v7 导入导出菜单、月卡模板与两类版本历史，v1-v6 旧备份升级时补对应内置模板；v6 / v7 的空模板状态原样恢复，危险清空显式恢复内置模板。 |
+| `src/utils/backup.ts` | JSON 全量备份恢复；v6 / v7 导入导出菜单、月卡模板与两类版本历史，v1-v6 旧备份升级时补对应内置模板；导入在同一事务中写入并于提交前执行 `PRAGMA integrity_check(1)` / `foreign_key_check`，失败整笔回滚；v6 / v7 的空模板状态原样恢复，危险清空显式恢复内置模板。 |
 | `src/utils/meal-card-template.ts` | 月卡模板内置正文、两个次数占位符校验、示例 / 实际复制文案渲染和空行规范化。 |
 | `src/utils/pinyin.ts` | 客户姓名拼音工具：基于纯 JS `pinyin-pro`，使用姓氏优先模式把中文姓名转为无声调拼音 key、拼音首字母串和 A-Z / `#` 分组字母，并提供客户姓名排序函数；用于 Android App 端客户列表分组、索引和拼音搜索。 |
 | `src/utils/page-return.ts` | 页面返回现场的纯滚动规则：记录离开前像素；返回后有内容时恢复该像素，内容为空时回到顶部，不记录业务数据身份。 |

@@ -42,6 +42,10 @@ interface VersionRow extends PlusSqliteRow {
   user_version: number
 }
 
+interface IntegrityRow extends PlusSqliteRow {
+  integrity_check: string
+}
+
 type CustomerRow = Customer & PlusSqliteRow
 type MealCardRow = MealCard & PlusSqliteRow
 type MealCardUsageRow = MealCardUsage & PlusSqliteRow
@@ -538,7 +542,7 @@ export interface BackupFileEntry {
 /** 列出 `_doc/` 下所有 `backup_*.json`，按文件名倒序（最新在前） */
 export async function listBackupFiles(): Promise<BackupFileEntry[]> {
   if (typeof plus === 'undefined' || !plus.io) return []
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     plus.io.resolveLocalFileSystemURL(
       '_doc/',
       (entry) => {
@@ -552,21 +556,22 @@ export async function listBackupFiles(): Promise<BackupFileEntry[]> {
               .sort((a, b) => b.name.localeCompare(a.name))
             resolve(files)
           },
-          () => resolve([]),
+          () => reject(new Error('无法读取应用内备份目录')),
         )
       },
-      () => resolve([]),
+      () => reject(new Error('无法访问应用内备份目录')),
     )
   })
 }
 
-/** 从应用沙盒内绝对路径读取并解析备份 payload；用于"从已保存备份恢复" */
+/** 从应用沙盒内绝对路径读取并解析备份 payload；用于载入已保存备份的待导入内容 */
 export async function readBackupFile(path: string): Promise<BackupPayload> {
   const text = await readFileText(path)
   return parseBackupText(text)
 }
 
 export async function importBackup(payload: BackupPayload): Promise<void> {
+  ensureBackupPayload(payload)
   const currentSchemaVersion = await schemaVersion()
   const canUpgradeOlderBackup =
     payload.schema_version >= 1 && payload.schema_version < currentSchemaVersion
@@ -761,7 +766,20 @@ export async function importBackup(payload: BackupPayload): Promise<void> {
     await seedIfEmpty()
     if (payload.schema_version < 6) await seedDefaultMessageTemplate()
     if (payload.schema_version < 7) await seedDefaultMealCardMessageTemplate()
+    await assertDatabaseIntegrity()
   })
+}
+
+async function assertDatabaseIntegrity(): Promise<void> {
+  const integrityRows = await select<IntegrityRow>('PRAGMA integrity_check(1)')
+  if (integrityRows[0]?.integrity_check !== 'ok') {
+    throw new Error('导入后的数据库完整性检查失败')
+  }
+
+  const foreignKeyIssues = await select<PlusSqliteRow>('PRAGMA foreign_key_check')
+  if (foreignKeyIssues.length > 0) {
+    throw new Error('导入后的数据关联检查失败')
+  }
 }
 
 export async function clearAllData(): Promise<void> {
