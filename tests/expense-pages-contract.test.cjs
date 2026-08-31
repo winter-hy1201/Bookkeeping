@@ -47,12 +47,12 @@ test('expense list page visual contract uses warm paper semantic tokens', () => 
   assert.doesNotMatch(listPage, /#ee0a24/i)
 })
 
-test('expense new page keeps real form chain, 80px label alignment, and net calculation', () => {
+test('expense new page keeps real form chain, 100px label alignment, and net calculation', () => {
   assert.match(newPage, /useExpenseStore/)
   assert.match(newPage, /expenseStore\.create/)
   assert.match(newPage, /uni-forms/)
   assert.match(newPage, /uni-forms-item/)
-  assert.match(newPage, /label-width="80px"/)
+  assert.match(newPage, /label-width="100px"/)
   assert.match(newPage, /label-align="left"/)
   assert.match(newPage, /name="expense_date"/)
   assert.match(newPage, /name="category_id"/)
@@ -88,7 +88,7 @@ test('expense detail page keeps real data chain, hero summary, form structure, a
   assert.match(detailPage, /expenseStore\.remove/)
   assert.match(detailPage, /uni-forms/)
   assert.match(detailPage, /uni-forms-item/)
-  assert.match(detailPage, /label-width="80px"/)
+  assert.match(detailPage, /label-width="100px"/)
   assert.match(detailPage, /label-align="left"/)
   assert.match(detailPage, /实际支出/)
   assert.match(detailPage, /保存修改/)

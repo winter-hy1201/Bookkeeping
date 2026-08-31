@@ -2,6 +2,7 @@
 import dayjs from 'dayjs'
 import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
+import HejiIcon from '../../components/HejiIcon.vue'
 import CustomerPicker from '../../components/CustomerPicker.vue'
 import { usePageReturnSnapshot } from '../../composables/usePageReturnSnapshot'
 import { getCustomer } from '../../api/customers'
@@ -108,18 +109,18 @@ const rules = {
 }
 
 const mealTypeOptions = [
-  { text: '午餐', value: 'lunch' },
-  { text: '晚餐', value: 'dinner' },
+  { text: '午餐', value: 'lunch', icon: 'Utensils' },
+  { text: '晚餐', value: 'dinner', icon: 'Moon' },
 ]
 const paymentOptions = computed(() => [
-  { text: '微信', value: 'wechat' },
-  { text: '现金', value: 'cash' },
-  { text: '次卡', value: 'meal_card' },
-  { text: '组合支付', value: 'mixed', disabled: form.quantity <= 1 },
+  { text: '微信', value: 'wechat', icon: 'MessageCircle' },
+  { text: '现金', value: 'cash', icon: 'Banknote' },
+  { text: '次卡', value: 'meal_card', icon: 'Ticket' },
+  { text: '组合支付', value: 'mixed', icon: 'Wallet', disabled: form.quantity <= 1 },
 ])
 const moneyMethodOptions = [
-  { text: '微信', value: 'wechat' },
-  { text: '现金', value: 'cash' },
+  { text: '微信', value: 'wechat', icon: 'MessageCircle' },
+  { text: '现金', value: 'cash', icon: 'Banknote' },
 ]
 
 const canEdit = computed(() => order.value?.status === 'pending' && !actioning.value)
@@ -825,9 +826,17 @@ onShow(() => {
                     class="meal-choice"
                     mode="button"
                     :localdata="mealTypeOptions"
-                    selected-color="#c96442"
-                    selected-text-color="#c96442"
-                  />
+                  >
+                    <template #option="{ item, selected, disabled }">
+                      <view
+                        class="choice-option"
+                        :class="{ 'choice-option--selected': selected, 'choice-option--disabled': disabled }"
+                      >
+                        <HejiIcon :name="item.icon" :size="18" />
+                        <text>{{ item.text }}</text>
+                      </view>
+                    </template>
+                  </uni-data-checkbox>
                 </uni-forms-item>
               </view>
 
@@ -853,7 +862,10 @@ onShow(() => {
                       已有 {{ editTargetOrder.quantity }} 份 · {{ orderPaymentSummary(editTargetOrder) }}
                     </text>
                   </view>
-                  <button class="link-button" @click="goTargetOrder">查看目标订单 ›</button>
+                  <button class="link-button" @click="goTargetOrder">
+                    <text>查看目标订单</text>
+                    <HejiIcon name="ChevronRight" :size="16" />
+                  </button>
                 </view>
                 <view
                   v-else-if="editTargetOrder?.status === 'delivered'"
@@ -862,7 +874,10 @@ onShow(() => {
                   <view class="context-box__main">
                     <text class="context-box__title">目标客户本餐次已经配送完成，不能修改到该餐次。</text>
                   </view>
-                  <button class="link-button" @click="goTargetOrder">查看已配送订单 ›</button>
+                  <button class="link-button" @click="goTargetOrder">
+                    <text>查看已配送订单</text>
+                    <HejiIcon name="ChevronRight" :size="16" />
+                  </button>
                 </view>
               </view>
 
@@ -886,9 +901,17 @@ onShow(() => {
                     class="payment-grid"
                     mode="button"
                     :localdata="paymentOptions"
-                    selected-color="#c96442"
-                    selected-text-color="#c96442"
-                  />
+                  >
+                    <template #option="{ item, selected, disabled }">
+                      <view
+                        class="choice-option"
+                        :class="{ 'choice-option--selected': selected, 'choice-option--disabled': disabled }"
+                      >
+                        <HejiIcon :name="item.icon" :size="18" />
+                        <text>{{ item.text }}</text>
+                      </view>
+                    </template>
+                  </uni-data-checkbox>
                 </uni-forms-item>
 
                 <view v-if="isMixed" class="mixed-payment-panel">
@@ -908,9 +931,17 @@ onShow(() => {
                       class="money-method-choice"
                       mode="button"
                       :localdata="moneyMethodOptions"
-                      selected-color="#c96442"
-                      selected-text-color="#c96442"
-                    />
+                    >
+                      <template #option="{ item, selected, disabled }">
+                        <view
+                          class="choice-option"
+                          :class="{ 'choice-option--selected': selected, 'choice-option--disabled': disabled }"
+                        >
+                          <HejiIcon :name="item.icon" :size="18" />
+                          <text>{{ item.text }}</text>
+                        </view>
+                      </template>
+                    </uni-data-checkbox>
                   </uni-forms-item>
                 </view>
 
@@ -1353,7 +1384,7 @@ onShow(() => {
 }
 
 .date-picker :deep(.uni-date-x) {
-  background-color: $hej-color-surface !important;
+  background-color: $hej-color-control !important;
   border: 1rpx solid $hej-color-border !important;
   border-radius: $hej-radius-control !important;
   height: 72rpx !important;
@@ -1390,7 +1421,7 @@ onShow(() => {
   padding: 0 $hej-space-2;
   border: 1rpx solid $hej-color-border !important;
   border-radius: $hej-radius-control;
-  background: $hej-color-surface !important;
+  background: $hej-color-control !important;
   box-sizing: border-box;
 }
 
@@ -1424,6 +1455,27 @@ onShow(() => {
   font-weight: 500;
   line-height: 1.3;
   white-space: nowrap;
+}
+
+.choice-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $hej-space-1;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-body;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.choice-option--selected {
+  color: $hej-color-accent;
+  font-weight: 600;
+}
+
+.choice-option--disabled {
+  opacity: 0.45;
 }
 
 .meal-choice :deep(.checklist-box.is-checked .checklist-text),
@@ -1532,7 +1584,7 @@ onShow(() => {
   padding: 0 $hej-space-5;
   border: 1rpx solid rgba(101, 119, 137, 0.3);
   border-radius: $hej-radius-control;
-  background: $hej-color-surface;
+  background: $hej-color-control;
   box-sizing: border-box;
   color: $hej-color-pending;
   font-size: $hej-font-caption;
@@ -1604,7 +1656,7 @@ onShow(() => {
   padding: 0 $hej-space-3;
   border: 1rpx solid $hej-color-border;
   border-radius: $hej-radius-control;
-  background: $hej-color-surface;
+  background: $hej-color-control;
   box-sizing: border-box;
 }
 
@@ -1650,7 +1702,7 @@ onShow(() => {
 }
 
 .note-input :deep(.uni-easyinput__content) {
-  background: $hej-color-surface !important;
+  background: $hej-color-control !important;
   border: 1rpx solid $hej-color-border !important;
   border-radius: $hej-radius-control !important;
   min-height: 72rpx !important;

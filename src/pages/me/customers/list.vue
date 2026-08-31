@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import HejiIcon from '../../../components/HejiIcon.vue'
 import { listActiveMealCardCustomerIds } from '../../../api/meal-cards'
 import { usePageReturnSnapshot } from '../../../composables/usePageReturnSnapshot'
 import { useCustomerStore } from '../../../stores/customer'
@@ -147,13 +148,19 @@ onShow(() => {
         <uni-easyinput
           v-model="keyword"
           class="search-input"
-          prefix-icon="search"
           placeholder="搜索姓名、微信、手机或拼音"
           :input-border="false"
           :clearable="true"
-        />
+        >
+          <template #left>
+            <HejiIcon class="search-icon" name="Search" :size="18" />
+          </template>
+        </uni-easyinput>
       </view>
-      <button class="add-button" @click="goNew">新增客户</button>
+      <button class="add-button" @click="goNew">
+        <HejiIcon name="Plus" :size="16" />
+        <text>新增客户</text>
+      </button>
     </view>
 
     <scroll-view
@@ -194,7 +201,7 @@ onShow(() => {
                 {{ customer.wechat || customer.phone || '未填写联系方式' }}
               </text>
             </view>
-            <text class="item-arrow">›</text>
+            <HejiIcon class="item-arrow" name="ChevronRight" :size="16" />
           </view>
         </view>
       </view>
@@ -223,7 +230,10 @@ onShow(() => {
       <template v-else>
         <text class="state-title">还没有客户档案</text>
         <text class="state-hint">新建客户后可在此搜索、拼音分组并管理次卡</text>
-        <button class="state-button state-button--primary" @click="goNew">＋ 新增第一位客户</button>
+        <button class="state-button state-button--primary" @click="goNew">
+          <HejiIcon name="Plus" :size="18" />
+          <text>新增第一位客户</text>
+        </button>
       </template>
     </view>
 
@@ -268,7 +278,7 @@ onShow(() => {
   padding: 0 $hej-space-3 !important;
   border: 1rpx solid $hej-color-border !important;
   border-radius: $hej-radius-control !important;
-  background: $hej-color-surface !important;
+  background: $hej-color-control !important;
   box-sizing: border-box;
 }
 
@@ -282,7 +292,16 @@ onShow(() => {
   font-size: $hej-font-body !important;
 }
 
+.search-icon {
+  margin-right: $hej-space-2;
+  color: $hej-color-text-tertiary;
+}
+
 .add-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $hej-space-1;
   flex: 0 0 auto;
   min-width: 160rpx;
   height: 76rpx;
@@ -418,8 +437,6 @@ onShow(() => {
   flex: 0 0 auto;
   margin-left: $hej-space-2;
   color: $hej-color-text-tertiary;
-  font-size: 34rpx;
-  line-height: 1;
 }
 
 .list-footer {
@@ -461,6 +478,10 @@ onShow(() => {
 }
 
 .state-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $hej-space-1;
   min-width: 240rpx;
   height: 72rpx;
   margin-top: $hej-space-4;

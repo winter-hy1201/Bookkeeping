@@ -50,11 +50,11 @@ test('customer list page visual contract uses warm paper semantic tokens', () =>
   assert.match(listPage, /\$hej-color-border/)
 })
 
-test('customer form page adheres to 80px label business form specification and validation', () => {
+test('customer form page adheres to 100px label business form specification and validation', () => {
   assert.match(newPage, /useCustomerStore\(\)/)
   assert.match(newPage, /getCustomer/)
   assert.match(newPage, /DuplicateCustomerNameError/)
-  assert.match(newPage, /label-width="80px"/)
+  assert.match(newPage, /label-width="100px"/)
   assert.match(newPage, /label="姓名"/)
   assert.match(newPage, /label="手机"/)
   assert.match(newPage, /label="微信"/)

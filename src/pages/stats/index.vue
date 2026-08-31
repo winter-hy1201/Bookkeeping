@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import HejiIcon from '../../components/HejiIcon.vue'
 import { usePageReturnSnapshot } from '../../composables/usePageReturnSnapshot'
 import { useExpenseStore } from '../../stores/expense'
 import { useStatsStore } from '../../stores/stats'
 import { formatDate, monthRange, today, weekRange } from '../../utils/date'
 import { divideMoney, formatMoney } from '../../utils/format'
+import { resolveLucideIconName } from '../../utils/icon'
 import { showToast } from '../../utils/ui'
 
 type RangeMode = 'today' | 'week' | 'month' | 'custom'
@@ -150,7 +152,7 @@ function formatProfit(value: number): string {
 }
 
 function categoryIcon(id: number): string {
-  return categoryIconMap.value.get(id) ?? '📦'
+  return resolveLucideIconName(categoryIconMap.value.get(id))
 }
 
 onShow(() => {
@@ -227,13 +229,13 @@ onShow(() => {
         </view>
 
         <view v-if="isInitialLoading" class="state-card state-card--loading">
-          <uni-icons type="refreshempty" size="24" color="inherit"></uni-icons>
+          <HejiIcon name="RefreshCw" :size="24" />
           <text class="state-card__title">正在读取对账数据</text>
           <text class="state-card__description">收支汇总、逐日趋势与分类明细马上就绪。</text>
         </view>
 
         <view v-else-if="!hasLoaded && loadError" class="state-card state-card--error">
-          <uni-icons type="closeempty" size="24" color="inherit"></uni-icons>
+          <HejiIcon name="CircleX" :size="24" />
           <text class="state-card__title">对账数据加载失败</text>
           <text class="state-card__description">请检查本地数据库状态后重试，已有数据不会被影响。</text>
           <button class="retry-button" :disabled="isRefreshing" @click="retry">
@@ -256,7 +258,7 @@ onShow(() => {
             <view class="metric-card">
               <view class="metric-card__header">
                 <view class="metric-card__icon metric-card__icon--income">
-                  <uni-icons type="wallet" size="16" color="inherit"></uni-icons>
+                  <HejiIcon name="Wallet" :size="16" />
                 </view>
                 <text class="metric-card__label">入账收入</text>
               </view>
@@ -266,7 +268,7 @@ onShow(() => {
             <view class="metric-card">
               <view class="metric-card__header">
                 <view class="metric-card__icon metric-card__icon--expense">
-                  <uni-icons type="cart" size="16" color="inherit"></uni-icons>
+                  <HejiIcon name="ShoppingCart" :size="16" />
                 </view>
                 <text class="metric-card__label">支出</text>
               </view>
@@ -276,7 +278,7 @@ onShow(() => {
             <view class="metric-card">
               <view class="metric-card__header">
                 <view class="metric-card__icon metric-card__icon--profit">
-                  <uni-icons type="paperplane" size="16" color="inherit"></uni-icons>
+                  <HejiIcon name="Send" :size="16" />
                 </view>
                 <text class="metric-card__label">利润</text>
               </view>
@@ -288,7 +290,7 @@ onShow(() => {
             <view class="metric-card">
               <view class="metric-card__header">
                 <view class="metric-card__icon metric-card__icon--orders">
-                  <uni-icons type="list" size="16" color="inherit"></uni-icons>
+                  <HejiIcon name="List" :size="16" />
                 </view>
                 <text class="metric-card__label">有效订单</text>
               </view>
@@ -377,7 +379,7 @@ onShow(() => {
                 class="breakdown-row"
               >
                 <view class="breakdown-icon">
-                  <text class="breakdown-emoji">{{ categoryIcon(item.categoryId) }}</text>
+                  <HejiIcon class="breakdown-emoji" :name="categoryIcon(item.categoryId)" :size="18" />
                 </view>
                 <text class="breakdown-label">{{ item.categoryName }}</text>
                 <view class="trend-track">

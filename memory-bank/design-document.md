@@ -159,7 +159,7 @@ CREATE INDEX idx_orders_date_meal_sort ON orders(order_date, meal_type, sort_ord
 CREATE TABLE expense_categories (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL UNIQUE,              -- '菜品' '工具' '耗材' '配送' '其他'
-  icon TEXT,                              -- emoji 或图标名
+  icon TEXT,                              -- Lucide 原始图形名称
   sort_order INTEGER NOT NULL DEFAULT 0,
   is_default INTEGER NOT NULL DEFAULT 0   -- 1=默认分类（不可删）
 );
@@ -274,7 +274,8 @@ CREATE INDEX idx_meal_card_template_versions_template
 
 **expense_categories 表**：
 - `is_default=1` 的分类初始化时插入，运行时不可删（防误操作）
-- `icon` 字段 v1 用 emoji（🥬 菜品 / 🔧 工具 / 📦 耗材 / 🛵 配送 / 💰 其他），v1.1 换图标库
+- 当前数据库与 seed 的默认分类图标统一使用 Lucide 原始名称（`Utensils` 菜品 / `Wrench` 工具 / `Package` 耗材 / `Bike` 配送 / `Wallet` 其他）；schema v8 迁移会把旧库中的五个分类 emoji 转换为这些名称
+- 旧备份导入时也会将已知分类 emoji 归一化；新的应用代码若写入图标值，直接使用 Lucide 的原始导出名称，不创建业务语义别名；分类 API 仍只读
 
 **expenses 表**：
 - `amount` 记录原始支出金额，必须大于 0。
@@ -297,14 +298,16 @@ CREATE INDEX idx_meal_card_template_versions_template
 
 ```sql
 INSERT INTO expense_categories (name, icon, sort_order, is_default) VALUES
-  ('菜品', '🥬', 1, 1),
-  ('工具', '🔧', 2, 1),
-  ('耗材', '📦', 3, 1),
-  ('配送', '🛵', 4, 1),
-  ('其他', '💰', 5, 1);
+  ('菜品', 'Utensils', 1, 1),
+  ('工具', 'Wrench', 2, 1),
+  ('耗材', 'Package', 3, 1),
+  ('配送', 'Bike', 4, 1),
+  ('其他', 'Wallet', 5, 1);
 ```
 
-schema v6 迁移时若菜单模板表为空，插入“日常午晚餐”默认模板；schema v7 迁移时若月卡模板表为空，插入“月卡信息”默认模板。两个动作只发生在对应迁移或危险清空，不在每次启动时重复执行，用户可以主动删除最后一个对应类型的模板。
+> 分类数据兼容边界：schema v8 启动迁移会把当前库中已知系统分类 emoji 转为 Lucide 原始名称；旧备份导入在写入时做同样归一化。模板正文、社群文案和用户输入中的 emoji 不属于分类图标，不做替换。
+
+schema v6 迁移时若菜单模板表为空，插入“日常午晚餐”默认模板；schema v7 迁移时若月卡模板表为空，插入“月卡信息”默认模板；schema v8 迁移时将旧系统分类 emoji 转为 Lucide 原始名称。前两个动作只发生在对应迁移或危险清空，分类转换只处理已知历史值，均不在每次启动时重复执行。
 
 ---
 
@@ -443,7 +446,7 @@ schema v6 迁移时若菜单模板表为空，插入“日常午晚餐”默认�
       {
         "version": "1.0",
         "exported_at": "2026-06-09T22:00:00Z",
-        "schema_version": 7,
+        "schema_version": 8,
         "customers": [...],
         "meal_cards": [...],
         "orders": [...],
@@ -469,7 +472,7 @@ schema v6 迁移时若菜单模板表为空，插入“日常午晚餐”默认�
       - 粘贴 JSON 文本
       - 从 `_doc/backup_*.json` 已保存备份列表选择
       - 从本地 JSON 文件选择器读取（Android App 端用系统 Intent；其他端 fallback 到 `uni.chooseFile`）
-   2. 解析 JSON + 校验 schema_version：当前 v7 直接导入；v1-v6 补齐缺失字段并按 v7 规则升级；无效或高于当前版本时报错"备份文件版本不兼容"
+   2. 解析 JSON + 校验 schema_version：当前 v8 直接导入；v1-v7 补齐缺失字段并按 v8 规则升级（包括分类图标归一化）；无效或高于当前版本时报错"备份文件版本不兼容"
    3. 二次确认："导入将覆盖所有现有数据，无法恢复。是否继续？"
    4. 事务：
       DELETE FROM meal_card_template_versions / meal_card_message_templates / template_versions / message_templates / daily_menus / meal_card_usages / orders / expenses / meal_cards / customers / expense_categories
@@ -630,7 +633,7 @@ schema v6 迁移时若菜单模板表为空，插入“日常午晚餐”默认�
 - 微信 / 现金 / 次卡是一级选择；份数大于 1 才出现组合支付入口。用户主动进入组合支付时，次卡次数预填 1 次，并可用步进器调整；剩余份数、补款渠道和金额随之计算，系统不自动改为次卡。
 - 有货币部分时，实际单价直接显示输入框；选定客户后带入默认或已有订单单价，用户可立即覆盖。备注是一行常显输入，不折叠。
 - 页面后台预检同键订单和次卡余额；pending 显示将合并的紧凑提示，delivered 阻断新增，单价变化才二次确认。底部固定确认区展示金额 / 支付摘要和当前缺失项；保存成功后弹窗选择继续下一单（只清本次字段）或结束录单（回到当前日期列表）。
-- 订单详情编辑态沿用同一套连续白色表面、80px 标签列、单行字段、分隔线、提示位置和底部固定确认区；但保持详情页语义：份数是整单总量，支付继续提供微信 / 现金 / 次卡 / 组合支付四种既有选项，窄屏下以两列展示。目标订单合并确认、次卡预占、配送 / 取消 / 删除等行为不随样式同步而改变。
+- 订单详情编辑态沿用同一套连续白色表面、100px 标签列、单行字段、分隔线、提示位置和底部固定确认区；但保持详情页语义：份数是整单总量，支付继续提供微信 / 现金 / 次卡 / 组合支付四种既有选项，窄屏下以两列展示。目标订单合并确认、次卡预占、配送 / 取消 / 删除等行为不随样式同步而改变。
 
 ```
 ┌────────────────────────────────────┐
@@ -709,7 +712,7 @@ schema v6 迁移时若菜单模板表为空，插入“日常午晚餐”默认�
 
 ### 7.1 v1.0 内预留字段
 - `orders.note`：备注字段，v1 简单文本，v1.1 可做模板
-- `expense_categories.icon`：v1 emoji 即可，v1.1 换图标库
+- `expense_categories.icon`：当前库统一保存 Lucide 原始名称；schema v8 负责迁移旧系统分类 emoji，未来新增值直接保存 Lucide 原始名称
 - `customers.phone`：可空，v1.1 加"一键拨号"按钮
 
 ### 7.2 v1.1 候选

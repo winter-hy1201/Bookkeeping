@@ -27,8 +27,9 @@ Issue #2 的今日页采用暖纸张（warm-paper）契约：画布 #F5F4ED，�
 |---|---|---|---|
 | 画布 | `$hej-color-canvas` | `#F5F4ED` | 页面背景 |
 | 表面 | `$hej-color-surface` / `$hej-color-surface-subtle` | `#FAF9F5` / `#E8E6DC` | 卡片、弱分区、固定确认区 |
+| 控件表面 | `$hej-color-control` / `$hej-color-control-disabled` | `#FCFBF8` / `#EFEEE7` | 输入、选择、步进器及禁用控件 |
 | 文字 | `$hej-color-text` / `$hej-color-text-secondary` / `$hej-color-text-tertiary` | `#141413` / `#5E5D59` / `#87867F` | 标题、说明、辅助信息 |
-| 边界 | `$hej-color-border` | `#E8E6DC` | 卡片、输入和分隔线 |
+| 边界 | `$hej-color-border` / `$hej-color-border-strong` | `#E8E6DC` / `#D8D4C8` | 卡片、输入、分隔线和聚焦前的明确边界 |
 | 主动作 | `$hej-color-accent` / `$hej-color-accent-soft` | `#C96442` / `#F3E7E1` | 新建、保存、今日页入口 |
 | 待配送 | `$hej-color-pending` / `$hej-color-pending-soft` | `#657789` / `#EEF1F3` | 待配送状态 |
 | 已配送 | `$hej-color-delivered` / `$hej-color-delivered-soft` | `#64745B` / `#EEF0E8` | 已配送、正利润 |
@@ -40,6 +41,20 @@ Issue #2 的今日页采用暖纸张（warm-paper）契约：画布 #F5F4ED，�
 使用 `$hej-*` 的 Vue 样式块必须声明 `<style ... lang="scss">`；否则 token 会作为无效 CSS 原样输出，App 会回退到平台默认样式。
 
 当前 App 是**浅色优先**，尚未提供可切换的暗色运行时主题；不得把“暗色支持”写成已实现。后续引入暗色时，必须保持上述语义 token 名不变，只替换值并重新验收可读性。
+
+### 2.1 控件主题桥接与状态
+
+- `$hej-*` Sass 变量是颜色事实源；应用全局页样式从同一组值输出 `--hej-*` CSS 变量，组件内联样式不得复制另一套色值。
+- 控件默认态使用 `$hej-color-control`，页面画布与控件表面必须能被肉眼区分；禁止让 `uni-easyinput` 回退为纯白输入区域。
+- 聚焦态使用 `$hej-color-accent` 边界；已填态沿用默认控件表面；禁用态使用 `$hej-color-control-disabled` 和低对比度文字；错误态使用 `$hej-color-danger` 边界和错误提示；只读态保持可读但不模拟可编辑焦点；按下态降低透明度或使用 `$hej-color-accent-soft`。
+- 本地 `src/uni_modules` 组件可以直接读取盒记主题变量。修改组件源码时保持原有 `v-model`、表单校验、事件名和平台分支不变。
+
+### 2.2 图标
+
+- 业务界面图标统一使用 `@lucide/vue` 的线性图形，并通过 `HejiIcon` 渲染；名称直接使用 Lucide 原始导出名，不创建业务别名。`HejiIcon` 在 app-plus 中将 Lucide 原始节点序列化为 CSS mask，避免 Android WebView 对内联 SVG 的不绘制问题。
+- 默认图标栅格使用 20 / 24；线宽默认为 1.8–2；图标颜色继承所属文字或状态 token，不单独发明颜色。
+- 纯图标操作必须有可读 label；文字旁图标是装饰性辅助。删除、取消等危险动作不能只显示图标。
+- 模板正文、社群文案和用户输入中的 emoji 属于内容，继续保留；数据库中的系统分类图标统一保存 Lucide 原始名称，v8 迁移和旧备份导入负责归一化历史 emoji。
 
 ## 3. 组件与状态规则
 
@@ -101,14 +116,14 @@ Issue #2 的今日页采用暖纸张（warm-paper）契约：画布 #F5F4ED，�
 ### 4.3 页面、表面与密度
 
 - 表单页使用 `$hej-color-canvas` 画布和 `0 $hej-space-1` 页面横向内边距；引用 token 的样式块必须使用 `lang="scss"`。
-- 主表单使用连续的 `$hej-color-surface` 白色表面，不为普通业务分组增加独立背景、边框、圆角、阴影或装饰标题卡。
+- 主表单使用连续的 `$hej-color-surface` 暖象牙色表面，不为普通业务分组增加独立背景、边框、圆角、阴影或装饰标题卡；控件内部使用 `$hej-color-control`，不得出现刺眼的纯白输入底。
 - 分组使用 `$hej-space-5` 内边距，以及左右缩进的 `1rpx` `$hej-color-border` 分隔线；普通行间距为 `$hej-space-5`，分组末行归零。
 - 备注默认常显为单行紧凑输入，只有业务明确需要长文本时才使用多行；日期等通用输入占满内容列。
 - 金额输入沿用“前缀 + 无内边框输入框”的一体控件。条件展开区与主表单保持同一白色表面和控件起点，不额外缩进或套灰色卡片。
 
 ### 4.4 选择控件、提示与辅助操作
 
-- 按钮型单选使用不换行、等宽、居中布局，选中态使用 `$hej-color-accent-soft`；内容容器和选项必须允许收缩，避免窄屏文字挤压。
+- 按钮型单选使用不换行、等宽、居中布局，选中态使用 `$hej-color-accent-soft`；内容容器和选项必须允许收缩，避免窄屏文字挤压。选项可以通过本地 `uni-data-checkbox` 的内容插槽加入 Lucide 图标，但文字仍必须可见。
 - 选项较多时可使用等宽多列，但不得牺牲文字完整性和触摸尺寸。
 - 上下文、警告和错误紧跟所属字段，分别使用既有 surface / accent / warning / danger 语义色，不新增无关装饰。
 - 提示内辅助按钮保持 `min-width: 200rpx`、`height: 64rpx`、水平内边距 `$hej-space-5`、文字不换行，并清除 uni-app 默认伪边框；不能让按钮按文字宽度收缩到拥挤。
@@ -144,13 +159,15 @@ Issue #2 的今日页采用暖纸张（warm-paper）契约：画布 #F5F4ED，�
 - [ ] loading、empty、error、disabled、保存中状态都有可读文案。
 - [ ] 空态提供与当前上下文一致的下一步。
 - [ ] 状态颜色不承担唯一信息，文字仍能表达状态。
+- [ ] 界面图标来自 `HejiIcon`；纯图标操作有 label，内容 emoji 没有被误删。
+- [ ] 输入、选择和步进控件使用暖控件表面，默认态、聚焦态、禁用态和错误态可区分，未回退到纯白内底。
 - [ ] 手机宽度下文本不截断关键金额、订单数量或确认按钮；主操作触达区域至少 88rpx。
 - [ ] 业务表单已按 §4 对照当前 `src/pages/order/new.vue`，标签列、控件起点、连续表面、分隔线、辅助按钮和底部确认区没有漂移。
 - [ ] 表单底部有足够滚动留白，固定确认区不遮挡最后一个字段。
 - [ ] 不改动金额计算、订单状态机、SQLite 写入与既有业务错误边界。
 - [ ] 已配送次卡订单复制出的月卡信息使用配送后的实际可用余额，并在标记配送后仍可从当前详情页操作。
-- [ ] 运行 `pnpm test`、`pnpm type-check`、`pnpm lint`、`pnpm build:h5`、`git diff --check`；Android 交互仍以 HBuilderX 真机回归为准。
+- [ ] 运行 `pnpm test`、`pnpm type-check`、`pnpm lint`、`pnpm build:h5`、`git diff --check`；App-plus 图标绘制至少在 HBuilderX Android 模拟器验证，物理真机的交互与视觉回归仍单独记录。
 
 ## 7. 例外
 
-`src/pages.json`、uni-ui 第三方组件和平台原生配置可能必须使用静态色值；这类值应与 token 对齐，并在代码评审时说明原因。现有未触及页面的历史样式不要求在一次需求中全量重写，但新的视觉改动不得继续扩大旧的硬编码模式。
+平台原生配置可能必须使用静态色值；这类值应与 token 对齐，并在代码评审时说明原因。`src/uni_modules` 是随项目维护的本地组件源码，允许为盒记主题直接修改；现有未触及页面的历史样式不要求在一次需求中全量重写，但新的视觉改动不得继续扩大旧的硬编码模式。

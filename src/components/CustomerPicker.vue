@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
+import HejiIcon from './HejiIcon.vue'
 import { useCustomerStore } from '../stores/customer'
 import type { Customer } from '../types/domain'
 import {
@@ -128,14 +129,14 @@ function handleCreate(): void {
       <text class="picker-value" :class="{ 'picker-value--empty': !modelValue }">
         {{ selectedText }}
       </text>
-      <text class="picker-arrow">›</text>
+      <HejiIcon class="picker-arrow" name="ChevronRight" :size="18" />
     </view>
 
     <view v-if="visible" class="picker-mask" @click="closeSheet">
       <view class="picker-panel" @click.stop>
         <view class="picker-handle"></view>
         <view class="search-box">
-          <text class="search-icon">🔍</text>
+          <HejiIcon class="search-icon" name="Search" :size="18" />
           <uni-easyinput
             v-model="keyword"
             class="search-input"
@@ -193,7 +194,10 @@ function handleCreate(): void {
           </text>
         </view>
 
-        <button v-if="showCreate" class="create-button" @click="handleCreate">+ 新建客户</button>
+        <button v-if="showCreate" class="create-button" @click="handleCreate">
+          <HejiIcon name="Plus" :size="16" />
+          <text>新建客户</text>
+        </button>
       </view>
     </view>
   </view>
@@ -234,8 +238,6 @@ function handleCreate(): void {
   flex: 0 0 auto;
   margin-left: $hej-space-2;
   color: $hej-color-text-tertiary;
-  font-size: $hej-font-title;
-  line-height: 1;
 }
 
 .picker-mask {
@@ -280,8 +282,7 @@ function handleCreate(): void {
 .search-icon {
   flex: 0 0 auto;
   margin-right: $hej-space-2;
-  font-size: $hej-font-meta;
-  line-height: 1;
+  color: $hej-color-text-tertiary;
 }
 
 .search-input {
@@ -377,6 +378,10 @@ function handleCreate(): void {
 }
 
 .create-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $hej-space-1;
   height: 80rpx;
   margin-top: $hej-space-4;
   border-radius: $hej-radius-control;

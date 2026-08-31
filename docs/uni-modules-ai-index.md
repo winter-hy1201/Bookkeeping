@@ -1,6 +1,6 @@
 # 本地 uni_modules — AI 选型索引
 
-> 快照：2026-07-22；覆盖 `src/uni_modules/*/package.json` 中的 **45 个**本地包。源码与本地 README 是唯一 API 事实源，本文件只解决“先用哪个”。
+> 快照：2026-08-31；覆盖 `src/uni_modules/*/package.json` 中的 **45 个**本地包。源码与本地 README 是唯一 API 事实源，本文件只解决“先用哪个”。
 
 ## 使用规则
 
@@ -9,6 +9,7 @@
 3. 选中后先读本地 README，再参考“项目内用例”；`已安装待验证` 的首次使用还要完成对应 HBuilderX Android 回归。
 4. 业务表单必须在 `<uni-forms>` + `<uni-forms-item>` 内使用输入 / 选择组件。没有合格本地项时，先做最小自定义；新增外部依赖须先说明并获准。
 5. 不因本索引追溯替换已有页面。增删本地包、升级版本或形成新项目用例时，同步更新本文件。
+6. `src/uni_modules` 是本项目随代码维护的本地组件源码；允许为盒记主题直接修改，后续不以自动跟随上游组件升级为目标。
 
 ## 状态含义
 
@@ -23,11 +24,11 @@
 | 本地包 / 可用标签 | 状态 | 可优先考虑的场景 | 关键边界 | 项目内用例 |
 |---|---|---|---|---|
 | [uni-forms](../src/uni_modules/uni-forms/readme.md) v1.4.13<br>`uni-forms`、`uni-forms-item` | 已验证 | 所有业务表单的容器、校验与提交 | 输入控件必须放入 item；字段 `name`、form key、rules 一一对应 | `src/pages/order/new.vue`、`src/pages/me/menus/edit.vue` |
-| [uni-easyinput](../src/uni_modules/uni-easyinput/readme.md) v1.1.22<br>`uni-easyinput` | 已验证 | 文本、数字、金额、备注输入 | 业务表单中须套 forms；`@input` 返回字符串，金额走现有解析 helper | `src/components/AmountInput.vue`、`src/pages/me/menu-templates/edit.vue` |
-| [uni-data-checkbox](../src/uni_modules/uni-data-checkbox/readme.md) v1.0.6<br>`uni-data-checkbox` | 已验证 | 固定选项的单选 / 多选 | 业务表单中须套 forms；确认单选/多选与数据模型一致 | `src/pages/order/new.vue` |
-| [uni-data-select](../src/uni_modules/uni-data-select/readme.md) v1.1.0<br>`uni-data-select` | 已验证 | 扁平选项下拉选择 | 业务表单中须套 forms；复杂级联改查 data-picker | `src/pages/me/expenses/new.vue` |
-| [uni-datetime-picker](../src/uni_modules/uni-datetime-picker/readme.md) v2.2.42<br>`uni-datetime-picker` | 已验证 | 日期、时间、日期范围 | 业务表单中须套 forms；确认返回格式与 `src/utils/date.ts` 一致 | `src/pages/order/new.vue`、`src/pages/me/menus/edit.vue` |
-| [uni-number-box](../src/uni_modules/uni-number-box/readme.md) v1.2.8<br>`uni-number-box` | 已验证 | 小范围整数 / 小数步进 | 业务表单中须套 forms；金额不能绕过 big.js 计算规则 | `src/pages/order/new.vue` |
+| [uni-easyinput](../src/uni_modules/uni-easyinput/readme.md) v1.1.22<br>`uni-easyinput` | 已验证（本地维护） | 文本、数字、金额、备注输入 | 业务表单中须套 forms；`@input` 返回字符串，金额走现有解析 helper；默认值与状态使用盒记控件主题 | `src/components/AmountInput.vue`、`src/pages/me/menu-templates/edit.vue` |
+| [uni-data-checkbox](../src/uni_modules/uni-data-checkbox/readme.md) v1.0.6<br>`uni-data-checkbox` | 已验证（本地维护） | 固定选项的单选 / 多选 | 业务表单中须套 forms；确认单选/多选与数据模型一致；本地补充选项内容插槽承载 Lucide 图标 | `src/pages/order/new.vue` |
+| [uni-data-select](../src/uni_modules/uni-data-select/readme.md) v1.1.0<br>`uni-data-select` | 已验证（本地维护） | 扁平选项下拉选择 | 业务表单中须套 forms；复杂级联改查 data-picker；输入面、弹层与箭头主题由盒记补丁维护 | `src/pages/me/expenses/new.vue` |
+| [uni-datetime-picker](../src/uni_modules/uni-datetime-picker/readme.md) v2.2.42<br>`uni-datetime-picker` | 已验证（本地维护） | 日期、时间、日期范围 | 业务表单中须套 forms；确认返回格式与 `src/utils/date.ts` 一致；可见图标与面板主题由盒记补丁维护 | `src/pages/order/new.vue`、`src/pages/me/menus/edit.vue` |
+| [uni-number-box](../src/uni_modules/uni-number-box/readme.md) v1.2.8<br>`uni-number-box` | 已验证（本地维护） | 小范围整数 / 小数步进 | 业务表单中须套 forms；金额不能绕过 big.js 计算规则；按钮与输入面使用盒记控件主题 | `src/pages/order/new.vue` |
 | [uni-combox](../src/uni_modules/uni-combox/readme.md) v1.0.2<br>`uni-combox` | 已安装待验证 | 可输入也可从候选项选择 | 业务表单中须套 forms；先确认 Android 键盘与候选交互 | 暂无项目内用例 |
 | [uni-data-picker](../src/uni_modules/uni-data-picker/readme.md) v2.0.2<br>`uni-data-picker`、`uni-data-pickerview` | 已安装待验证 | 多列或级联数据选择 | 业务表单中须套 forms；扁平选项优先 data-select | 暂无项目内用例 |
 | [uni-calendar](../src/uni_modules/uni-calendar/readme.md) v1.4.12<br>`uni-calendar`、`uni-calendar-item` | 已安装待验证 | 独立日历、日历范围展示 | 普通表单日期优先 datetime-picker；先验证 App 端范围选择 | 暂无项目内用例 |
@@ -38,7 +39,7 @@
 
 | 本地包 / 可用标签 | 状态 | 可优先考虑的场景 | 关键边界 | 项目内用例 |
 |---|---|---|---|---|
-| [uni-collapse](../src/uni_modules/uni-collapse/readme.md) v1.4.8<br>`uni-collapse`、`uni-collapse-item` | 已验证 | 可折叠的分组内容 | `model-value` 受控时确认默认展开逻辑 | `src/pages/order/index.vue` |
+| [uni-collapse](../src/uni_modules/uni-collapse/readme.md) v1.4.8<br>`uni-collapse`、`uni-collapse-item` | 已验证（本地维护） | 可折叠的分组内容 | `model-value` 受控时确认默认展开逻辑；可见箭头使用盒记 Lucide 图标 | `src/pages/order/index.vue` |
 | [uni-list](../src/uni_modules/uni-list/readme.md) v1.2.17<br>`uni-list`、`uni-list-item`、`uni-list-chat`、`uni-list-ad`、`uni-refresh` | 已安装待验证 | 结构化移动端列表 | 先确认现有自定义列表样式是否更贴合设计基线 | 暂无项目内用例 |
 | [uni-indexed-list](../src/uni_modules/uni-indexed-list/readme.md) v1.2.2<br>`uni-indexed-list`、`uni-indexed-list-item` | 已安装待验证 | 大量按字母分组的可索引列表 | CustomerPicker 已有定制拼音索引；不要无理由替换 | 暂无项目内用例 |
 | [uni-pagination](../src/uni_modules/uni-pagination/readme.md) v1.2.4<br>`uni-pagination` | 已安装待验证 | 显式页码分页 | 当前本地小数据量列表未采用分页 | 暂无项目内用例 |
@@ -58,7 +59,7 @@
 
 | 本地包 / 可用标签 | 状态 | 可优先考虑的场景 | 关键边界 | 项目内用例 |
 |---|---|---|---|---|
-| [uni-icons](../src/uni_modules/uni-icons/readme.md) v2.0.12<br>`uni-icons` | 已验证 | 通用图标、拖拽把手、状态辅助 | 图标只辅助文字；危险 / 关键操作不能只靠图标 | `src/pages/order/index.vue` |
+| [uni-icons](../src/uni_modules/uni-icons/readme.md) v2.0.12<br>`uni-icons` | 兼容保留 | 尚未迁移的通用 uni-ui 内部依赖 | 业务页面不得直接使用；新界面图标统一走 `HejiIcon` | 无直接业务用例 |
 | [uni-popup](../src/uni_modules/uni-popup/readme.md) v1.9.12<br>`uni-popup`、`uni-popup-dialog`、`uni-popup-message`、`uni-popup-share` | 已安装待验证 | 非路由弹层、确认或临时信息 | 破坏性动作仍须清楚说明；先验证 Android 返回键与层级 | 暂无项目内用例 |
 | [uni-drawer](../src/uni_modules/uni-drawer/readme.md) v1.2.1<br>`uni-drawer` | 已安装待验证 | 侧边抽屉 | 不替代现有 Tab / 页面导航；确认手势冲突 | 暂无项目内用例 |
 | [uni-fab](../src/uni_modules/uni-fab/readme.md) v1.2.6<br>`uni-fab` | 已安装待验证 | 浮动主操作及其少量扩展动作 | 不遮挡底部固定确认区或 TabBar | 暂无项目内用例 |
@@ -82,6 +83,14 @@
 | [uni-goods-nav](../src/uni_modules/uni-goods-nav/readme.md) v1.2.1<br>`uni-goods-nav` | 按明确需求使用 | 商品详情底部购买 / 购物车导航 | 盒记不是电商商品页；不能拿来替代订单确认区 | 暂无项目内用例 |
 | [uni-scss](../src/uni_modules/uni-scss/readme.md) v1.0.3 | 按明确需求使用 | uni-ui 全局 SCSS 支持 | 不是可渲染组件；沿用现有 token 与 Sass 配置 | 暂无项目内用例 |
 | [uni-ui](../src/uni_modules/uni-ui/readme.md) v1.5.12<br>`uni-ui` | 按明确需求使用 | uni-ui 聚合 / 基础包 | 不是具体交互控件；应从上方具体包选择 | 暂无项目内用例 |
+
+## 盒记本地维护补丁
+
+- `src/uni_modules/uni-easyinput`：默认背景、禁用背景、边框和错误状态接入 `--hej-*` 控件变量，修复输入区域回退纯白的问题；保留原有 `v-model`、`@input` 和 `uni-forms` 连接。
+- `src/uni_modules/uni-data-checkbox`：保留原有选择行为，增加选项内容插槽，使餐次和支付按钮可以显示 Lucide 图形与可见文字。
+- `src/uni_modules/uni-data-select`、`uni-datetime-picker`、`uni-number-box`、`uni-collapse-item`：可见输入面、弹层、步进按钮和折叠箭头接入盒记主题；可见图标直接改为 Lucide 原始名称。
+- `src/uni_modules/uni-easyinput`：清除、密码可见性及前后缀图标也走 `HejiIcon`；未被业务页面带出的通用 uni-ui 组件仍可保留 `uni-icons` 兼容依赖。
+- `@lucide/vue`：项目级图标依赖，固定版本和许可证记录见 [`docs/third-party-licenses.md`](third-party-licenses.md)。
 
 ## 维护检查
 

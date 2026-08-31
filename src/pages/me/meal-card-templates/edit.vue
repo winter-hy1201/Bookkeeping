@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import HejiIcon from '../../../components/HejiIcon.vue'
 import {
   createMealCardMessageTemplate,
   getMealCardMessageTemplate,
@@ -165,7 +166,7 @@ onLoad((query) => {
 
         <!-- Warm Sand Syntax Note Banner -->
         <InfoBanner
-          icon="ⓘ"
+          icon="Info"
           text="月卡通知需要同时包含“本次使用份数”和“当前可用份数”两个占位符，否则无法保存为模板。"
         />
 
@@ -215,16 +216,25 @@ onLoad((query) => {
             <text class="panel-hint">点击追加标记到正文末尾，可自由编辑位置</text>
           </view>
           <view class="insert-actions">
-            <button class="chip-btn" @click="insertUsedMeals">本次使用份数 ＋</button>
-            <button class="chip-btn" @click="insertAvailableMeals">当前可用份数 ＋</button>
-            <button class="chip-btn chip-btn--subtle" @click="useDefaultBody">内置正文 ＋</button>
+            <button class="chip-btn" @click="insertUsedMeals">
+              <text>本次使用份数</text>
+              <HejiIcon name="Plus" :size="14" />
+            </button>
+            <button class="chip-btn" @click="insertAvailableMeals">
+              <text>当前可用份数</text>
+              <HejiIcon name="Plus" :size="14" />
+            </button>
+            <button class="chip-btn chip-btn--subtle" @click="useDefaultBody">
+              <text>内置正文</text>
+              <HejiIcon name="Plus" :size="14" />
+            </button>
           </view>
         </view>
 
         <!-- Syntax Error Warning Card -->
         <view v-if="validationError" class="validation-card">
           <view class="validation-header">
-            <text class="validation-icon">⚠️</text>
+            <HejiIcon class="validation-icon" name="CircleAlert" :size="18" />
             <text class="validation-title">模板还不能保存</text>
           </view>
           <text class="validation-text">{{ validationError }}</text>
@@ -245,8 +255,13 @@ onLoad((query) => {
     <view class="confirm-bar">
       <view class="confirm-status">
         <view class="status-indicator">
-          <text v-if="validationError" class="status-icon status-icon--error">✕</text>
-          <text v-else class="status-icon status-icon--success">✓</text>
+          <HejiIcon
+            v-if="validationError"
+            class="status-icon status-icon--error"
+            name="CircleX"
+            :size="18"
+          />
+          <HejiIcon v-else class="status-icon status-icon--success" name="CircleCheck" :size="18" />
           <text
             class="confirm-title"
             :class="{ 'confirm-title--error': Boolean(validationError) }"
@@ -352,7 +367,7 @@ onLoad((query) => {
 
 .divider {
   height: 1rpx;
-  margin: $hej-space-3 0 $hej-space-3 80px;
+  margin: $hej-space-3 0 $hej-space-3 100px;
   background: $hej-color-border;
 }
 
@@ -387,6 +402,10 @@ onLoad((query) => {
 }
 
 .chip-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $hej-space-1;
   height: 64rpx;
   margin: 0;
   padding: 0 $hej-space-4;

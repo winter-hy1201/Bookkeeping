@@ -85,7 +85,7 @@ export const SCHEMA_EXPENSE_CATEGORIES = `
 CREATE TABLE IF NOT EXISTS expense_categories (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL UNIQUE,
-  icon TEXT,
+  icon TEXT,                              -- Lucide 原始图形名称
   sort_order INTEGER NOT NULL DEFAULT 0,
   is_default INTEGER NOT NULL DEFAULT 0
 );
@@ -176,4 +176,4 @@ CREATE INDEX IF NOT EXISTS idx_meal_card_template_versions_template
  *   1. 在 MIGRATIONS 数组末尾追加新的一段 SQL
  *   2. CURRENT_SCHEMA_VERSION += 1
  */
-export const CURRENT_SCHEMA_VERSION = 7
+export const CURRENT_SCHEMA_VERSION = 8

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
+import HejiIcon from '../../../components/HejiIcon.vue'
 import { usePageReturnSnapshot } from '../../../composables/usePageReturnSnapshot'
 import { getCustomer } from '../../../api/customers'
 import { listCards } from '../../../api/meal-cards'
@@ -209,7 +210,10 @@ onShow(() => {
               <button class="action-chip action-chip--secondary" @click="goCardRecords">
                 充值记录
               </button>
-              <button class="action-chip action-chip--accent" @click="goOpenCard">＋ 开新卡</button>
+              <button class="action-chip action-chip--accent" @click="goOpenCard">
+                <HejiIcon name="Plus" :size="14" />
+                <text>开新卡</text>
+              </button>
             </view>
           </view>
 
@@ -270,7 +274,7 @@ onShow(() => {
               </view>
               <view class="td td--amount">
                 <text class="amount-text">{{ orderDisplayAmount(order) }}</text>
-                <text class="row-arrow">›</text>
+                <HejiIcon class="row-arrow" name="ChevronRight" :size="16" />
               </view>
             </view>
           </view>
@@ -279,7 +283,10 @@ onShow(() => {
 
         <!-- Danger Zone -->
         <view class="danger-zone">
-          <button class="delete-button" @click="deleteCustomer">🗑 删除客户</button>
+          <button class="delete-button" @click="deleteCustomer">
+            <HejiIcon name="Trash2" :size="18" />
+            <text>删除客户</text>
+          </button>
           <text class="danger-hint">已有订单或次卡的客户不能删除；删除后无法恢复。</text>
         </view>
 
@@ -425,6 +432,10 @@ onShow(() => {
 }
 
 .action-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $hej-space-1;
   height: 56rpx;
   padding: 0 $hej-space-3;
   border-radius: $hej-radius-control;
@@ -609,8 +620,6 @@ onShow(() => {
 
 .row-arrow {
   color: $hej-color-text-tertiary;
-  font-size: 32rpx;
-  line-height: 1;
 }
 
 .status-chip {
@@ -653,6 +662,10 @@ onShow(() => {
 }
 
 .delete-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $hej-space-2;
   width: 100%;
   height: 80rpx;
   border: 1rpx solid rgba(141, 69, 69, 0.3);

@@ -18,6 +18,7 @@ import type {
   MealCardMessageTemplate,
   MealCardTemplateVersion,
 } from '../types/domain'
+import { normalizeExpenseCategoryIcon } from './icon'
 
 const BACKUP_VERSION = '1.0'
 
@@ -617,7 +618,13 @@ export async function importBackup(payload: BackupPayload): Promise<void> {
       await exec(
         `INSERT INTO expense_categories (id, name, icon, sort_order, is_default)
         VALUES (?, ?, ?, ?, ?)`,
-        [item.id, item.name, item.icon, item.sort_order, item.is_default],
+        [
+          item.id,
+          item.name,
+          normalizeExpenseCategoryIcon(item.icon),
+          item.sort_order,
+          item.is_default,
+        ],
       )
     }
 

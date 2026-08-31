@@ -35,7 +35,7 @@ test('order detail page keeps the real data chain, state machine, and action hie
   assert.match(detailPage, /danger-zone/)
 
   // Edit form structure
-  assert.match(detailPage, /label-width="80px"/)
+  assert.match(detailPage, /label-width="100px"/)
   assert.match(detailPage, /label-align="left"/)
   assert.match(detailPage, /CustomerPicker/)
   assert.match(detailPage, /entry-divider/)

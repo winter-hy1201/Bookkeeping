@@ -57,12 +57,12 @@ const resolvedColor = computed<StatColor>(() => {
   </view>
 </template>
 
-<style scoped>
+<style lang="scss" scoped>
 .stat-card {
   min-width: 0;
   padding: 24rpx;
   border-radius: 16rpx;
-  background: #ffffff;
+  background: $hej-color-surface;
   box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
 }
 

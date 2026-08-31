@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import HejiIcon from '../../../components/HejiIcon.vue'
 import { getCustomer } from '../../../api/customers'
 import { MealCardReservationConflictError, MealCardTotalTooSmallError } from '../../../api/errors'
 import { getCard, listCards, openCard, updateCardTotalMeals } from '../../../api/meal-cards'
@@ -239,7 +240,7 @@ onLoad((query) => {
                   :disabled="form.total_meals <= minimumTotalMeals"
                   @click="stepMeals(-1)"
                 >
-                  −
+                  <HejiIcon name="Minus" :size="18" />
                 </button>
                 <view class="stepper-display">
                   <text class="stepper-number">{{ form.total_meals }}</text>
@@ -249,7 +250,7 @@ onLoad((query) => {
                   :disabled="form.total_meals >= 999"
                   @click="stepMeals(1)"
                 >
-                  +
+                  <HejiIcon name="Plus" :size="18" />
                 </button>
               </view>
             </uni-forms-item>
@@ -275,7 +276,7 @@ onLoad((query) => {
               </view>
             </uni-forms-item>
             <view v-if="activeCardSummary.count > 0" class="info-banner">
-              <text class="info-icon">ℹ️</text>
+              <HejiIcon class="info-icon" name="Info" :size="16" />
               <text class="info-text">
                 当前可用 {{ activeCardSummary.remaining }} 次，开卡后余额将合并统计
               </text>
@@ -299,14 +300,14 @@ onLoad((query) => {
       <view class="submit-summary">
         <template v-if="!isEditMode">
           <view class="summary-metric">
-            <text class="metric-icon">🎫</text>
+            <HejiIcon class="metric-icon" name="Ticket" :size="18" />
             <text class="metric-text"
               >本次增加 <text class="metric-emphasis">{{ form.total_meals }}</text> 次</text
             >
           </view>
           <view class="summary-metric-divider" />
           <view class="summary-metric">
-            <text class="metric-icon">💰</text>
+            <HejiIcon class="metric-icon" name="Wallet" :size="18" />
             <text class="metric-text"
               >入账 <text class="metric-emphasis">{{ formatMoney(amountValue) }}</text></text
             >

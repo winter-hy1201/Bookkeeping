@@ -49,7 +49,7 @@ test('menu templates list page visual contract uses warm paper semantic tokens',
   assert.doesNotMatch(listPage, /#ee0a24/i)
 })
 
-test('menu template edit page keeps pure text form, 80px label column, chips, preview, and validation', () => {
+test('menu template edit page keeps pure text form, 100px label column, chips, preview, and validation', () => {
   assert.match(editPage, /getMessageTemplate/)
   assert.match(editPage, /createMessageTemplate/)
   assert.match(editPage, /updateMessageTemplate/)
@@ -57,7 +57,7 @@ test('menu template edit page keeps pure text form, 80px label column, chips, pr
   assert.match(editPage, /renderMenuTemplate/)
   assert.match(editPage, /uni-forms/)
   assert.match(editPage, /uni-forms-item/)
-  assert.match(editPage, /label-width="80px"/)
+  assert.match(editPage, /label-width="100px"/)
   assert.match(editPage, /name="name"/)
   assert.match(editPage, /name="body"/)
   assert.match(editPage, /uni-easyinput/)

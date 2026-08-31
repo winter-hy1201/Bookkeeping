@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import HejiIcon from '../../../components/HejiIcon.vue'
 import { usePageReturnSnapshot } from '../../../composables/usePageReturnSnapshot'
 import { useExpenseStore } from '../../../stores/expense'
 import type { Expense, ExpenseCategory } from '../../../types/domain'
 import { formatTodayLabel, formatTime, today } from '../../../utils/date'
 import { addMoney, formatAmountNumber, formatMoney, subtractMoney } from '../../../utils/format'
+import { resolveLucideIconName } from '../../../utils/icon'
 import { confirmDialog, showToast } from '../../../utils/ui'
 
 const expenseStore = useExpenseStore()
@@ -107,7 +109,10 @@ onShow(() => {
           @change="onDateChange"
         />
       </view>
-      <button class="add-button" @click="goNew">＋ 新建支出</button>
+      <button class="add-button" @click="goNew">
+        <HejiIcon name="Plus" :size="16" />
+        <text>新建支出</text>
+      </button>
     </view>
 
     <!-- Summary Metrics Card -->
@@ -140,7 +145,7 @@ onShow(() => {
     </view>
     <view v-else-if="expenseStore.list.length === 0" class="state-card">
       <text class="state-title">该日期暂无支出</text>
-      <text class="state-hint">点击右上角「＋ 新建支出」记录第一笔支出</text>
+      <text class="state-hint">点击右上角“新建支出”记录第一笔支出</text>
     </view>
 
     <!-- Expense List Items -->
@@ -153,7 +158,11 @@ onShow(() => {
         @longpress="onLongPress(expense.id)"
       >
         <view class="icon-avatar">
-          <text class="icon-text">{{ categoryMap.get(expense.category_id)?.icon || '💰' }}</text>
+          <HejiIcon
+            class="icon-text"
+            :name="resolveLucideIconName(categoryMap.get(expense.category_id)?.icon)"
+            :size="22"
+          />
         </view>
         <view class="card-center">
           <text class="category-name">
@@ -196,7 +205,7 @@ onShow(() => {
 
 .date-picker :deep(.uni-date-x) {
   height: 72rpx !important;
-  background-color: $hej-color-surface !important;
+  background-color: $hej-color-control !important;
   border: 1rpx solid $hej-color-border !important;
   border-radius: $hej-radius-control !important;
   padding: 0 $hej-space-3 !important;
@@ -344,8 +353,7 @@ onShow(() => {
 }
 
 .icon-text {
-  font-size: 40rpx;
-  line-height: 1;
+  color: $hej-color-accent;
 }
 
 .card-center {

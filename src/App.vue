@@ -39,4 +39,37 @@ onError((err: unknown) => {
 })
 </script>
 
-<style></style>
+<style lang="scss">
+page {
+  --hej-color-canvas: #{$hej-color-canvas};
+  --hej-color-surface: #{$hej-color-surface};
+  --hej-color-surface-subtle: #{$hej-color-surface-subtle};
+  --hej-color-control: #{$hej-color-control};
+  --hej-color-control-disabled: #{$hej-color-control-disabled};
+  --hej-color-text: #{$hej-color-text};
+  --hej-color-text-secondary: #{$hej-color-text-secondary};
+  --hej-color-text-tertiary: #{$hej-color-text-tertiary};
+  --hej-color-border: #{$hej-color-border};
+  --hej-color-border-strong: #{$hej-color-border-strong};
+  --hej-color-accent: #{$hej-color-accent};
+  --hej-color-accent-soft: #{$hej-color-accent-soft};
+  --hej-color-success: #{$hej-color-success};
+  --hej-color-warning: #{$hej-color-warning};
+  --hej-color-warning-soft: #{$hej-color-warning-soft};
+  --hej-color-danger: #{$hej-color-danger};
+  --hej-color-danger-soft: #{$hej-color-danger-soft};
+  --hej-color-pending: #{$hej-color-pending};
+  --hej-color-pending-soft: #{$hej-color-pending-soft};
+  --hej-color-delivered: #{$hej-color-delivered};
+  --hej-color-delivered-soft: #{$hej-color-delivered-soft};
+  --hej-radius-control: #{$hej-radius-control};
+  --hej-radius-panel: #{$hej-radius-panel};
+  --hej-radius-pill: #{$hej-radius-pill};
+  --hej-shadow-panel: #{$hej-shadow-panel};
+  --hej-font-family: #{$hej-font-family};
+
+  background: $hej-color-canvas;
+  color: $hej-color-text;
+  font-family: $hej-font-family;
+}
+</style>

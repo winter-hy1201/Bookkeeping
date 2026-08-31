@@ -14,10 +14,10 @@
             <view v-else class="uni-select__input-text uni-select__input-placeholder" :class="'align-'+align">{{typePlaceholder}}</view>
           </template>
 					<view key="clear-button" v-if="!hideRight && shouldShowClear && clear && !disabled" @click.stop="clearVal">
-						<uni-icons type="clear" color="#c0c4cc" size="24" />
+						<HejiIcon name="X" :size="20" label="清除选择" :decorative="false" />
 					</view>
 					<view key="arrow-button" v-else-if="!hideRight">
-						<uni-icons :type="showSelector? 'top' : 'bottom'" size="14" color="#999" />
+						<HejiIcon :name="showSelector ? 'ChevronUp' : 'ChevronDown'" :size="18" label="展开选择" :decorative="false" />
 					</view>
 				</view>
 				<view class="uni-select--mask" v-if="showSelector" @click="toggleSelector" />
@@ -61,6 +61,7 @@
 </template>
 
 <script>
+	import HejiIcon from '../../../../components/HejiIcon.vue'
 	/**
 	 * DataChecklist 数据选择器
 	 * @description 通过数据渲染的下拉框组件
@@ -94,6 +95,9 @@
 
 	export default {
 		name: "uni-data-select",
+		components: {
+			HejiIcon
+		},
 		mixins: [uniCloud.mixinDatacom || {}],
 		emits: [
 			'open',
@@ -538,15 +542,15 @@
 </script>
 
 <style lang="scss">
-	$uni-base-color: #6a6a6a !default;
-	$uni-main-color: #333 !default;
-	$uni-secondary-color: #909399 !default;
-	$uni-border-3: #e5e5e5;
-  $uni-primary: #2979ff !default;
-	$uni-success: #4cd964 !default;
-	$uni-warning: #f0ad4e !default;
-	$uni-error: #dd524d !default;
-	$uni-info: #909399 !default;
+	$uni-base-color: $hej-color-text-secondary !default;
+	$uni-main-color: $hej-color-text !default;
+	$uni-secondary-color: $hej-color-text-tertiary !default;
+	$uni-border-3: $hej-color-border;
+  $uni-primary: $hej-color-accent !default;
+	$uni-success: $hej-color-success !default;
+	$uni-warning: $hej-color-warning !default;
+	$uni-error: $hej-color-danger !default;
+	$uni-info: $hej-color-text-secondary !default;
 
 	/* #ifndef APP-NVUE */
 	@media screen and (max-width: 500px) {
@@ -569,7 +573,7 @@
 	}
 
 	.uni-stat-box {
-		background-color: #fff;
+		background-color: $hej-color-control;
 		width: 100%;
 		flex: 1;
 	}
@@ -612,9 +616,11 @@
 		width: 100%;
 		flex: 1;
 		min-height: 35px;
+		background-color: $hej-color-control;
+		color: $uni-main-color;
 
 		&--disabled {
-			background-color: #f5f7fa;
+			background-color: $hej-color-control-disabled;
 			cursor: not-allowed;
 		}
 
@@ -682,8 +688,8 @@
 		position: absolute;
 		left: 0;
 		width: 100%;
-		background-color: #FFFFFF;
-		border: 1px solid #EBEEF5;
+		background-color: $hej-color-surface;
+		border: 1px solid $hej-color-border-strong;
 		border-radius: 6px;
 		box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
 		z-index: 3;
@@ -718,6 +724,7 @@
 		font-size: 14px;
 		/* border-bottom: solid 1px $uni-border-3; */
 		padding: 0px 10px;
+		color: $uni-main-color;
 	}
 
 
@@ -758,7 +765,7 @@
 		left: 10%;
 		margin-right: 3px;
 		border-top-width: 0;
-		border-bottom-color: #EBEEF5;
+		border-bottom-color: $hej-color-border-strong;
 	}
 
 	.uni-popper__arrow_bottom::after {
@@ -766,7 +773,7 @@
 		top: 1px;
 		margin-left: -6px;
 		border-top-width: 0;
-		border-bottom-color: #fff;
+		border-bottom-color: $hej-color-surface;
 	}
 
 	.uni-popper__arrow_top {
@@ -775,7 +782,7 @@
 		left: 10%;
 		margin-right: 3px;
 		border-bottom-width: 0;
-		border-top-color: #EBEEF5;
+		border-top-color: $hej-color-border-strong;
 	}
 
 	.uni-popper__arrow_top::after {
@@ -783,7 +790,7 @@
 		bottom: 1px;
 		margin-left: -6px;
 		border-bottom-width: 0;
-		border-top-color: #fff;
+		border-top-color: $hej-color-surface;
 	}
 
 

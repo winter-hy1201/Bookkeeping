@@ -58,18 +58,18 @@ function handleInput(value: string | number): void {
   </view>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .amount-field {
   display: flex;
   align-items: center;
-  gap: 20rpx;
+  gap: $hej-space-3;
   min-height: 88rpx;
 }
 
 .amount-label {
   flex: 0 0 140rpx;
-  color: #333333;
-  font-size: 28rpx;
+  color: $hej-color-text;
+  font-size: $hej-font-body;
   line-height: 1.4;
 }
 
@@ -78,17 +78,17 @@ function handleInput(value: string | number): void {
   flex: 1;
   align-items: center;
   min-width: 0;
-  padding: 18rpx 22rpx;
-  border: 1rpx solid #e5e5e5;
-  border-radius: 12rpx;
-  background: #ffffff;
+  padding: $hej-space-3 $hej-space-4;
+  border: 1rpx solid $hej-color-border;
+  border-radius: $hej-radius-control;
+  background: $hej-color-control;
 }
 
 .amount-prefix {
   flex: 0 0 auto;
-  margin-right: 10rpx;
-  color: #333333;
-  font-size: 30rpx;
+  margin-right: $hej-space-2;
+  color: $hej-color-text;
+  font-size: $hej-font-title;
   font-weight: 600;
 }
 

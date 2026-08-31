@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import HejiIcon from '../../../components/HejiIcon.vue'
 import {
   createMessageTemplate,
   getMessageTemplate,
@@ -177,7 +178,7 @@ onLoad((query) => {
             class="form"
             :model-value="form"
             :rules="rules"
-            label-width="80px"
+            label-width="100px"
             label-align="left"
           >
             <uni-forms-item name="name" label="名称" required>
@@ -216,17 +217,29 @@ onLoad((query) => {
             <text class="panel-hint">点击追加标记到正文末尾，可自由编辑位置</text>
           </view>
           <view class="insert-actions">
-            <button class="chip-btn" @click="insertDate">日期 ＋</button>
-            <button class="chip-btn" @click="insertLunch">午餐区块 ＋</button>
-            <button class="chip-btn" @click="insertDinner">晚餐区块 ＋</button>
-            <button class="chip-btn chip-btn--subtle" @click="useDefaultBody">内置正文 ＋</button>
+            <button class="chip-btn" @click="insertDate">
+              <text>日期</text>
+              <HejiIcon name="Plus" :size="14" />
+            </button>
+            <button class="chip-btn" @click="insertLunch">
+              <text>午餐区块</text>
+              <HejiIcon name="Plus" :size="14" />
+            </button>
+            <button class="chip-btn" @click="insertDinner">
+              <text>晚餐区块</text>
+              <HejiIcon name="Plus" :size="14" />
+            </button>
+            <button class="chip-btn chip-btn--subtle" @click="useDefaultBody">
+              <text>内置正文</text>
+              <HejiIcon name="Plus" :size="14" />
+            </button>
           </view>
         </view>
 
         <!-- Syntax Error Warning Card -->
         <view v-if="validationError" class="validation-card">
           <view class="validation-header">
-            <text class="validation-icon">⚠️</text>
+            <HejiIcon class="validation-icon" name="CircleAlert" :size="18" />
             <text class="validation-title">模板还不能保存</text>
           </view>
           <text class="validation-text">{{ validationError }}</text>
@@ -247,8 +260,13 @@ onLoad((query) => {
     <view class="confirm-bar">
       <view class="confirm-status">
         <view class="status-indicator">
-          <text v-if="validationError" class="status-icon status-icon--error">✕</text>
-          <text v-else class="status-icon status-icon--success">✓</text>
+          <HejiIcon
+            v-if="validationError"
+            class="status-icon status-icon--error"
+            name="CircleX"
+            :size="18"
+          />
+          <HejiIcon v-else class="status-icon status-icon--success" name="CircleCheck" :size="18" />
           <text :class="['confirm-title', { 'confirm-title--error': Boolean(validationError) }]">
             {{ validationError ? '语法错误' : '模板格式正确' }}
           </text>
@@ -353,7 +371,7 @@ onLoad((query) => {
 
 .divider {
   height: 1rpx;
-  margin: $hej-space-3 0 $hej-space-3 80px;
+  margin: $hej-space-3 0 $hej-space-3 100px;
   background: $hej-color-border;
 }
 
@@ -388,6 +406,10 @@ onLoad((query) => {
 }
 
 .chip-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $hej-space-1;
   height: 64rpx;
   margin: 0;
   padding: 0 $hej-space-4;

@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import dayjs from 'dayjs'
+import HejiIcon from '../../../components/HejiIcon.vue'
 import { usePageReturnSnapshot } from '../../../composables/usePageReturnSnapshot'
 import {
   deleteMealCardMessageTemplate,
@@ -101,12 +102,15 @@ onShow(() => {
         <text class="page-title">月卡文案模板</text>
         <text class="page-subtitle">默认模板会用于订单详情的月卡信息复制</text>
       </view>
-      <button class="add-button" @click="goNew">＋ 新建模板</button>
+      <button class="add-button" @click="goNew">
+        <HejiIcon name="Plus" :size="16" />
+        <text>新建模板</text>
+      </button>
     </view>
 
     <!-- Warm Sand Syntax Note Banner -->
     <InfoBanner
-      icon="💡"
+      icon="Lightbulb"
       text="套餐说明直接写在正文中，只替换配送后的次数信息"
     />
 
@@ -128,7 +132,10 @@ onShow(() => {
     <view v-else-if="templates.length === 0" class="state-card">
       <text class="state-title">还没有月卡文案模板</text>
       <text class="state-desc">新建并设为默认后，已配送次卡订单才能复制月卡信息。</text>
-      <button class="empty-action" @click="goNew">＋ 新建第一个模板</button>
+      <button class="empty-action" @click="goNew">
+        <HejiIcon name="Plus" :size="18" />
+        <text>新建第一个模板</text>
+      </button>
     </view>
 
     <!-- Template List -->
@@ -149,7 +156,7 @@ onShow(() => {
               >更新时间：{{ dayjs(template.updated_at).format('YYYY-MM-DD HH:mm') }}</text
             >
           </view>
-          <text class="arrow">›</text>
+          <HejiIcon class="arrow" name="ChevronRight" :size="18" />
         </view>
 
         <!-- Body Preview -->
@@ -165,14 +172,14 @@ onShow(() => {
             :class="{ disabled: actioningId !== null }"
             @click="makeDefault(template)"
           >
-            <text class="action-item__icon">⭐</text>
+            <HejiIcon class="action-item__icon" name="Star" :size="16" />
             <text class="action-item__text">设为默认</text>
           </view>
           <view
             v-else
             class="action-item action-item--active"
           >
-            <text class="action-item__icon">★</text>
+            <HejiIcon class="action-item__icon" name="Star" :size="16" />
             <text class="action-item__text">默认模板</text>
           </view>
           <view class="action-separator" />
@@ -181,7 +188,7 @@ onShow(() => {
             :class="{ disabled: actioningId !== null }"
             @click="goEdit(template.id)"
           >
-            <text class="action-item__icon">✏️</text>
+            <HejiIcon class="action-item__icon" name="Pencil" :size="16" />
             <text class="action-item__text">编辑</text>
           </view>
           <view class="action-separator" />
@@ -190,7 +197,7 @@ onShow(() => {
             :class="{ disabled: actioningId !== null }"
             @click="goHistory(template.id)"
           >
-            <text class="action-item__icon">🕒</text>
+            <HejiIcon class="action-item__icon" name="History" :size="16" />
             <text class="action-item__text">历史</text>
           </view>
           <view class="action-separator" />
@@ -199,7 +206,7 @@ onShow(() => {
             :class="{ disabled: actioningId !== null }"
             @click="remove(template)"
           >
-            <text class="action-item__icon">🗑️</text>
+            <HejiIcon class="action-item__icon" name="Trash2" :size="16" />
             <text class="action-item__text">删除</text>
           </view>
         </view>
@@ -207,7 +214,7 @@ onShow(() => {
 
       <!-- Bottom Hint Note -->
       <view class="footer-hint">
-        <text class="footer-hint__icon">ⓘ</text>
+        <HejiIcon class="footer-hint__icon" name="Info" :size="16" />
         <text class="footer-hint__text">提示：模板内容会复制到订单详情的月卡信息</text>
       </view>
     </view>
@@ -252,6 +259,10 @@ onShow(() => {
 }
 
 .add-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $hej-space-1;
   flex: 0 0 auto;
   height: 72rpx;
   margin: 0;
@@ -327,6 +338,10 @@ onShow(() => {
 }
 
 .empty-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $hej-space-1;
   height: 88rpx;
   margin: $hej-space-5 auto 0;
   padding: 0 $hej-space-6;

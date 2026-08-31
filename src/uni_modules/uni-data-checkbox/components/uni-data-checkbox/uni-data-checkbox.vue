@@ -20,7 +20,9 @@
 						<view class="checkbox__inner-icon"></view>
 					</view>
 					<view class="checklist-content" :class="{'list-content':mode === 'list' && icon ==='left'}">
-						<text class="checklist-text" :style="item.styleIconText">{{item[map.text]}}</text>
+						<slot name="option" :item="item" :selected="item.selected" :disabled="disabled || !!item.disabled">
+							<text class="checklist-text" :style="item.styleIconText">{{item[map.text]}}</text>
+						</slot>
 						<view v-if="mode === 'list' && icon === 'right'" class="checkobx__list" :style="item.styleBackgroud"></view>
 					</view>
 				</label>
@@ -36,7 +38,9 @@
 						<view class="radio__inner-icon" :style="item.styleIcon"></view>
 					</view>
 					<view class="checklist-content" :class="{'list-content':mode === 'list' && icon ==='left'}">
-						<text class="checklist-text" :style="item.styleIconText">{{item[map.text]}}</text>
+						<slot name="option" :item="item" :selected="item.selected" :disabled="disabled || !!item.disabled">
+							<text class="checklist-text" :style="item.styleIconText">{{item[map.text]}}</text>
+						</slot>
 						<view v-if="mode === 'list' && icon === 'right'" :style="item.styleRightIcon" class="checkobx__list"></view>
 					</view>
 				</label>
@@ -66,6 +70,7 @@
 	 * @property {Boolean} emptyText 没有数据时显示的文字 ，本地数据无效
 	 * @property {Boolean} selectedTextColor 选中文本颜色，如不填写则自动显示
 	 * @property {Object} map 字段映射， 默认 map={text:'text',value:'value'}
+	 * @slot option 自定义选项内容，插槽参数为 item、selected、disabled
 	 * @value left 左侧显示
 	 * @value right 右侧显示
 	 * @event {Function} change  选中发生变化触发
@@ -185,8 +190,8 @@
 				},
 				isLocal: true,
 				styles: {
-					selectedColor: '#2979ff',
-					selectedTextColor: '#666',
+					selectedColor: 'var(--hej-color-accent)',
+					selectedTextColor: 'var(--hej-color-text-secondary)',
 				},
 				isTop: 0
 			};
@@ -393,13 +398,13 @@
 			 */
 			setStyleBackgroud(item) {
 				let styles = {}
-				let selectedColor = this.selectedColor ? this.selectedColor : '#2979ff'
+				let selectedColor = this.selectedColor ? this.selectedColor : 'var(--hej-color-accent)'
 				if (this.selectedColor) {
 					if (this.mode !== 'list') {
-						styles['border-color'] = item.selected ? selectedColor : '#DCDFE6'
+						styles['border-color'] = item.selected ? selectedColor : 'var(--hej-color-border-strong)'
 					}
 					if (this.mode === 'tag') {
-						styles['background-color'] = item.selected ? selectedColor : '#f5f5f5'
+						styles['background-color'] = item.selected ? selectedColor : 'var(--hej-color-control)'
 					}
 				}
 				let classles = ''
@@ -412,13 +417,13 @@
 				let styles = {}
 				let classles = ''
 				if (this.selectedColor) {
-					let selectedColor = this.selectedColor ? this.selectedColor : '#2979ff'
-					styles['background-color'] = item.selected ? selectedColor : '#fff'
-					styles['border-color'] = item.selected ? selectedColor : '#DCDFE6'
+					let selectedColor = this.selectedColor ? this.selectedColor : 'var(--hej-color-accent)'
+					styles['background-color'] = item.selected ? selectedColor : 'var(--hej-color-control)'
+					styles['border-color'] = item.selected ? selectedColor : 'var(--hej-color-border-strong)'
 
 					if (!item.selected && item.disabled) {
-						styles['background-color'] = '#F2F6FC'
-						styles['border-color'] = item.selected ? selectedColor : '#DCDFE6'
+						styles['background-color'] = 'var(--hej-color-control-disabled)'
+						styles['border-color'] = item.selected ? selectedColor : 'var(--hej-color-border-strong)'
 					}
 				}
 				for (let i in styles) {
@@ -430,14 +435,14 @@
 				let styles = {}
 				let classles = ''
 				if (this.selectedColor) {
-					let selectedColor = this.selectedColor ? this.selectedColor : '#2979ff'
+					let selectedColor = this.selectedColor ? this.selectedColor : 'var(--hej-color-accent)'
 					if (this.mode === 'tag') {
-						styles.color = item.selected ? (this.selectedTextColor ? this.selectedTextColor : '#fff') : '#666'
+						styles.color = item.selected ? (this.selectedTextColor ? this.selectedTextColor : 'var(--hej-color-surface)') : 'var(--hej-color-text-secondary)'
 					} else {
-						styles.color = item.selected ? (this.selectedTextColor ? this.selectedTextColor : selectedColor) : '#666'
+						styles.color = item.selected ? (this.selectedTextColor ? this.selectedTextColor : selectedColor) : 'var(--hej-color-text-secondary)'
 					}
 					if (!item.selected && item.disabled) {
-						styles.color = '#999'
+						styles.color = 'var(--hej-color-text-tertiary)'
 					}
 				}
 				for (let i in styles) {
@@ -449,7 +454,7 @@
 				let styles = {}
 				let classles = ''
 				if (this.mode === 'list') {
-					styles['border-color'] = item.selected ? this.styles.selectedColor : '#DCDFE6'
+					styles['border-color'] = item.selected ? this.styles.selectedColor : 'var(--hej-color-border-strong)'
 				}
 				for (let i in styles) {
 					classles += `${i}:${styles[i]};`
@@ -462,8 +467,8 @@
 </script>
 
 <style lang="scss">
-	$uni-primary: #2979ff !default;
-	$border-color: #DCDFE6;
+	$uni-primary: $hej-color-accent !default;
+	$border-color: $hej-color-border-strong;
 	$disable: 0.4;
 
 	@mixin flex {
@@ -479,7 +484,7 @@
 		align-items: center;
 		height: 36px;
 		padding-left: 10px;
-		color: #999;
+		color: $hej-color-text-tertiary;
 	}
 
 	.uni-data-checklist {
@@ -520,17 +525,17 @@
 
 					.checklist-text {
 						font-size: 14px;
-						color: #666;
+						color: $hej-color-text-secondary;
 						margin-left: 5px;
 						line-height: 14px;
 					}
 
 					.checkobx__list {
 						border-right-width: 1px;
-						border-right-color: #007aff;
+							border-right-color: $hej-color-accent;
 						border-right-style: solid;
 						border-bottom-width: 1px;
-						border-bottom-color: #007aff;
+							border-bottom-color: $hej-color-accent;
 						border-bottom-style: solid;
 						height: 12px;
 						width: 6px;
@@ -552,7 +557,7 @@
 					height: 16px;
 					border: 1px solid $border-color;
 					border-radius: 4px;
-					background-color: #fff;
+						background-color: $hej-color-control;
 					z-index: 1;
 
 					.checkbox__inner-icon {
@@ -567,10 +572,10 @@
 						height: 8px;
 						width: 4px;
 						border-right-width: 1px;
-						border-right-color: #fff;
+							border-right-color: $hej-color-surface;
 						border-right-style: solid;
 						border-bottom-width: 1px;
-						border-bottom-color: #fff;
+							border-bottom-color: $hej-color-surface;
 						border-bottom-style: solid;
 						opacity: 0;
 						transform-origin: center;
@@ -592,7 +597,7 @@
 					height: 16px;
 					border: 1px solid $border-color;
 					border-radius: 16px;
-					background-color: #fff;
+						background-color: $hej-color-control;
 					z-index: 1;
 
 					.radio__inner-icon {
@@ -613,7 +618,7 @@
 
 						/* #endif */
 						.checkbox__inner {
-							background-color: #F2F6FC;
+							background-color: $hej-color-control-disabled;
 							border-color: $border-color;
 							/* #ifdef H5 */
 							cursor: not-allowed;
@@ -621,12 +626,12 @@
 						}
 
 						.radio__inner {
-							background-color: #F2F6FC;
+							background-color: $hej-color-control-disabled;
 							border-color: $border-color;
 						}
 
 						.checklist-text {
-							color: #999;
+							color: $hej-color-text-tertiary;
 						}
 					}
 
@@ -685,11 +690,11 @@
 						/* #ifdef H5 */
 						cursor: not-allowed;
 						/* #endif */
-						border: 1px #eee solid;
+							border: 1px $hej-color-border solid;
 						opacity: $disable;
 
 						.checkbox__inner {
-							background-color: #F2F6FC;
+								background-color: $hej-color-control-disabled;
 							border-color: $border-color;
 							/* #ifdef H5 */
 							cursor: not-allowed;
@@ -697,7 +702,7 @@
 						}
 
 						.radio__inner {
-							background-color: #F2F6FC;
+								background-color: $hej-color-control-disabled;
 							border-color: $border-color;
 							/* #ifdef H5 */
 							cursor: not-allowed;
@@ -705,7 +710,7 @@
 						}
 
 						.checklist-text {
-							color: #999;
+							color: $hej-color-text-tertiary;
 						}
 					}
 
@@ -748,11 +753,11 @@
 					padding: 5px 10px;
 					border: 1px $border-color solid;
 					border-radius: 3px;
-					background-color: #f5f5f5;
+						background-color: $hej-color-control;
 
 					.checklist-text {
 						margin: 0;
-						color: #666;
+						color: $hej-color-text-secondary;
 					}
 
 					// 禁用
@@ -768,7 +773,7 @@
 						border-color: $uni-primary;
 
 						.checklist-text {
-							color: #fff;
+							color: $hej-color-surface;
 						}
 					}
 				}
@@ -783,7 +788,7 @@
 					margin: 0;
 
 					&.is-list-border {
-						border-top: 1px #eee solid;
+							border-top: 1px $hej-color-border solid;
 					}
 
 					// 禁用
@@ -793,7 +798,7 @@
 
 						/* #endif */
 						.checkbox__inner {
-							background-color: #F2F6FC;
+								background-color: $hej-color-control-disabled;
 							border-color: $border-color;
 							/* #ifdef H5 */
 							cursor: not-allowed;
@@ -801,7 +806,7 @@
 						}
 
 						.checklist-text {
-							color: #999;
+							color: $hej-color-text-tertiary;
 						}
 					}
 

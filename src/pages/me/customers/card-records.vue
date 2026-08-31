@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
+import HejiIcon from '../../../components/HejiIcon.vue'
 import { usePageReturnSnapshot } from '../../../composables/usePageReturnSnapshot'
 import { getCustomer } from '../../../api/customers'
 import {
@@ -146,7 +147,7 @@ onShow(() => {
         <text class="state-title">客户不存在</text>
       </view>
       <view v-else-if="cards.length === 0" class="state-card empty-card">
-        <text class="empty-icon">🎫</text>
+        <HejiIcon class="empty-icon" name="Ticket" :size="40" />
         <text class="state-title">暂无充值记录</text>
         <text class="state-desc">为客户开通次卡后，充值记录将展示在这里</text>
         <button class="open-card-btn" @click="goOpenCard">开通次卡</button>
@@ -163,7 +164,10 @@ onShow(() => {
 
           <!-- Date Subhead -->
           <view class="record-date-row">
-            <text class="record-date">📅 {{ formatDate(card.created_at) }}</text>
+            <view class="record-date">
+              <HejiIcon name="CalendarDays" :size="16" />
+              <text>{{ formatDate(card.created_at) }}</text>
+            </view>
           </view>
 
           <view class="card-divider" />
@@ -190,17 +194,20 @@ onShow(() => {
 
           <!-- Footer Action Row -->
           <view class="record-footer">
-            <text class="record-id">📄 记录 #{{ card.id }}</text>
+            <view class="record-id">
+              <HejiIcon name="FileText" :size="16" />
+              <text>记录 #{{ card.id }}</text>
+            </view>
             <button class="edit-link-btn" @click="goEdit(card)">
               <text class="edit-link-text">修改总次数</text>
-              <text class="edit-link-arrow"> ›</text>
+              <HejiIcon class="edit-link-arrow" name="ChevronRight" :size="16" />
             </button>
           </view>
 
           <!-- Danger / Delete Zone -->
           <view class="danger-zone">
             <view v-if="card.used_meals > 0" class="delete-disabled-box">
-              <text class="delete-disabled-icon">🚫</text>
+              <HejiIcon class="delete-disabled-icon" name="Ban" :size="16" />
               <text class="delete-disabled-text">已有扣次，不能删除</text>
             </view>
             <button
@@ -209,13 +216,12 @@ onShow(() => {
               :disabled="operatingCardId !== null"
               @click="deleteRecord(card)"
             >
-              {{
-                deletingCardId === card.id
-                  ? '删除中…'
-                  : operatingCardId === card.id
-                    ? '等待确认…'
-                    : '🗑️ 删除这笔记录'
-              }}
+              <template v-if="deletingCardId === card.id">删除中…</template>
+              <template v-else-if="operatingCardId === card.id">等待确认…</template>
+              <template v-else>
+                <HejiIcon name="Trash2" :size="18" />
+                <text>删除这笔记录</text>
+              </template>
             </button>
           </view>
         </view>
@@ -322,6 +328,9 @@ onShow(() => {
 }
 
 .record-date {
+  display: inline-flex;
+  align-items: center;
+  gap: $hej-space-1;
   color: $hej-color-text-secondary;
   font-size: $hej-font-caption;
 }
@@ -376,6 +385,9 @@ onShow(() => {
 }
 
 .record-id {
+  display: inline-flex;
+  align-items: center;
+  gap: $hej-space-1;
   color: $hej-color-text-secondary;
   font-size: $hej-font-meta;
 }
@@ -406,7 +418,6 @@ onShow(() => {
 
 .edit-link-arrow {
   color: $hej-color-accent;
-  font-size: $hej-font-title;
 }
 
 .danger-zone {
@@ -428,10 +439,13 @@ onShow(() => {
 
 .delete-disabled-icon {
   margin-right: $hej-space-1;
-  font-size: $hej-font-caption;
 }
 
 .delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $hej-space-2;
   width: 100%;
   height: 88rpx;
   margin: 0;
@@ -473,8 +487,8 @@ onShow(() => {
 }
 
 .empty-icon {
-  font-size: 64rpx;
   margin-bottom: $hej-space-2;
+  color: $hej-color-accent;
 }
 
 .state-title {

@@ -5,12 +5,12 @@
 				<view class="uni-date-editor--x"
 					:class="{'uni-date-editor--x__disabled': disabled,'uni-date-x--border': border}">
 					<view v-if="!isRange" class="uni-date-x uni-date-single">
-						<uni-icons class="icon-calendar" type="calendar" color="#c0c4cc" size="22"></uni-icons>
+						<HejiIcon class="icon-calendar" name="CalendarDays" :size="20" label="选择日期" :decorative="false" />
 						<view class="uni-date__x-input">{{ displayValue || singlePlaceholderText }}</view>
 					</view>
 
 					<view v-else class="uni-date-x uni-date-range">
-						<uni-icons class="icon-calendar" type="calendar" color="#c0c4cc" size="22"></uni-icons>
+						<HejiIcon class="icon-calendar" name="CalendarDays" :size="20" label="选择日期范围" :decorative="false" />
 						<view class="uni-date__x-input text-center">{{ displayRangeValue.startDate || startPlaceholderText }}</view>
 
 						<view class="range-separator">{{rangeSeparator}}</view>
@@ -19,7 +19,7 @@
 					</view>
 
 					<view v-if="showClearIcon" class="uni-date__icon-clear" @click.stop="clear">
-						<uni-icons type="clear" color="#c0c4cc" size="22"></uni-icons>
+						<HejiIcon name="X" :size="20" label="清除日期" :decorative="false" />
 					</view>
 				</view>
 			</slot>
@@ -64,7 +64,7 @@
 						</time-picker>
 					</view>
 
-					<uni-icons type="arrowthinright" color="#999" style="line-height: 40px;"></uni-icons>
+					<HejiIcon name="ChevronRight" :size="18" label="至" :decorative="false" style="line-height: 40px;" />
 
 					<view class="popup-x-header--datetime">
 						<input class="uni-date__input uni-date-range__input" type="text" v-model="tempRange.endDate"
@@ -126,6 +126,7 @@
 	 **/
 	import Calendar from './calendar.vue'
 	import TimePicker from './time-picker.vue'
+	import HejiIcon from '../../../../components/HejiIcon.vue'
 	import {
 		initVueI18n
 	} from '@dcloudio/uni-i18n'
@@ -153,7 +154,8 @@
 		},
 		components: {
 			Calendar,
-			TimePicker
+			TimePicker,
+			HejiIcon
 		},
 		data() {
 			return {
@@ -851,7 +853,7 @@
 </script>
 
 <style lang="scss">
-	$uni-primary: #007aff !default;
+	$uni-primary: $hej-color-accent !default;
 
 	.uni-date {
 		width: 100%;
@@ -864,8 +866,8 @@
 		align-items: center;
 		justify-content: center;
 		border-radius: 4px;
-		background-color: #fff;
-		color: #666;
+		background-color: $hej-color-control;
+		color: $hej-color-text-secondary;
 		font-size: 14px;
 		flex: 1;
 
@@ -885,7 +887,7 @@
 	.uni-date-x--border {
 		box-sizing: border-box;
 		border-radius: 4px;
-		border: 1px solid #e5e5e5;
+		border: 1px solid $hej-color-border;
 	}
 
 	.uni-date-editor--x {
@@ -948,21 +950,21 @@
 	}
 
 	.uni-date-single--x {
-		background-color: #fff;
+		background-color: $hej-color-surface;
 		position: absolute;
 		top: 0;
 		z-index: 999;
-		border: 1px solid #EBEEF5;
+		border: 1px solid $hej-color-border-strong;
 		box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
 		border-radius: 4px;
 	}
 
 	.uni-date-range--x {
-		background-color: #fff;
+		background-color: $hej-color-surface;
 		position: absolute;
 		top: 0;
 		z-index: 999;
-		border: 1px solid #EBEEF5;
+		border: 1px solid $hej-color-border-strong;
 		box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
 		border-radius: 4px;
 	}
@@ -1000,12 +1002,12 @@
 
 	.popup-x-footer {
 		padding: 0 15px;
-		border-top-color: #F1F1F1;
+		border-top-color: $hej-color-border;
 		border-top-style: solid;
 		border-top-width: 1px;
 		line-height: 40px;
 		text-align: right;
-		color: #666;
+		color: $hej-color-text-secondary;
 	}
 
 	.popup-x-footer text:hover {
@@ -1021,8 +1023,8 @@
 
 	.uni-date-changed {
 		text-align: center;
-		color: #333;
-		border-bottom-color: #F1F1F1;
+		color: $hej-color-text;
+		border-bottom-color: $hej-color-border;
 		border-bottom-style: solid;
 		border-bottom-width: 1px;
 	}
@@ -1032,7 +1034,7 @@
 	}
 
 	.uni-date-changed--time-date {
-		color: #333;
+		color: $hej-color-text;
 		opacity: 0.6;
 	}
 
@@ -1056,13 +1058,13 @@
 		top: -6px;
 		left: 10%;
 		margin-right: 3px;
-		border-bottom-color: #EBEEF5;
+		border-bottom-color: $hej-color-border-strong;
 	}
 
 	.uni-popper__arrow::after {
 		content: " ";
 		top: 1px;
 		margin-left: -6px;
-		border-bottom-color: #fff;
+		border-bottom-color: $hej-color-surface;
 	}
 </style>

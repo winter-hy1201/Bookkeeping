@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import dayjs from 'dayjs'
+import HejiIcon from '../../../components/HejiIcon.vue'
 import { usePageReturnSnapshot } from '../../../composables/usePageReturnSnapshot'
 import {
   deleteMessageTemplate,
@@ -101,12 +102,15 @@ onShow(() => {
         <text class="page-title">文案模板</text>
         <text class="page-subtitle">默认模板会直接用于每日菜单复制</text>
       </view>
-      <button class="add-button" @click="goNew">＋ 新建模板</button>
+      <button class="add-button" @click="goNew">
+        <HejiIcon name="Plus" :size="16" />
+        <text>新建模板</text>
+      </button>
     </view>
 
     <!-- Warm Sand Syntax Note Banner -->
     <InfoBanner
-      icon="ⓘ"
+      icon="Info"
       text="模板中的「日期」和「可供餐食」部分会在复制时自动替换，其他内容保持不变。"
     />
 
@@ -119,7 +123,10 @@ onShow(() => {
     <view v-else-if="templates.length === 0" class="state-card">
       <text class="state-title">还没有文案模板</text>
       <text class="state-desc">新建模板并设为默认后，每日菜单才能复制为社群文案。</text>
-      <button class="empty-action" @click="goNew">＋ 新建第一个模板</button>
+      <button class="empty-action" @click="goNew">
+        <HejiIcon name="Plus" :size="18" />
+        <text>新建第一个模板</text>
+      </button>
     </view>
 
     <!-- Template List -->
@@ -140,7 +147,7 @@ onShow(() => {
               >更新时间：{{ dayjs(template.updated_at).format('YYYY-MM-DD HH:mm') }}</text
             >
           </view>
-          <text class="arrow">›</text>
+          <HejiIcon class="arrow" name="ChevronRight" :size="18" />
         </view>
 
         <!-- Body Preview -->
@@ -156,14 +163,14 @@ onShow(() => {
             :class="{ disabled: actioningId !== null }"
             @click="makeDefault(template)"
           >
-            <text class="action-item__icon">⭐</text>
+            <HejiIcon class="action-item__icon" name="Star" :size="16" />
             <text class="action-item__text">设为默认</text>
           </view>
           <view
             v-else
             class="action-item action-item--active"
           >
-            <text class="action-item__icon">★</text>
+            <HejiIcon class="action-item__icon" name="Star" :size="16" />
             <text class="action-item__text">默认模板</text>
           </view>
           <view class="action-separator" />
@@ -172,7 +179,7 @@ onShow(() => {
             :class="{ disabled: actioningId !== null }"
             @click="goEdit(template.id)"
           >
-            <text class="action-item__icon">✏️</text>
+            <HejiIcon class="action-item__icon" name="Pencil" :size="16" />
             <text class="action-item__text">编辑</text>
           </view>
           <view class="action-separator" />
@@ -181,7 +188,7 @@ onShow(() => {
             :class="{ disabled: actioningId !== null }"
             @click="goHistory(template.id)"
           >
-            <text class="action-item__icon">🕒</text>
+            <HejiIcon class="action-item__icon" name="History" :size="16" />
             <text class="action-item__text">历史</text>
           </view>
           <view class="action-separator" />
@@ -190,7 +197,7 @@ onShow(() => {
             :class="{ disabled: actioningId !== null }"
             @click="remove(template)"
           >
-            <text class="action-item__icon">🗑️</text>
+            <HejiIcon class="action-item__icon" name="Trash2" :size="16" />
             <text class="action-item__text">删除</text>
           </view>
         </view>
@@ -237,6 +244,10 @@ onShow(() => {
 }
 
 .add-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $hej-space-1;
   flex: 0 0 auto;
   height: 72rpx;
   margin: 0;
@@ -281,6 +292,10 @@ onShow(() => {
 }
 
 .empty-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $hej-space-1;
   height: 88rpx;
   margin: $hej-space-5 auto 0;
   padding: 0 $hej-space-6;

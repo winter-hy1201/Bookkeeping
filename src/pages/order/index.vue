@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import HejiIcon from '../../components/HejiIcon.vue'
 import { usePageReturnSnapshot } from '../../composables/usePageReturnSnapshot'
 import { useCustomerStore } from '../../stores/customer'
 import { useOrderStore } from '../../stores/order'
@@ -15,10 +16,6 @@ import {
   type LunchPanelCollapseState,
 } from '../../utils/order-rules'
 import { mealTypeText, orderSubtitle, showToast, statusText } from '../../utils/ui'
-
-const ICON_COLOR_TEXT = '#141413'
-const ICON_COLOR_MUTED = '#5E5D59'
-const ICON_COLOR_TERTIARY = '#87867F'
 
 const orderStore = useOrderStore()
 const customerStore = useCustomerStore()
@@ -438,35 +435,26 @@ onShow(() => {
         @change="handleDateChange"
       >
         <view class="date-selector" hover-class="date-selector--pressed">
-          <uni-icons
-            type="calendar"
-            size="20"
-            :color="ICON_COLOR_TEXT"
-            class="date-selector__icon"
-          ></uni-icons>
+          <HejiIcon name="CalendarDays" :size="20" class="date-selector__icon" />
           <text class="date-selector__text">{{ formattedCurrentDate }}</text>
-          <uni-icons
-            type="bottom"
-            size="12"
-            :color="ICON_COLOR_MUTED"
-            class="date-selector__arrow"
-          ></uni-icons>
+          <HejiIcon name="ChevronDown" :size="12" class="date-selector__arrow" />
         </view>
       </uni-datetime-picker>
 
       <button class="add-button" hover-class="add-button--pressed" @click="goNew">
-        + 新建订单
+        <HejiIcon name="Plus" :size="18" />
+        <text>新建订单</text>
       </button>
     </view>
 
     <view v-if="isInitialLoading" class="state-card state-card--loading">
-      <uni-icons type="refreshempty" size="24" color="inherit"></uni-icons>
+      <HejiIcon name="RefreshCw" :size="24" />
       <text class="state-card__title">正在读取订单数据</text>
       <text class="state-card__description">订单和配送状态马上就绪。</text>
     </view>
 
     <view v-else-if="!hasLoaded && loadError" class="state-card state-card--error">
-      <uni-icons type="closeempty" size="24" color="inherit"></uni-icons>
+      <HejiIcon name="CircleX" :size="24" />
       <text class="state-card__title">订单数据加载失败</text>
       <text class="state-card__description">请检查本地数据库状态后重试，已有数据不会被覆盖。</text>
       <button class="retry-button" :disabled="isRefreshing" @click="retry">
@@ -477,14 +465,15 @@ onShow(() => {
     <view v-else-if="orderStore.list.length === 0" class="empty-state-wrapper">
       <view class="state-card state-card--empty">
         <view class="empty-icon-box">
-          <uni-icons type="list" size="28" :color="ICON_COLOR_TERTIARY"></uni-icons>
+          <HejiIcon name="List" :size="28" />
         </view>
         <text class="state-card__title">这一天还没有订单</text>
         <text class="state-card__description"
           >录入订单后，会按午餐和晚餐在此分组展示并支持拖拽调整配送顺序。</text
         >
         <button class="empty-state-action" hover-class="empty-state-action--pressed" @click="goNew">
-          新建订单
+          <HejiIcon name="Plus" :size="18" />
+          <text>新建订单</text>
         </button>
       </view>
     </view>
@@ -524,12 +513,11 @@ onShow(() => {
             <template #title>
               <view class="section-header" hover-class="section-header--pressed">
                 <view class="section-header__left">
-                  <uni-icons
-                    :type="isSectionOpen(section.type) ? 'bottom' : 'right'"
-                    size="16"
-                    :color="ICON_COLOR_TEXT"
+                  <HejiIcon
+                    :name="isSectionOpen(section.type) ? 'ChevronDown' : 'ChevronRight'"
+                    :size="16"
                     class="section-header__arrow"
-                  ></uni-icons>
+                  />
                   <text class="section-header__title">{{ section.title }}</text>
                   <text class="section-header__stats"
                     >{{ section.activeCount }}单 · {{ section.quantity }}份 ·
@@ -660,6 +648,10 @@ onShow(() => {
 }
 
 .add-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $hej-space-1;
   flex: 0 0 auto;
   height: 88rpx;
   margin: 0;
@@ -947,8 +939,12 @@ onShow(() => {
   background: $hej-color-surface-subtle;
 }
 
-.empty-state-action {
-  height: 88rpx;
+    .empty-state-action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: $hej-space-1;
+      height: 88rpx;
   margin: $hej-space-5 0 0;
   padding: 0 $hej-space-6;
   border: 0;

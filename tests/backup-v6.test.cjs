@@ -17,6 +17,7 @@ require.extensions['.ts'] = (module, filename) => {
 }
 
 const { parseBackupText } = require('../src/utils/backup.ts')
+const { normalizeExpenseCategoryIcon } = require('../src/utils/icon.ts')
 
 function basePayload(schemaVersion) {
   return {
@@ -82,4 +83,12 @@ test('requires menu, template, and version arrays in a v6 backup', () => {
   assert.deepEqual(payload.daily_menus, [])
   assert.deepEqual(payload.message_templates, [])
   assert.deepEqual(payload.template_versions, [])
+})
+
+test('normalizes legacy expense category icons before backup restore writes', () => {
+  assert.equal(normalizeExpenseCategoryIcon('🥬'), 'Utensils')
+  assert.equal(normalizeExpenseCategoryIcon('🔧'), 'Wrench')
+  assert.equal(normalizeExpenseCategoryIcon('Package'), 'Package')
+  assert.equal(normalizeExpenseCategoryIcon('FutureIcon'), 'FutureIcon')
+  assert.equal(normalizeExpenseCategoryIcon(''), null)
 })

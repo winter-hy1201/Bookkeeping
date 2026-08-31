@@ -2,6 +2,7 @@
 import { computed, reactive, ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import dayjs from 'dayjs'
+import HejiIcon from '../../../components/HejiIcon.vue'
 import { usePageReturnSnapshot } from '../../../composables/usePageReturnSnapshot'
 import {
   createDailyMenu,
@@ -208,11 +209,11 @@ onShow(() => {
         <view class="intro-card">
           <view class="intro-card__header">
             <view class="intro-card__title-group">
-              <text class="intro-card__icon">📝</text>
+              <HejiIcon class="intro-card__icon" name="NotebookPen" :size="20" />
               <text class="intro-title">{{ isNew ? '安排一天的菜单' : '修改菜单内容' }}</text>
             </view>
             <view v-if="savedMenu" class="top-copy-btn" @click="copySavedMenu">
-              <text class="top-copy-icon">📋</text>
+              <HejiIcon class="top-copy-icon" name="ClipboardCopy" :size="16" />
               <text class="top-copy-text">复制文案</text>
             </view>
           </view>
@@ -276,7 +277,7 @@ onShow(() => {
     <view class="confirm-bar">
       <view class="confirm-summary">
         <view class="confirm-status-row">
-          <text class="confirm-icon">📄</text>
+          <HejiIcon class="confirm-icon" name="FileText" :size="18" />
           <text class="confirm-title">{{ hasMeal ? '菜单可以保存' : '至少填写午餐或晚餐' }}</text>
         </view>
         <text class="confirm-date">{{ form.menu_date }}</text>
@@ -343,7 +344,7 @@ onShow(() => {
 }
 
 .intro-card__icon {
-  font-size: 32rpx;
+  color: $hej-color-accent;
 }
 
 .intro-title {
@@ -367,7 +368,7 @@ onShow(() => {
 }
 
 .top-copy-icon {
-  font-size: 24rpx;
+  color: $hej-color-accent;
 }
 
 .top-copy-text {
@@ -428,7 +429,7 @@ onShow(() => {
 
 .divider {
   height: 1rpx;
-  margin: $hej-space-2 0 $hej-space-2 80px;
+  margin: $hej-space-2 0 $hej-space-2 100px;
   background: $hej-color-border;
 }
 
@@ -492,7 +493,7 @@ onShow(() => {
 }
 
 .confirm-icon {
-  font-size: 28rpx;
+  color: $hej-color-accent;
 }
 
 .confirm-title {

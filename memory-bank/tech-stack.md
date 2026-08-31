@@ -26,7 +26,7 @@
 | **本地数据库** | **plus.sqlite** | 内置 | uni-app 原生 SQLite API，无第三方依赖；性能与稳定性最好 |
 | **日期** | **dayjs** | 1.11.x | 7KB，tree-shakable；处理"日/周/月"分组够用 |
 | **金额精确运算** | **big.js** | 7.0.x | 10KB 任意精度十进制运算；所有金额 `+ - * /` 走 `src/utils/format.ts` 的 5 个 helper（big.js 只在 helper 内部 import，业务侧不直接用）|
-| **图标** | **emoji** | — | 零依赖；支出分类、状态指示用 emoji 即可，v1.1 再换图标库 |
+| **图标** | **@lucide/vue + HejiIcon** | 1.38.0 | 本地打包的线性图标；业务代码与数据库直接使用 Lucide 原始名称，统一尺寸、线宽和 fallback；旧分类 emoji 由 schema v8 / 备份导入归一化 |
 | **图表** | **纯 CSS 进度条** | — | v1.0 不引图表库；统计页用文字 + CSS 简单条形图，v1.1 再加 uCharts |
 | **构建** | **@dcloudio/vite-plugin-uni** | latest | uni-app 官方 Vite 插件 |
 | **包管理** | **pnpm** | 8.x | 比 npm 快、省磁盘；lock 文件稳定 |
@@ -96,6 +96,7 @@ bookkeeping/
 │   ├── components/                # 跨页复用组件
 │   │   ├── AmountInput.vue        # 金额输入（含格式化）
 │   │   ├── CustomerPicker.vue     # 客户选择器（搜索 + 新建）
+│   │   ├── HejiIcon.vue            # Lucide 图标统一入口
 │   │   └── StatCard.vue           # 统计卡片（订单数/收入/支出/利润）
 │   ├── stores/                    # Pinia stores（≤ 4 个）
 │   │   ├── order.ts
@@ -116,6 +117,7 @@ bookkeeping/
 │   ├── utils/
 │   │   ├── date.ts                # dayjs 封装
 │   │   ├── format.ts              # 金额 / 百分比
+│   │   ├── icon.ts                # Lucide 名称解析与旧 emoji 前端兼容
 │   │   └── backup.ts              # JSON 导入导出
 │   ├── types/                     # 共享 TS 类型
 │   │   ├── domain.ts              # Customer / Order / MealCard / Expense
@@ -318,7 +320,7 @@ pnpm format
 | 5 | plus.sqlite | Capacitor SQLite 插件 / wxSQLite | uni-app 内置无依赖 |
 | 6 | dayjs | moment / date-fns | 7KB vs 200KB |
 | 7 | pnpm | npm / yarn | 速度快、磁盘省 |
-| 8 | 不用图标库 | uView Plus 自带 / iconfont | emoji 够用，0 依赖 |
+| 8 | `@lucide/vue` + `HejiIcon` | `uni-icons` / Iconify 运行时加载 / emoji | 线性图形覆盖更完整；本地打包无运行时网络；业务名称直接使用 Lucide 原始导出名 |
 | 9 | 不用图表库 | uCharts / F2 | v1.0 文字+CSS 即可 |
 | 10 | 不用 ORM | Prisma / TypeORM | 5 张表写 SQL 简单 |
 | 11 | 不用单测 | vitest | v1.0 5 页手测覆盖 |

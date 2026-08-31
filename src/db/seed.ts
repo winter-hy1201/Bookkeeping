@@ -2,7 +2,7 @@
  * 系统参考数据 seed：默认支出分类，以及显式调用时的内置文案模板。
  *
  * 数据来源：memory-bank/design-document.md §2.3
- * - 菜品 🥬 / 工具 🔧 / 耗材 📦 / 配送 🛵 / 其他 💰
+ * - 菜品 Utensils / 工具 Wrench / 耗材 Package / 配送 Bike / 其他 Wallet
  * - is_default=1，sort_order 1-5
  *
  * 普通启动只补空的 expense_categories；内置模板仅由迁移、旧备份升级或危险清空调用，
@@ -23,11 +23,11 @@ interface DefaultCategory {
 }
 
 const DEFAULT_CATEGORIES: DefaultCategory[] = [
-  { name: '菜品', icon: '🥬', sort_order: 1 },
-  { name: '工具', icon: '🔧', sort_order: 2 },
-  { name: '耗材', icon: '📦', sort_order: 3 },
-  { name: '配送', icon: '🛵', sort_order: 4 },
-  { name: '其他', icon: '💰', sort_order: 5 },
+  { name: '菜品', icon: 'Utensils', sort_order: 1 },
+  { name: '工具', icon: 'Wrench', sort_order: 2 },
+  { name: '耗材', icon: 'Package', sort_order: 3 },
+  { name: '配送', icon: 'Bike', sort_order: 4 },
+  { name: '其他', icon: 'Wallet', sort_order: 5 },
 ]
 
 export async function seedDefaultMessageTemplate(): Promise<void> {

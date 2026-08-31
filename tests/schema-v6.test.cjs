@@ -42,7 +42,7 @@ function sqlite(sql) {
 }
 
 test('current schema keeps a non-negative meal-card allocation', () => {
-  assert.equal(CURRENT_SCHEMA_VERSION, 7)
+  assert.equal(CURRENT_SCHEMA_VERSION, 8)
   assert.match(
     SCHEMA_ORDERS,
     /meal_card_quantity INTEGER NOT NULL DEFAULT 0 CHECK \(meal_card_quantity >= 0\)/,
@@ -135,4 +135,39 @@ test('migration list appends the v6 menu and v7 monthly template tables', () => 
   assert.match(source, /SCHEMA_TEMPLATE_VERSIONS/)
   assert.match(source, /SCHEMA_MEAL_CARD_MESSAGE_TEMPLATES/)
   assert.match(source, /SCHEMA_MEAL_CARD_TEMPLATE_VERSIONS/)
+})
+
+test('migration list appends the v8 Lucide expense category data fix', () => {
+  const source = readFileSync(join(__dirname, '../src/db/migrations.ts'), 'utf8')
+  const seedSource = readFileSync(join(__dirname, '../src/db/seed.ts'), 'utf8')
+  const migrationMatch = source.match(/`(UPDATE expense_categories[\s\S]*?)`,/)
+  assert.ok(migrationMatch, 'v8 expense category migration is missing')
+  for (const icon of ['Utensils', 'Wrench', 'Package', 'Bike', 'Wallet']) {
+    assert.match(seedSource, new RegExp(`icon: '${icon}'`), `${icon} is missing from seed data`)
+  }
+
+  const migration = migrationMatch[1]
+  const output = sqlite(`
+    CREATE TABLE expense_categories (
+      id INTEGER PRIMARY KEY,
+      name TEXT NOT NULL UNIQUE,
+      icon TEXT,
+      sort_order INTEGER NOT NULL,
+      is_default INTEGER NOT NULL
+    );
+    INSERT INTO expense_categories (id, name, icon, sort_order, is_default) VALUES
+      (1, '菜品', '🥬', 1, 1),
+      (2, '工具', '🔧', 2, 1),
+      (3, '耗材', '📦', 3, 1),
+      (4, '配送', '🛵', 4, 1),
+      (5, '其他', '💰', 5, 1),
+      (6, '自定义', 'FutureIcon', 6, 0);
+    ${migration};
+    ${migration};
+    SELECT name || ':' || icon FROM expense_categories ORDER BY id;
+  `)
+  assert.equal(
+    output,
+    '菜品:Utensils\n工具:Wrench\n耗材:Package\n配送:Bike\n其他:Wallet\n自定义:FutureIcon',
+  )
 })

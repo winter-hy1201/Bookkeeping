@@ -82,7 +82,7 @@
 					</time-picker>
 				</view>
 				<view style="line-height: 50px;">
-					<uni-icons type="arrowthinright" color="#999"></uni-icons>
+					<HejiIcon name="ChevronRight" :size="18" label="至" :decorative="false" />
 				</view>
 				<view class="uni-date-changed--time-end">
 					<view class="uni-date-changed--time-date">{{tempRange.after ? tempRange.after : endDateText}}</view>
@@ -107,6 +107,7 @@
 	} from './util.js';
 	import calendarItem from './calendar-item.vue'
 	import timePicker from './time-picker.vue'
+	import HejiIcon from '../../../../components/HejiIcon.vue'
 
 	import {
 		initVueI18n
@@ -139,7 +140,8 @@
 	export default {
 		components: {
 			calendarItem,
-			timePicker
+			timePicker,
+			HejiIcon
 		},
 
 		options: {

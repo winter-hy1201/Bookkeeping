@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onShow } from '@dcloudio/uni-app'
+import HejiIcon from '../../components/HejiIcon.vue'
 import { usePageReturnSnapshot } from '../../composables/usePageReturnSnapshot'
 
 const statusBarHeight = uni.getSystemInfoSync().statusBarHeight ?? 0
@@ -13,37 +14,37 @@ const menuSections = [
     title: '菜单管理',
     subtitle: '每日菜单、复制文案、历史记录',
     url: '/pages/me/menus/list',
-    icon: 'bars',
+    icon: 'Menu',
   },
   {
     title: '文案模板',
     subtitle: '默认模板、条件区块、历史版本',
     url: '/pages/me/menu-templates/list',
-    icon: 'compose',
+    icon: 'NotebookPen',
   },
   {
     title: '月卡文案模板',
     subtitle: '月卡说明、次数占位符、历史版本',
     url: '/pages/me/meal-card-templates/list',
-    icon: 'vip',
+    icon: 'Ticket',
   },
   {
     title: '客户管理',
     subtitle: '客户档案、历史订单、次卡',
     url: '/pages/me/customers/list',
-    icon: 'staff',
+    icon: 'UsersRound',
   },
   {
     title: '支出管理',
     subtitle: '记录菜品、耗材、工具等支出',
     url: '/pages/me/expenses/list',
-    icon: 'wallet',
+    icon: 'Wallet',
   },
   {
     title: '备份 / 恢复',
     subtitle: '导出 JSON、导入覆盖、清空数据',
     url: '/pages/me/settings/backup',
-    icon: 'loop',
+    icon: 'DatabaseBackup',
   },
 ]
 
@@ -82,14 +83,14 @@ onShow(() => {
             @click="go(item.url)"
           >
             <view class="menu-item__icon-wrap">
-              <uni-icons :type="item.icon" size="22" color="inherit"></uni-icons>
+              <HejiIcon :name="item.icon" :size="22" />
             </view>
             <view class="menu-item__body">
               <text class="menu-item__title">{{ item.title }}</text>
               <text class="menu-item__subtitle">{{ item.subtitle }}</text>
             </view>
             <view class="menu-item__arrow">
-              <uni-icons type="right" size="16" color="inherit"></uni-icons>
+              <HejiIcon name="ChevronRight" :size="16" />
             </view>
           </view>
         </view>

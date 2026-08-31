@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
+import HejiIcon from '../../../components/HejiIcon.vue'
 import { getExpense } from '../../../api/expenses'
 import { useExpenseStore } from '../../../stores/expense'
 import type { Expense, ExpenseCategory } from '../../../types/domain'
 import { formatDate } from '../../../utils/date'
 import { formatMoney, parseMoney, subtractMoney } from '../../../utils/format'
+import { resolveLucideIconName } from '../../../utils/icon'
 import { confirmDialog, showToast } from '../../../utils/ui'
 
 interface UniFormsRef {
@@ -48,8 +50,9 @@ const rules = {
 
 const categoryOptions = computed(() =>
   expenseStore.categories.map((category) => ({
-    text: `${category.icon ?? ''} ${category.name}`.trim(),
+    text: category.name,
     value: category.id,
+    icon: resolveLucideIconName(category.icon),
   })),
 )
 const categoryById = computed(() => {
@@ -196,11 +199,13 @@ onShow(() => {
         <!-- Hero Card -->
         <view class="hero-card">
           <text class="hero-amount">{{ formatMoney(netAmount) }}</text>
-          <text class="hero-meta">
-            {{ selectedCategory?.icon || '' }}
-            {{ selectedCategory?.name || `分类 #${expense.category_id}` }} ·
-            {{ form.expense_date ? formatDate(form.expense_date) : '' }}
-          </text>
+          <view class="hero-meta">
+            <HejiIcon :name="resolveLucideIconName(selectedCategory?.icon)" :size="16" />
+            <text>
+              {{ selectedCategory?.name || `分类 #${expense.category_id}` }} ·
+              {{ form.expense_date ? formatDate(form.expense_date) : '' }}
+            </text>
+          </view>
         </view>
 
         <!-- Form Card -->
@@ -237,7 +242,20 @@ onShow(() => {
                   placeholder="请选择分类"
                   :clear="false"
                   @change="onCategoryChange"
-                />
+                >
+                  <template #selected="{ selectedItems }">
+                    <view v-if="selectedItems[0]" class="category-option category-option--selected">
+                      <HejiIcon :name="selectedItems[0].icon" :size="18" />
+                      <text>{{ selectedItems[0].text }}</text>
+                    </view>
+                  </template>
+                  <template #option="{ item }">
+                    <view class="category-option">
+                      <HejiIcon :name="item.icon" :size="18" />
+                      <text>{{ item.text }}</text>
+                    </view>
+                  </template>
+                </uni-data-select>
               </uni-forms-item>
             </view>
 
@@ -321,10 +339,10 @@ onShow(() => {
         <view class="danger-card" @click="deleteExpense">
           <view class="danger-header">
             <view class="danger-title-row">
-              <text class="danger-icon">🗑</text>
+              <HejiIcon class="danger-icon" name="Trash2" :size="18" />
               <text class="danger-title">删除支出</text>
             </view>
-            <text class="danger-arrow">›</text>
+            <HejiIcon class="danger-arrow" name="ChevronRight" :size="18" />
           </view>
           <text class="danger-description">
             删除后将无法恢复，该支出记录会被永久移除。请谨慎操作。
@@ -403,7 +421,7 @@ onShow(() => {
 
 .field-error {
   display: block;
-  padding-left: 80px;
+  padding-left: 100px;
   margin-top: -$hej-space-2;
   margin-bottom: $hej-space-2;
   color: $hej-color-danger;
@@ -428,7 +446,7 @@ onShow(() => {
 
 .date-picker :deep(.uni-date-x) {
   height: 72rpx !important;
-  background-color: $hej-color-surface !important;
+  background-color: $hej-color-control !important;
   border: 1rpx solid $hej-color-border !important;
   border-radius: $hej-radius-control !important;
   padding: 0 $hej-space-3 !important;
@@ -443,12 +461,27 @@ onShow(() => {
 
 .category-select :deep(.uni-select) {
   height: 72rpx !important;
-  background-color: $hej-color-surface !important;
+  background-color: $hej-color-control !important;
   border: 1rpx solid $hej-color-border !important;
   border-radius: $hej-radius-control !important;
   padding: 0 $hej-space-3 !important;
   box-sizing: border-box;
   font-size: $hej-font-body !important;
+}
+
+.category-option {
+  display: flex;
+  align-items: center;
+  gap: $hej-space-2;
+  min-height: 72rpx;
+  padding: 0 $hej-space-3;
+  color: $hej-color-text;
+  font-size: $hej-font-body;
+}
+
+.category-option--selected {
+  min-height: 72rpx;
+  padding: 0;
 }
 
 .amount-control {
@@ -459,7 +492,7 @@ onShow(() => {
   padding: 0 $hej-space-3;
   border: 1rpx solid $hej-color-border;
   border-radius: $hej-radius-control;
-  background: $hej-color-surface;
+  background: $hej-color-control;
   box-sizing: border-box;
 }
 
@@ -478,7 +511,7 @@ onShow(() => {
 
 .note-input :deep(.uni-easyinput__content) {
   min-height: 72rpx !important;
-  background-color: $hej-color-surface !important;
+  background-color: $hej-color-control !important;
   border: 1rpx solid $hej-color-border !important;
   border-radius: $hej-radius-control !important;
   padding: 0 $hej-space-2 !important;

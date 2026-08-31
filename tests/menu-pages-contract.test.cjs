@@ -52,7 +52,7 @@ test('menu list page visual contract uses warm paper semantic tokens', () => {
   assert.doesNotMatch(listPage, /#ee0a24/i)
 })
 
-test('menu edit page keeps real form chain, 80px label alignment, and conflict redirection', () => {
+test('menu edit page keeps real form chain, 100px label alignment, and conflict redirection', () => {
   assert.match(editPage, /createDailyMenu/)
   assert.match(editPage, /updateDailyMenu/)
   assert.match(editPage, /getDailyMenu/)
@@ -63,7 +63,7 @@ test('menu edit page keeps real form chain, 80px label alignment, and conflict r
   assert.match(editPage, /renderMenuTemplate/)
   assert.match(editPage, /uni-forms/)
   assert.match(editPage, /uni-forms-item/)
-  assert.match(editPage, /label-width="80px"/)
+  assert.match(editPage, /label-width="100px"/)
   assert.match(editPage, /name="menu_date"/)
   assert.match(editPage, /name="lunch_text"/)
   assert.match(editPage, /name="dinner_text"/)

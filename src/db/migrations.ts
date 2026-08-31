@@ -105,6 +105,17 @@ export const MIGRATIONS: string[] = [
   ].join(';\n'),
   [SCHEMA_DAILY_MENUS, SCHEMA_MESSAGE_TEMPLATES, SCHEMA_TEMPLATE_VERSIONS].join('\n'),
   [SCHEMA_MEAL_CARD_MESSAGE_TEMPLATES, SCHEMA_MEAL_CARD_TEMPLATE_VERSIONS].join('\n'),
+  `UPDATE expense_categories
+    SET icon = CASE
+      WHEN name = '菜品' OR icon = '🥬' THEN 'Utensils'
+      WHEN name = '工具' OR icon = '🔧' THEN 'Wrench'
+      WHEN name = '耗材' OR icon = '📦' THEN 'Package'
+      WHEN name = '配送' OR icon = '🛵' THEN 'Bike'
+      WHEN name = '其他' OR icon = '💰' THEN 'Wallet'
+      ELSE icon
+    END
+    WHERE name IN ('菜品', '工具', '耗材', '配送', '其他')
+      OR icon IN ('🥬', '🔧', '📦', '🛵', '💰')`,
   // 未来迁移示例（不要启用）：
   // "ALTER TABLE customers ADD COLUMN wechat_openid TEXT;",
 ]

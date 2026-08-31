@@ -56,11 +56,11 @@
 			},
 			background: {
 				type: String,
-				default: '#f5f5f5'
+				default: 'var(--hej-color-control)'
 			},
 			color: {
 				type: String,
-				default: '#333'
+				default: 'var(--hej-color-text)'
 			},
 			disabled: {
 				type: Boolean,
@@ -168,9 +168,9 @@
 </script>
 <style lang="scss">
 	$box-height: 26px;
-	$bg: #f5f5f5;
+	$bg: $hej-color-control;
 	$br: 2px;
-	$color: #333;
+	$color: $hej-color-text;
 
 	.uni-numbox {
 		/* #ifndef APP-NVUE */
@@ -224,7 +224,7 @@
 	}
 
 	.uni-numbox .uni-numbox--disabled {
-		color: #c0c0c0 !important;
+		color: $hej-color-text-tertiary !important;
 		/* #ifdef H5 */
 		cursor: not-allowed;
 		/* #endif */

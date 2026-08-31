@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import dayjs from 'dayjs'
+import HejiIcon from '../../../components/HejiIcon.vue'
 import {
   getMessageTemplate,
   listTemplateVersions,
@@ -77,7 +78,7 @@ onShow(() => {
 
     <!-- Warm Sand Notice Banner -->
     <InfoBanner
-      icon="ⓘ"
+      icon="Info"
       text="恢复历史版本会先快照当前模板，再将此版本内容恢复为当前模板；默认状态保持不变。"
     />
 
@@ -107,12 +108,12 @@ onShow(() => {
         <view class="version-header">
           <view class="version-title-group">
             <view class="version-name-row">
-              <text class="doc-icon">📄</text>
+              <HejiIcon class="doc-icon" name="FileText" :size="18" />
               <text class="version-name">{{ version.name }}</text>
               <text class="version-badge">历史{{ versions.length - index }}</text>
             </view>
             <view class="version-time-row">
-              <text class="clock-icon">🕒</text>
+              <HejiIcon class="clock-icon" name="History" :size="16" />
               <text class="version-time">{{
                 dayjs(version.created_at).format('YYYY-MM-DD HH:mm')
               }}</text>
@@ -130,14 +131,18 @@ onShow(() => {
             :disabled="restoringId !== null"
             @click="restore(version)"
           >
-            {{ restoringId === version.id ? '恢复中...' : '↻ 恢复此版本' }}
+            <template v-if="restoringId === version.id">恢复中...</template>
+            <template v-else>
+              <HejiIcon name="RefreshCw" :size="16" />
+              <text>恢复此版本</text>
+            </template>
           </button>
         </view>
       </view>
 
       <!-- Footer Summary -->
       <view class="history-footer">
-        <text class="footer-icon">💡</text>
+        <HejiIcon class="footer-icon" name="Lightbulb" :size="16" />
         <text class="footer-text">按时间从新到旧排列，共 {{ versions.length }} 个历史版本。</text>
       </view>
     </view>
@@ -293,6 +298,10 @@ onShow(() => {
 }
 
 .restore-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $hej-space-1;
   height: 68rpx;
   margin: 0;
   padding: 0 $hej-space-4;

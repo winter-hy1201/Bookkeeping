@@ -14,7 +14,7 @@
 			<view v-if="showArrow"
 				:class="{ 'uni-collapse-item__title-arrow-active': isOpen, 'uni-collapse-item--animation': showAnimation === true }"
 				class="uni-collapse-item__title-arrow">
-				<uni-icons :color="disabled?'#ddd':'#bbb'" size="14" type="bottom" />
+				<HejiIcon name="ChevronDown" :size="18" :style="{ color: disabled ? 'var(--hej-color-text-tertiary)' : 'var(--hej-color-text-secondary)' }" label="展开折叠项" :decorative="false" />
 			</view>
 		</view>
 		<view class="uni-collapse-item__wrap" :class="{'is--transition':showAnimation}"
@@ -29,6 +29,8 @@
 </template>
 
 <script>
+	import HejiIcon from '../../../../components/HejiIcon.vue'
+
 	// #ifdef APP-NVUE
 	const dom = weex.requireModule('dom')
 	// #endif
@@ -47,6 +49,9 @@
 	 */
 	export default {
 		name: 'uniCollapseItem',
+		components: {
+			HejiIcon
+		},
 		props: {
 			// 列表标题
 			title: {

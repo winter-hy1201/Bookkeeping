@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import HejiIcon from '../../../components/HejiIcon.vue'
 import {
   clearAllData,
   exportBackup,
@@ -222,7 +223,7 @@ async function doClear(): Promise<void> {
   <scroll-view class="page" scroll-y>
     <view class="panel">
       <view class="section-heading">
-        <view class="section-icon"><uni-icons type="upload" size="21" color="inherit" /></view>
+        <view class="section-icon"><HejiIcon name="Upload" :size="21" /></view>
         <view class="section-copy">
           <text class="section-title">1. 备份（导出数据）</text>
           <text class="section-desc">
@@ -236,14 +237,14 @@ async function doClear(): Promise<void> {
       </view>
 
       <button class="primary-button" :disabled="busy" @click="doExport">
-        <uni-icons type="upload" size="18" color="inherit" />
+        <HejiIcon name="Upload" :size="18" />
         <text>{{ busyAction === 'export' ? '正在导出备份…' : '导出备份' }}</text>
       </button>
     </view>
 
     <view class="panel">
       <view class="section-heading">
-        <view class="section-icon"><uni-icons type="download" size="21" color="inherit" /></view>
+        <view class="section-icon"><HejiIcon name="Download" :size="21" /></view>
         <view class="section-copy">
           <text class="section-title">2. 恢复（导入并覆盖）</text>
           <text class="section-desc">
@@ -255,11 +256,11 @@ async function doClear(): Promise<void> {
 
       <view class="restore-actions">
         <button class="secondary-button" :disabled="busy" @click="pickFromSavedBackups">
-          <uni-icons type="list" size="17" color="inherit" />
+          <HejiIcon name="List" :size="17" />
           <text>{{ busyAction === 'saved' ? '正在读取…' : '从已保存备份选择' }}</text>
         </button>
         <button class="secondary-button" :disabled="busy" @click="pickFromLocalFile">
-          <uni-icons type="folder-add" size="17" color="inherit" />
+          <HejiIcon name="FolderPlus" :size="17" />
           <text>{{ busyAction === 'local' ? '正在读取…' : '从本地文件选择' }}</text>
         </button>
       </view>
@@ -291,7 +292,7 @@ async function doClear(): Promise<void> {
       </view>
 
       <button class="import-button" :disabled="busy || !importReady" @click="doImport">
-        <uni-icons type="download" size="18" color="inherit" />
+        <HejiIcon name="Download" :size="18" />
         <text>{{ busyAction === 'import' ? '正在导入并校验…' : '导入覆盖' }}</text>
       </button>
     </view>
@@ -299,7 +300,7 @@ async function doClear(): Promise<void> {
     <view class="panel danger-zone">
       <view class="section-heading danger-heading">
         <view class="section-icon section-icon--danger">
-          <uni-icons type="info" size="21" color="inherit" />
+          <HejiIcon name="Info" :size="21" />
         </view>
         <view class="section-copy">
           <text class="section-title section-title--danger">3. 危险区（清空所有数据）</text>
@@ -329,7 +330,7 @@ async function doClear(): Promise<void> {
       </view>
 
       <button class="danger-button" :disabled="busy" @click="doClear">
-        <uni-icons type="trash" size="18" color="inherit" />
+        <HejiIcon name="Trash2" :size="18" />
         <text>{{ busyAction === 'clear' ? '正在清空…' : '清空所有数据' }}</text>
       </button>
     </view>

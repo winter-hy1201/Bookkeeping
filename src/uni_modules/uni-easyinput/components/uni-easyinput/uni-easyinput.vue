@@ -1,7 +1,7 @@
 <template>
 	<view class="uni-easyinput" :class="{ 'uni-easyinput-error': msg }" :style="boxStyle">
 		<view class="uni-easyinput__content" :class="inputContentClass" :style="inputContentStyle">
-			<uni-icons v-if="prefixIcon" class="content-clear-icon" :type="prefixIcon" color="#c0c4cc" @click="onClickIcon('prefix')" size="22"></uni-icons>
+				<HejiIcon v-if="prefixIcon" class="content-clear-icon" :name="prefixIcon" :size="22" label="输入框前缀图标" :decorative="false" @click="onClickIcon('prefix')" />
 			<slot name="left">
 			</slot>
 			<!-- #ifdef MP-ALIPAY -->
@@ -15,13 +15,13 @@
 
 			<template v-if="type === 'password' && passwordIcon">
 				<!-- 开启密码时显示小眼睛 -->
-				<uni-icons v-if="isVal" class="content-clear-icon" :class="{ 'is-textarea-icon': type === 'textarea' }" :type="showPassword ? 'eye-slash-filled' : 'eye-filled'" :size="22" :color="focusShow ? primaryColor : '#c0c4cc'" @click="onEyes"></uni-icons>
+					<HejiIcon v-if="isVal" class="content-clear-icon" :class="{ 'is-textarea-icon': type === 'textarea' }" :name="showPassword ? 'EyeOff' : 'Eye'" :size="22" label="切换密码可见性" :decorative="false" :style="{ color: focusShow ? primaryColor : 'var(--hej-color-text-tertiary)' }" @click="onEyes" />
 			</template>
 			<template v-if="suffixIcon">
-				<uni-icons v-if="suffixIcon" class="content-clear-icon" :type="suffixIcon" color="#c0c4cc" @click="onClickIcon('suffix')" size="22"></uni-icons>
+				<HejiIcon v-if="suffixIcon" class="content-clear-icon" :name="suffixIcon" :size="22" label="输入框后缀图标" :decorative="false" @click="onClickIcon('suffix')" />
 			</template>
 			<template v-else>
-				<uni-icons v-if="clearable && isVal && !disabled && type !== 'textarea'" class="content-clear-icon" :class="{ 'is-textarea-icon': type === 'textarea' }" type="clear" :size="clearSize" :color="msg ? '#dd524d' : focusShow ? primaryColor : '#c0c4cc'" @click="onClear"></uni-icons>
+			<HejiIcon v-if="clearable && isVal && !disabled && type !== 'textarea'" class="content-clear-icon" :class="{ 'is-textarea-icon': type === 'textarea' }" name="X" :size="clearSize" label="清除输入" :decorative="false" :style="{ color: msg ? 'var(--hej-color-danger)' : focusShow ? primaryColor : 'var(--hej-color-text-tertiary)' }" @click="onClear" />
 			</template>
 			<slot name="right"></slot>
 		</view>
@@ -29,6 +29,8 @@
 </template>
 
 <script>
+	import HejiIcon from '../../../../components/HejiIcon.vue'
+
 	/**
 	 * Easyinput 输入框
 	 * @description 此组件可以实现表单的输入与校验，包括 "text" 和 "textarea" 类型。
@@ -52,7 +54,7 @@
 	 * @property {Number }	clearSize	清除图标的大小，单位px（默认15）
 	 * @property {String}	prefixIcon	输入框头部图标
 	 * @property {String}	suffixIcon	输入框尾部图标
-	 * @property {String}	primaryColor	设置主题色（默认#2979ff）
+	 * @property {String}	primaryColor	设置主题色（默认使用盒记强调色）
 	 * @property {Boolean}	trim	是否自动去除两端的空格
 	 * @property {Boolean}	cursorSpacing	指定光标与键盘的距离，单位 px
 	 * @property {Boolean}  ajust-position 当键盘弹起时，是否上推内容，默认值：true
@@ -94,6 +96,9 @@
 	}
 	export default {
 		name: 'uni-easyinput',
+		components: {
+			HejiIcon
+		},
 		emits: [
 			'click',
 			'iconClick',
@@ -200,16 +205,16 @@
 			},
 			primaryColor: {
 				type: String,
-				default: '#2979ff'
+				default: 'var(--hej-color-accent)'
 			},
 			styles: {
 				type: Object,
 				default () {
 					return {
-						color: '#333',
-						backgroundColor: '#fff',
-						disableColor: '#F7F6F6',
-						borderColor: '#e5e5e5'
+						color: 'var(--hej-color-text)',
+						backgroundColor: 'var(--hej-color-control)',
+						disableColor: 'var(--hej-color-control-disabled)',
+						borderColor: 'var(--hej-color-border)'
 					};
 				}
 			},
@@ -265,7 +270,7 @@
 			// 处理外层样式的style
 			boxStyle() {
 				return `color:${
-					this.inputBorder && this.msg ? '#e43d33' : this.styles.color
+					this.inputBorder && this.msg ? 'var(--hej-color-danger)' : this.styles.color
 				};`;
 			},
 			// input 内容的类和样式处理
@@ -283,9 +288,9 @@
 					this.primaryColor :
 					this.styles.borderColor;
 				const borderColor =
-					this.inputBorder && this.msg ? '#dd524d' : focusColor;
+					this.inputBorder && this.msg ? 'var(--hej-color-danger)' : focusColor;
 				return obj2strStyle({
-					'border-color': borderColor || '#e5e5e5',
+					'border-color': borderColor || 'var(--hej-color-border)',
 					'background-color': this.disabled ?
 						this.styles.disableColor : this.styles.backgroundColor
 				});
@@ -506,8 +511,8 @@
 </script>
 
 <style lang="scss">
-	$uni-error: #e43d33;
-	$uni-border-1: #dcdfe6 !default;
+	$uni-error: $hej-color-danger;
+	$uni-border-1: $hej-color-border !default;
 
 	.uni-easyinput {
 		/* #ifndef APP-NVUE */
@@ -516,7 +521,7 @@
 		flex: 1;
 		position: relative;
 		text-align: left;
-		color: #333;
+		color: var(--hej-color-text);
 		font-size: 14px;
 	}
 
@@ -531,7 +536,8 @@
 		flex-direction: row;
 		align-items: center;
 		// 处理border动画刚开始显示黑色的问题
-		border-color: #fff;
+		border-color: var(--hej-color-border);
+		background-color: var(--hej-color-control);
 		transition-property: border-color;
 		transition-duration: 0.3s;
 	}
@@ -546,10 +552,12 @@
 		line-height: 1;
 		font-size: 14px;
 		height: 35px;
+		background-color: transparent;
+		color: inherit;
 	}
 
 	.uni-easyinput__placeholder-class {
-		color: #999;
+		color: var(--hej-color-text-tertiary);
 		font-size: 12px;
 		// font-weight: 200;
 	}
@@ -576,6 +584,8 @@
 		min-height: 80px;
 		width: auto;
 		/* #endif */
+		background-color: transparent;
+		color: inherit;
 	}
 
 	.input-padding {
@@ -599,8 +609,8 @@
 		/* #endif */
 		flex-direction: row;
 		align-items: center;
-		border: 1px solid $uni-border-1;
-		border-radius: 4px;
+		border: 1px solid var(--hej-color-border);
+		border-radius: $hej-radius-control;
 		/* #ifdef MP-ALIPAY */
 		overflow: hidden;
 		/* #endif */
@@ -611,7 +621,7 @@
 		bottom: -17px;
 		left: 0;
 		line-height: 12px;
-		color: $uni-error;
+		color: var(--hej-color-danger);
 		font-size: 12px;
 		text-align: left;
 	}
@@ -623,10 +633,10 @@
 	}
 
 	.is-input-error-border {
-		border-color: $uni-error;
+		border-color: var(--hej-color-danger);
 
 		.uni-easyinput__placeholder-class {
-			color: mix(#fff, $uni-error, 50%);
+			color: var(--hej-color-danger);
 		}
 	}
 
@@ -634,7 +644,7 @@
 		margin-bottom: 0;
 		padding: 10px 15px;
 		// padding-bottom: 0;
-		border-top: 1px #eee solid;
+		border-top: 1px $hej-color-border solid;
 	}
 
 	.uni-easyinput-error {
@@ -651,11 +661,11 @@
 	}
 
 	.is-disabled {
-		background-color: #f7f6f6;
-		color: #d5d5d5;
+		background-color: var(--hej-color-control-disabled);
+		color: var(--hej-color-text-tertiary);
 
 		.uni-easyinput__placeholder-class {
-			color: #d5d5d5;
+			color: var(--hej-color-text-tertiary);
 			font-size: 12px;
 		}
 	}

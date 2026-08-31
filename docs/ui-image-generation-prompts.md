@@ -37,11 +37,11 @@
 
 > Design one production-ready, high-fidelity Android mobile app UI screen for “盒记 HeJi”, a Chinese offline bookkeeping app for a small boxed-meal stall. The operator uses it for taking orders, delivering meals, and reconciling income and expenses. Use an exact logical design canvas of 375×812 px, portrait, edge-to-edge app screenshot, no phone mockup, no marketing poster. Treat 375 px as the standard mobile design width while retaining native Android status, navigation, safe-area, and component conventions; do not introduce iPhone-only UI.
 >
-> Use a Claude-inspired warm-paper editorial visual language adapted for a fast Android operational tool: warm paper canvas #F5F4ED, ivory surfaces #FAF9F5, white #FFFFFF only for high-contrast inputs, near-black text #141413, secondary text #5E5D59, tertiary text #87867F, warm-gray borders #E8E6DC, and restrained terracotta #C96442 only for the single primary action and small selected accents. Use Warm Sand #E8E6DC for subtle selected or secondary surfaces. Use Noto Serif SC only for the main page title or major section headings at weight 500–600; use Noto Sans SC, HarmonyOS Sans SC, or Android system sans for all functional text, numbers, tabs, labels, and buttons. Keep highly legible numbers, medium-high information density, an 8dp grid, 16dp gutters, 10–14dp card radius, 10–12dp control radius, restrained rounded rectangles, 1px warm ring borders, and whisper-light shadows.
+> Use a Claude-inspired warm-paper editorial visual language adapted for a fast Android operational tool: warm paper canvas #F5F4ED, ivory surfaces #FAF9F5, warm ivory control surfaces #FCFBF8, near-black text #141413, secondary text #5E5D59, tertiary text #87867F, warm-gray borders #E8E6DC, and restrained terracotta #C96442 only for the single primary action and small selected accents. Keep controls visibly distinct from the page canvas without default pure-white fills. Use Warm Sand #E8E6DC for subtle selected or secondary surfaces. Use Noto Serif SC only for the main page title or major section headings at weight 500–600; use Noto Sans SC, HarmonyOS Sans SC, or Android system sans for all functional text, numbers, tabs, labels, and buttons. Keep highly legible numbers, medium-high information density, an 8dp grid, 16dp gutters, 10–14dp card radius, 10–12dp control radius, restrained rounded rectangles, 1px warm ring borders, and whisper-light shadows.
 >
 > Keep business status colors muted and separate from the terracotta action color: pending delivery slate #657789 on #EEF1F3, delivered olive-gray #64745B on #EEF0E8, cancelled or warning brown #8A6843 on #F3EADC, destructive red #8D4545 on #F6EAEA. Never use color as the only signal; pair each state with exact Chinese text or a simple outline icon.
 >
-> The UI must feel made for a real Chinese food-stall owner: quick to scan, one-handed, calm, trustworthy, practical, friendly. Show realistic Chinese content and amounts. Preserve one clear primary action per screen. Use thin outlined icons with rounded ends, not emoji except existing expense category emoji. Use a native Android status bar and restrained app navigation bar. Root screens have the four-tab bottom navigation “今日 / 订单 / 统计 / 我的”; child screens have a back arrow and no bottom tabs.
+> The UI must feel made for a real Chinese food-stall owner: quick to scan, one-handed, calm, trustworthy, practical, friendly. Show realistic Chinese content and amounts. Preserve one clear primary action per screen. Use thin outlined Lucide icons with rounded ends for interface actions, never emoji as interface icons. Use a native Android status bar and restrained app navigation bar. Root screens have the four-tab bottom navigation “今日 / 订单 / 统计 / 我的”; child screens have a back arrow and no bottom tabs.
 >
 > All visible Chinese text must be sharp, correctly spelled, and exactly match requested labels. Build a real application interface, not a concept poster. Respect Android safe areas. Do not invent login, cloud account, bank card, subscription, social feed, AI assistant, or e-commerce features.
 
@@ -105,15 +105,15 @@
 
 ### 12 支出管理 — pages/me/expenses/list
 
-> Date selector “2026年8月29日” plus one compact terracotta “＋ 新建支出”. Date heading “8月29日 周六”. Compact rows use existing category emoji in neutral circles, category, note, optional refund explanation and net amount: “🥬 食材 / 今日蔬菜 / ¥86.50”, “📦 耗材 / 打包盒200个 / ¥120.00”, “🛵 交通 / 原支出¥36.00 · 退差¥6.00 / ¥30.00”. No charts or invented budget.
+> Date selector “2026年8月29日” plus one compact terracotta “＋ 新建支出”. Date heading “8月29日 周六”. Compact rows use Lucide outline icons in neutral circles, category, note, optional refund explanation and net amount: “Utensils 菜品 / 今日蔬菜 / ¥86.50”, “Package 耗材 / 打包盒200个 / ¥120.00”, “Bike 配送 / 原支出¥36.00 · 退差¥6.00 / ¥30.00”. No charts or invented budget.
 
 ### 13 新建支出 — pages/me/expenses/new
 
-> Continuous aligned form: 日期 “2026-08-29”, 分类 “🥬 食材”, 金额 “¥100.00”, 退差 “¥13.50”, 备注 “今日蔬菜”. Compact calculation row “实际支出 ¥86.50”. Fixed bottom summary and one terracotta “保存支出”.
+> Continuous aligned form: 日期 “2026-08-29”, 分类 “Utensils 菜品”, 金额 “¥100.00”, 退差 “¥13.50”, 备注 “今日蔬菜”. Compact calculation row “实际支出 ¥86.50”. Fixed bottom summary and one terracotta “保存支出”.
 
 ### 14 支出详情 — pages/me/expenses/detail
 
-> Restrained amount hero “¥86.50”, meta “🥬 食材 · 2026年8月29日”. Same editable form as 新建支出. One terracotta “保存修改”. Put “删除支出” in a separate red danger zone with explanatory text, not beside the primary action.
+> Restrained amount hero “¥86.50”, meta “Utensils 菜品 · 2026年8月29日”. Same editable form as 新建支出. One terracotta “保存修改”. Put “删除支出” in a separate red danger zone with explanatory text, not beside the primary action.
 
 ## 8. 每日菜单
 

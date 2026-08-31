@@ -52,7 +52,7 @@ test('meal card templates list page visual contract uses warm paper semantic tok
   assert.doesNotMatch(listPage, /#ee0a24/i)
 })
 
-test('meal card template edit page keeps pure text form, 80px label column, chips, preview, and validation', () => {
+test('meal card template edit page keeps pure text form, 100px label column, chips, preview, and validation', () => {
   assert.match(editPage, /getMealCardMessageTemplate/)
   assert.match(editPage, /createMealCardMessageTemplate/)
   assert.match(editPage, /updateMealCardMessageTemplate/)
@@ -60,7 +60,7 @@ test('meal card template edit page keeps pure text form, 80px label column, chip
   assert.match(editPage, /renderMealCardTemplate/)
   assert.match(editPage, /uni-forms/)
   assert.match(editPage, /uni-forms-item/)
-  assert.match(editPage, /label-width="80px"/)
+  assert.match(editPage, /label-width="100px"/)
   assert.match(editPage, /name="name"/)
   assert.match(editPage, /name="body"/)
   assert.match(editPage, /uni-easyinput/)

@@ -56,6 +56,7 @@
     "@dcloudio/uni-mp-weixin": "3.0.0-5000720260410001",
     "@dcloudio/uni-mp-xhs": "3.0.0-5000720260410001",
     "@dcloudio/uni-quickapp-webview": "3.0.0-5000720260410001",
+    "@lucide/vue": "1.38.0",
     "big.js": "^7.0.1",
     "dayjs": "^1.11.21",
     "pinia": "2.0.36",

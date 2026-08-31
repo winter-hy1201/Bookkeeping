@@ -297,7 +297,7 @@ onLoad((query) => {
   padding: 0 $hej-space-3 !important;
   border: 1rpx solid $hej-color-border !important;
   border-radius: $hej-radius-control !important;
-  background: #ffffff !important;
+  background: $hej-color-control !important;
   box-sizing: border-box;
 }
 
@@ -325,7 +325,7 @@ onLoad((query) => {
   padding: 0 $hej-space-3;
   border: 1rpx solid $hej-color-border;
   border-radius: $hej-radius-control;
-  background: #ffffff;
+  background: $hej-color-control;
   box-sizing: border-box;
 }
 
@@ -369,7 +369,7 @@ onLoad((query) => {
   padding: $hej-space-3 !important;
   border: 1rpx solid $hej-color-border !important;
   border-radius: $hej-radius-control !important;
-  background: #ffffff !important;
+  background: $hej-color-control !important;
   box-sizing: border-box;
 }
 

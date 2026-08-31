@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import HejiIcon from '../../../components/HejiIcon.vue'
 import { usePageReturnSnapshot } from '../../../composables/usePageReturnSnapshot'
 import {
   deleteDailyMenu,
@@ -127,7 +128,10 @@ onShow(() => {
         <text class="page-title">每日菜单</text>
         <text class="page-subtitle">按日期维护，套用默认模板后复制到社群</text>
       </view>
-      <button class="add-button" @click="goNew">＋ 新建菜单</button>
+      <button class="add-button" @click="goNew">
+        <HejiIcon name="Plus" :size="16" />
+        <text>新建菜单</text>
+      </button>
     </view>
 
     <!-- Scope Switcher -->
@@ -150,14 +154,14 @@ onShow(() => {
     <view class="template-entry" @click="goTemplates">
       <view class="template-entry__left">
         <view class="template-entry__icon-wrap">
-          <text class="template-entry__icon">📄</text>
+          <HejiIcon class="template-entry__icon" name="FileText" :size="22" />
         </view>
         <view class="template-entry__text-wrap">
           <text class="template-entry__title">文案模板</text>
           <text class="template-entry__hint">管理默认模板与历史版本</text>
         </view>
       </view>
-      <text class="template-entry__arrow">›</text>
+      <HejiIcon class="template-entry__arrow" name="ChevronRight" :size="18" />
     </view>
 
     <!-- Loading State -->
@@ -177,7 +181,10 @@ onShow(() => {
             : '过去日期的菜单会自动保存在这里。'
         }}
       </text>
-      <button v-if="scope === 'current'" class="empty-action" @click="goNew">＋ 新建第一条菜单</button>
+      <button v-if="scope === 'current'" class="empty-action" @click="goNew">
+        <HejiIcon name="Plus" :size="18" />
+        <text>新建第一条菜单</text>
+      </button>
     </view>
 
     <!-- Menu List -->
@@ -191,7 +198,7 @@ onShow(() => {
         <!-- Card Header -->
         <view class="menu-card__header">
           <view class="menu-card__date-group">
-            <text class="menu-card__date-icon">📅</text>
+            <HejiIcon class="menu-card__date-icon" name="CalendarDays" :size="18" />
             <text class="menu-date">{{ menuDateLabel(menu.menu_date) }}</text>
           </view>
         </view>
@@ -201,7 +208,7 @@ onShow(() => {
           <!-- Lunch Section -->
           <view v-if="menu.lunch_text" class="meal-item">
             <view class="meal-tag meal-tag--lunch">
-              <text class="meal-tag__icon">☀️</text>
+              <HejiIcon class="meal-tag__icon" name="Sun" :size="18" />
               <text class="meal-tag__label">午餐</text>
             </view>
             <text class="meal-text">{{ menu.lunch_text }}</text>
@@ -213,7 +220,7 @@ onShow(() => {
           <!-- Dinner Section -->
           <view v-if="menu.dinner_text" class="meal-item">
             <view class="meal-tag meal-tag--dinner">
-              <text class="meal-tag__icon">🌙</text>
+              <HejiIcon class="meal-tag__icon" name="Moon" :size="18" />
               <text class="meal-tag__label">晚餐</text>
             </view>
             <text class="meal-text">{{ menu.dinner_text }}</text>
@@ -227,7 +234,7 @@ onShow(() => {
             :class="{ disabled: actioningId !== null }"
             @click="copyMenu(menu)"
           >
-            <text class="action-item__icon">📋</text>
+            <HejiIcon class="action-item__icon" name="ClipboardCopy" :size="16" />
             <text class="action-item__text">复制文案</text>
           </view>
           <view class="action-separator" />
@@ -236,7 +243,7 @@ onShow(() => {
             :class="{ disabled: actioningId !== null }"
             @click="goEdit(menu.id)"
           >
-            <text class="action-item__icon">✏️</text>
+            <HejiIcon class="action-item__icon" name="Pencil" :size="16" />
             <text class="action-item__text">编辑</text>
           </view>
           <view class="action-separator" />
@@ -245,7 +252,7 @@ onShow(() => {
             :class="{ disabled: actioningId !== null }"
             @click="removeMenu(menu)"
           >
-            <text class="action-item__icon">🗑️</text>
+            <HejiIcon class="action-item__icon" name="Trash2" :size="16" />
             <text class="action-item__text">删除</text>
           </view>
         </view>
@@ -292,6 +299,10 @@ onShow(() => {
 }
 
 .add-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $hej-space-1;
   flex: 0 0 auto;
   height: 72rpx;
   margin: 0;
@@ -436,6 +447,10 @@ onShow(() => {
 }
 
 .empty-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $hej-space-1;
   height: 80rpx;
   margin: $hej-space-5 auto 0;
   padding: 0 $hej-space-5;

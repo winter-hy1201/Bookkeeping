@@ -1,6 +1,6 @@
 <template>
   <view class="syntax-note">
-    <text class="syntax-note__icon">{{ icon }}</text>
+    <HejiIcon class="syntax-note__icon" :name="icon" :size="20" />
     <view class="syntax-note__content">
       <slot>
         <text class="syntax-note__text">{{ text }}</text>
@@ -10,13 +10,15 @@
 </template>
 
 <script setup lang="ts">
+import HejiIcon from './HejiIcon.vue'
+
 withDefaults(
   defineProps<{
     icon?: string
     text?: string
   }>(),
   {
-    icon: 'ⓘ',
+    icon: 'Info',
     text: '',
   }
 )

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import HejiIcon from '../../components/HejiIcon.vue'
 import { usePageReturnSnapshot } from '../../composables/usePageReturnSnapshot'
 import { useCustomerStore } from '../../stores/customer'
 import { useOrderStore } from '../../stores/order'
@@ -151,22 +152,22 @@ onShow(() => {
 
         <view class="menu-shortcut" hover-class="menu-shortcut--pressed" @click="goDailyMenus">
           <view class="menu-shortcut__icon">
-            <uni-icons type="compose" size="20" color="inherit"></uni-icons>
+            <HejiIcon name="NotebookPen" :size="20" />
           </view>
           <view class="menu-shortcut__content">
             <text class="menu-shortcut__eyebrow">社群菜单</text>
             <text class="menu-shortcut__title">维护每日菜单并复制文案</text>
           </view>
-          <uni-icons type="right" size="16" color="inherit"></uni-icons>
+          <HejiIcon name="ChevronRight" :size="16" />
         </view>
 
         <view v-if="isInitialLoading" class="state-card state-card--loading">
-          <uni-icons type="refreshempty" size="24" color="inherit"></uni-icons>
+          <HejiIcon name="RefreshCw" :size="24" />
           <text class="state-card__title">正在读取今日数据</text>
           <text class="state-card__description">订单、客户和收支信息马上就绪。</text>
         </view>
         <view v-else-if="!hasLoaded" class="state-card state-card--error">
-          <uni-icons type="closeempty" size="24" color="inherit"></uni-icons>
+          <HejiIcon name="CircleX" :size="24" />
           <text class="state-card__title">今日数据加载失败</text>
           <text class="state-card__description">请检查本地数据库状态后重试，已有数据不会被覆盖。</text>
           <button class="retry-button" :disabled="isRefreshing" @click="retry">
@@ -188,7 +189,7 @@ onShow(() => {
           <view class="metrics">
             <view class="metric-card metric-card--orders">
               <view class="metric-card__icon metric-card__icon--accent">
-                <uni-icons type="list" size="18" color="inherit"></uni-icons>
+                <HejiIcon name="List" :size="18" />
               </view>
               <view class="metric-card__copy">
                 <text class="metric-card__label">订单</text>
@@ -204,7 +205,7 @@ onShow(() => {
 
             <view class="metric-card">
               <view class="metric-card__icon metric-card__icon--success">
-                <uni-icons type="wallet" size="18" color="inherit"></uni-icons>
+                <HejiIcon name="Wallet" :size="18" />
               </view>
               <view class="metric-card__copy">
                 <text class="metric-card__label">收入</text>
@@ -214,7 +215,7 @@ onShow(() => {
 
             <view class="metric-card">
               <view class="metric-card__icon metric-card__icon--warning">
-                <uni-icons type="notification" size="18" color="inherit"></uni-icons>
+                <HejiIcon name="Bell" :size="18" />
               </view>
               <view class="metric-card__copy">
                 <text class="metric-card__label">支出</text>
@@ -224,7 +225,7 @@ onShow(() => {
 
             <view class="metric-card">
               <view class="metric-card__icon metric-card__icon--profit">
-                <uni-icons type="checkbox-filled" size="18" color="inherit"></uni-icons>
+                <HejiIcon name="CircleCheck" :size="18" />
               </view>
               <view class="metric-card__copy">
                 <text class="metric-card__label">利润</text>
@@ -234,7 +235,7 @@ onShow(() => {
           </view>
 
           <view v-if="isRefreshing" class="refreshing-note">
-            <uni-icons type="refresh" size="14" color="inherit"></uni-icons>
+            <HejiIcon name="RefreshCw" :size="14" />
             <text>正在刷新今日数据…</text>
           </view>
 
@@ -246,28 +247,28 @@ onShow(() => {
               </view>
               <view class="section-link" hover-class="section-link--pressed" @click="goOrders">
                 <text>更多订单</text>
-                <uni-icons type="right" size="14" color="inherit"></uni-icons>
+                <HejiIcon name="ChevronRight" :size="14" />
               </view>
             </view>
 
             <view class="status-summary">
               <view class="status-summary__item status-summary__item--pending">
                 <view class="status-summary__label">
-                  <uni-icons type="notification" size="14" color="inherit"></uni-icons>
+                  <HejiIcon name="Bell" :size="14" />
                   <text>待配送</text>
                 </view>
                 <text class="status-summary__value">{{ pendingOrders.length }}单 / {{ pendingQuantity }}份</text>
               </view>
               <view class="status-summary__item status-summary__item--delivered">
                 <view class="status-summary__label">
-                  <uni-icons type="checkbox-filled" size="14" color="inherit"></uni-icons>
+                  <HejiIcon name="CircleCheck" :size="14" />
                   <text>已配送</text>
                 </view>
                 <text class="status-summary__value">{{ deliveredOrders.length }}单 / {{ deliveredQuantity }}份</text>
               </view>
               <view class="status-summary__item status-summary__item--cancelled">
                 <view class="status-summary__label">
-                  <uni-icons type="closeempty" size="14" color="inherit"></uni-icons>
+                  <HejiIcon name="CircleX" :size="14" />
                   <text>已取消</text>
                 </view>
                 <text class="status-summary__value">{{ cancelledOrders.length }}单 / {{ cancelledQuantity }}份</text>
@@ -276,13 +277,13 @@ onShow(() => {
 
             <view v-if="orderStore.list.length === 0" class="empty-state">
               <view class="empty-state__icon">
-                <uni-icons type="list" size="22" color="inherit"></uni-icons>
+                <HejiIcon name="List" :size="22" />
               </view>
               <text class="empty-state__title">今天还没有订单</text>
               <text class="empty-state__description">订单录入后，会在这里显示配送进度和收款信息。</text>
               <button class="empty-action" hover-class="empty-action--pressed" @click="goOrders">
                 <text>前往订单页新建</text>
-                <uni-icons type="right" size="14" color="inherit"></uni-icons>
+                <HejiIcon name="ChevronRight" :size="14" />
               </button>
             </view>
 
@@ -313,7 +314,7 @@ onShow(() => {
                     </view>
                     <view class="order-amount-wrap">
                       <text class="order-amount">{{ orderDisplayAmount(order) }}</text>
-                      <uni-icons type="right" size="14" color="inherit"></uni-icons>
+                      <HejiIcon name="ChevronRight" :size="14" />
                     </view>
                   </view>
                 </view>
@@ -827,10 +828,6 @@ onShow(() => {
 
 .empty-action::after {
   border: 0;
-}
-
-.empty-action uni-icons {
-  margin-left: $hej-space-1;
 }
 
 .order-groups {
