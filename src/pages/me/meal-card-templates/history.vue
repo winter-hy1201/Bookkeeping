@@ -9,6 +9,7 @@ import {
 } from '../../../api/meal-card-templates'
 import type { MealCardMessageTemplate, MealCardTemplateVersion } from '../../../types/domain'
 import { confirmDialog, showToast } from '../../../utils/ui'
+import InfoBanner from '../../../components/InfoBanner.vue'
 
 const templateId = ref<number | null>(null)
 const template = ref<MealCardMessageTemplate | null>(null)
@@ -75,12 +76,10 @@ onShow(() => {
     </view>
 
     <!-- Warm Sand Notice Banner -->
-    <view class="syntax-note">
-      <text class="syntax-note__icon">ⓘ</text>
-      <text class="syntax-note__text"
-        >恢复历史版本会先快照当前模板，再将此版本内容恢复为当前模板；默认状态保持不变。</text
-      >
-    </view>
+    <InfoBanner
+      icon="ⓘ"
+      text="恢复历史版本会先快照当前模板，再将此版本内容恢复为当前模板；默认状态保持不变。"
+    />
 
     <!-- Loading State -->
     <view v-if="loading" class="state-card">
@@ -171,31 +170,6 @@ onShow(() => {
   margin-top: $hej-space-1;
   color: $hej-color-text-secondary;
   font-size: $hej-font-caption;
-  line-height: 1.5;
-}
-
-.syntax-note {
-  display: flex;
-  align-items: flex-start;
-  gap: $hej-space-2;
-  margin-bottom: $hej-space-5;
-  padding: $hej-space-4 $hej-space-5;
-  border: 1rpx solid $hej-color-warning-soft;
-  border-radius: $hej-radius-panel;
-  background: $hej-color-warning-soft;
-}
-
-.syntax-note__icon {
-  flex: 0 0 auto;
-  color: $hej-color-warning;
-  font-size: $hej-font-body;
-  line-height: 1.4;
-}
-
-.syntax-note__text {
-  flex: 1;
-  color: $hej-color-text;
-  font-size: $hej-font-meta;
   line-height: 1.5;
 }
 

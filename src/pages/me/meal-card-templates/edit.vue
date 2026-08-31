@@ -14,6 +14,7 @@ import {
   validateMealCardTemplate,
 } from '../../../utils/meal-card-template'
 import { showToast } from '../../../utils/ui'
+import InfoBanner from '../../../components/InfoBanner.vue'
 
 interface UniFormsRef {
   validate: () => Promise<unknown>
@@ -163,12 +164,10 @@ onLoad((query) => {
         </view>
 
         <!-- Warm Sand Syntax Note Banner -->
-        <view class="syntax-note">
-          <text class="syntax-note__icon">ⓘ</text>
-          <text class="syntax-note__text"
-            >月卡通知需要同时包含“本次使用份数”和“当前可用份数”两个占位符，否则无法保存为模板。</text
-          >
-        </view>
+        <InfoBanner
+          icon="ⓘ"
+          text="月卡通知需要同时包含“本次使用份数”和“当前可用份数”两个占位符，否则无法保存为模板。"
+        />
 
         <!-- Continuous Surface Form -->
         <view class="form-card">
@@ -294,31 +293,6 @@ onLoad((query) => {
   margin-top: $hej-space-1;
   color: $hej-color-text-secondary;
   font-size: $hej-font-caption;
-  line-height: 1.5;
-}
-
-.syntax-note {
-  display: flex;
-  align-items: flex-start;
-  gap: $hej-space-2;
-  margin-bottom: $hej-space-5;
-  padding: $hej-space-4 $hej-space-5;
-  border: 1rpx solid $hej-color-warning-soft;
-  border-radius: $hej-radius-panel;
-  background: $hej-color-warning-soft;
-}
-
-.syntax-note__icon {
-  flex: 0 0 auto;
-  color: $hej-color-warning;
-  font-size: $hej-font-body;
-  line-height: 1.4;
-}
-
-.syntax-note__text {
-  flex: 1;
-  color: $hej-color-text;
-  font-size: $hej-font-meta;
   line-height: 1.5;
 }
 

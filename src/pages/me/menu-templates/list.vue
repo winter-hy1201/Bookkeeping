@@ -10,6 +10,7 @@ import {
 } from '../../../api/message-templates'
 import type { MessageTemplate } from '../../../types/domain'
 import { actionSheet, confirmDialog, showToast } from '../../../utils/ui'
+import InfoBanner from '../../../components/InfoBanner.vue'
 
 const templates = ref<MessageTemplate[]>([])
 const loading = ref(false)
@@ -104,12 +105,10 @@ onShow(() => {
     </view>
 
     <!-- Warm Sand Syntax Note Banner -->
-    <view class="syntax-note">
-      <text class="syntax-note__icon">ⓘ</text>
-      <text class="syntax-note__text"
-        >模板中的「日期」和「可供餐食」部分会在复制时自动替换，其他内容保持不变。</text
-      >
-    </view>
+    <InfoBanner
+      icon="ⓘ"
+      text="模板中的「日期」和「可供餐食」部分会在复制时自动替换，其他内容保持不变。"
+    />
 
     <!-- Loading State -->
     <view v-if="loading" class="state-card">
@@ -254,31 +253,6 @@ onShow(() => {
   &:active {
     opacity: 0.85;
   }
-}
-
-.syntax-note {
-  display: flex;
-  align-items: flex-start;
-  gap: $hej-space-2;
-  margin-top: $hej-space-5;
-  padding: $hej-space-4 $hej-space-5;
-  border: 1rpx solid $hej-color-warning-soft;
-  border-radius: $hej-radius-panel;
-  background: $hej-color-warning-soft;
-}
-
-.syntax-note__icon {
-  flex: 0 0 auto;
-  color: $hej-color-warning;
-  font-size: $hej-font-body;
-  line-height: 1.4;
-}
-
-.syntax-note__text {
-  flex: 1;
-  color: $hej-color-text;
-  font-size: $hej-font-meta;
-  line-height: 1.5;
 }
 
 .state-card {
