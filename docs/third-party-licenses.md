@@ -2,7 +2,7 @@
 
 ## `@lucide/vue`
 
-- 版本：`1.38.0`
+- 版本：`1.37.0`
 - 许可证：ISC
 - 来源：[Lucide](https://lucide.dev/)
 - 用法：仅通过 `src/components/HejiIcon.vue` 暴露给业务页面；图标名称使用 Lucide 原始导出名。

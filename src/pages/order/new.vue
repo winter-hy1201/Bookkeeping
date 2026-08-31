@@ -104,13 +104,13 @@ const mealTypeOptions = [
   { text: '晚餐', value: 'dinner', icon: 'Moon' },
 ]
 const primaryPaymentOptions = [
-  { text: '微信', value: 'wechat', icon: 'MessageCircle' },
-  { text: '现金', value: 'cash', icon: 'Banknote' },
-  { text: '次卡', value: 'meal_card', icon: 'Ticket' },
+  { text: '微信', value: 'wechat' },
+  { text: '现金', value: 'cash' },
+  { text: '次卡', value: 'meal_card' },
 ]
 const moneyMethodOptions = [
-  { text: '微信', value: 'wechat', icon: 'MessageCircle' },
-  { text: '现金', value: 'cash', icon: 'Banknote' },
+  { text: '微信', value: 'wechat' },
+  { text: '现金', value: 'cash' },
 ]
 
 const isMixed = computed(() => form.payment_mode === 'mixed')
@@ -583,7 +583,6 @@ onShow(() => {
                       class="choice-option"
                       :class="{ 'choice-option--selected': selected, 'choice-option--disabled': disabled }"
                     >
-                      <HejiIcon :name="item.icon" :size="18" />
                       <text>{{ item.text }}</text>
                     </view>
                   </template>
@@ -632,7 +631,6 @@ onShow(() => {
                       class="choice-option"
                       :class="{ 'choice-option--selected': selected, 'choice-option--disabled': disabled }"
                     >
-                      <HejiIcon :name="item.icon" :size="18" />
                       <text>{{ item.text }}</text>
                     </view>
                   </template>

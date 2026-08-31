@@ -26,7 +26,7 @@
 | **本地数据库** | **plus.sqlite** | 内置 | uni-app 原生 SQLite API，无第三方依赖；性能与稳定性最好 |
 | **日期** | **dayjs** | 1.11.x | 7KB，tree-shakable；处理"日/周/月"分组够用 |
 | **金额精确运算** | **big.js** | 7.0.x | 10KB 任意精度十进制运算；所有金额 `+ - * /` 走 `src/utils/format.ts` 的 5 个 helper（big.js 只在 helper 内部 import，业务侧不直接用）|
-| **图标** | **@lucide/vue + HejiIcon** | 1.38.0 | 本地打包的线性图标；业务代码与数据库直接使用 Lucide 原始名称，统一尺寸、线宽和 fallback；旧分类 emoji 由 schema v8 / 备份导入归一化 |
+| **图标** | **@lucide/vue + HejiIcon** | 1.37.0 | 本地打包的线性图标；业务代码与数据库直接使用 Lucide 原始名称，统一尺寸、线宽和 fallback；旧分类 emoji 由 schema v8 / 备份导入归一化 |
 | **图表** | **纯 CSS 进度条** | — | v1.0 不引图表库；统计页用文字 + CSS 简单条形图，v1.1 再加 uCharts |
 | **构建** | **@dcloudio/vite-plugin-uni** | latest | uni-app 官方 Vite 插件 |
 | **包管理** | **pnpm** | 8.x | 比 npm 快、省磁盘；lock 文件稳定 |
