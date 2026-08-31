@@ -133,9 +133,9 @@
 | `src/pages/me/customers/detail.vue` | 客户详情：展示基础信息、active 次卡汇总进度、历史订单；支持编辑、删除、开次卡和进入充值记录。删除走 `customerStore.remove()`，客户存在订单或次卡依赖时保持数据并提示不可删除。次卡区通过 `listCards(customerId)` 汇总所有 active 卡的剩余 / 总次数，避免新开卡后只显示最新一张而像是覆盖旧卡。历史订单通过 `listOrders({ customerId })` 查询。 |
 | `src/pages/me/customers/card-records.vue` | 客户次卡充值记录列表：按时间倒序展示所有 `meal_cards` 的充值日期、金额、总/已用/剩余次数和状态；点击记录进入总次数修改。每条记录底部独立展示删除操作，已扣次时禁用；删除前展示收入 / 次数影响，执行期间用页面级锁防止编辑或重复删除。 |
 | `src/pages/me/customers/open-card.vue` | 次卡开卡/充值记录修改共用页：用 `<uni-forms>` + `<uni-forms-item>` 统一承载校验；开卡模式默认 20 次且金额允许为 0，已有 active 次卡时先汇总确认；带 `cardId` 时只允许修改该记录总次数，下限为已用次数。 |
-| `src/pages/me/expenses/list.vue` | 支出列表：用 `uni-datetime-picker` 按日期读取 expense store，展示分类 emoji/名称、实际支出金额和备注；有退差时补充展示原支出金额与退差金额；点击卡片进入支出详情，长按仍可快捷删除。 |
-| `src/pages/me/expenses/new.vue` | 新建支出页：使用 `<uni-forms>` + `<uni-forms-item>` 承载日期、分类、支出金额、退差金额、备注；全部字段共享 88px 标签列，标签与右侧控件垂直居中，页面背景使用 `$hej-color-canvas`；金额 > 0、分类已选、退差金额不超过支出金额才可保存，实际支出按 `amount - refund_amount` 预览。 |
-| `src/pages/me/expenses/detail.vue` | 支出详情：按 id 读取单条支出与分类；使用 `<uni-forms>` + `<uni-forms-item>` 承载日期、分类、支出金额、退差金额、备注，展示实际支出，支持修改和硬删除；删除后返回列表，保存后按列表当前日期刷新。 |
+| `src/pages/me/expenses/list.vue` | 支出列表：暖纸张视觉重构，顶部日期选择器与「+ 新建支出」操作区、3 列汇总指标卡（今日支出/支出笔数/退差金额）、圆形分类图标徽标、实际净支出金额、无备注/退差明细展示与时间戳；点击进入支出详情，长按支持 ActionSheet 快捷删除；接入 `usePageReturnSnapshot` 保持现场。 |
+| `src/pages/me/expenses/new.vue` | 新建支出页：暖纸张连续象牙白卡片表面，使用 `<uni-forms>` + `<uni-forms-item>` 承载日期、分类、支出金额、退差金额、备注；统一 80px 标签列，输入控件前置 ¥ 前缀；实时净支出计算框（`amount - refund_amount`）与公式明细；底部固定小结与陶土色「保存支出」栏；金额 > 0、分类已选、退差金额不超过支出金额才可保存。 |
+| `src/pages/me/expenses/detail.vue` | 支出详情：暖纸张视觉重构，顶部 Hero 净支出卡片（金额 + 分类/日期），象牙白连续表单卡（80px 统一标签列）、实时净支出计算行、陶土色「保存修改」主按钮；独立浅红危险删除区（带永久删除提示与确认弹窗）；保存或删除后同步刷新支出与今日统计。 |
 | `src/pages/me/menus/list.vue` | 每日菜单列表：当前 / 未来与历史分栏，按日期排序；每条支持默认模板复制、编辑和硬删除，并可进入模板管理。 |
 | `src/pages/me/menus/edit.vue` | 每日菜单新增 / 编辑表单：默认当天，午晚餐至少一项且支持多行；日期冲突进入已有记录，支持保存并新增下一天、复制已保存内容和硬删除。 |
 | `src/pages/me/menu-templates/list.vue` | 文案模板列表：显示唯一默认模板，支持新建、编辑、设为默认、历史和硬删除；删除默认模板时要求选择接替项。 |

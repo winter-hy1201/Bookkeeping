@@ -59,14 +59,25 @@ export function divideMoney(
   return toMoney(toBig(numerator).div(bigDivisor))
 }
 
+export function formatAmountNumber(n: number | null | undefined): string {
+  if (n === null || n === undefined || !Number.isFinite(n)) {
+    return '0.00'
+  }
+  const parts = Math.abs(n).toFixed(2).split('.')
+  const integerPart = parts[0] ?? '0'
+  const decimalPart = parts[1] ?? '00'
+  const integerWithCommas = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  const sign = n < 0 ? '-' : ''
+  return `${sign}${integerWithCommas}.${decimalPart}`
+}
+
 export function formatMoney(n: number | null | undefined): string {
   if (n === null || n === undefined || !Number.isFinite(n)) {
     return '¥—'
   }
-  return `¥${n.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`
+  const formatted = formatAmountNumber(Math.abs(n))
+  const sign = n < 0 ? '-' : ''
+  return `¥${sign}${formatted}`
 }
 
 export function parseMoney(s: string): number {

@@ -3,9 +3,10 @@ import { computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { usePageReturnSnapshot } from '../../../composables/usePageReturnSnapshot'
 import { useExpenseStore } from '../../../stores/expense'
-import type { Expense } from '../../../types/domain'
-import { formatMoney, subtractMoney } from '../../../utils/format'
-import { actionSheet, confirmDialog, showToast } from '../../../utils/ui'
+import type { Expense, ExpenseCategory } from '../../../types/domain'
+import { formatTodayLabel, formatTime, today } from '../../../utils/date'
+import { addMoney, formatAmountNumber, formatMoney, subtractMoney } from '../../../utils/format'
+import { confirmDialog, showToast } from '../../../utils/ui'
 
 const expenseStore = useExpenseStore()
 const pageReturn = usePageReturnSnapshot({
@@ -13,13 +14,33 @@ const pageReturn = usePageReturnSnapshot({
   hasContent: () => expenseStore.list.length > 0,
 })
 
-const categoryById = computed(() => {
-  const map = new Map<number, string>()
+const categoryMap = computed(() => {
+  const map = new Map<number, ExpenseCategory>()
   for (const category of expenseStore.categories) {
-    map.set(category.id, `${category.icon ?? ''} ${category.name}`.trim())
+    map.set(category.id, category)
   }
   return map
 })
+
+const isToday = computed(() => expenseStore.currentDate === today())
+const netAmountLabel = computed(() => (isToday.value ? '今日支出（元）' : '当日支出（元）'))
+
+const totalNetAmount = computed(() => {
+  return expenseStore.list.reduce((sum, item) => {
+    const net = Math.max(0, subtractMoney(item.amount, item.refund_amount ?? 0))
+    return addMoney(sum, net)
+  }, 0)
+})
+
+const totalRefundAmount = computed(() => {
+  return expenseStore.list.reduce((sum, item) => {
+    return addMoney(sum, item.refund_amount ?? 0)
+  }, 0)
+})
+
+function netExpenseAmount(expense: Expense): number {
+  return Math.max(0, subtractMoney(expense.amount, expense.refund_amount ?? 0))
+}
 
 async function refresh(): Promise<boolean> {
   const previousCategories = [...expenseStore.categories]
@@ -53,17 +74,15 @@ function goDetail(id: number): void {
   void pageReturn.navigateTo({ url: `/pages/me/expenses/detail?id=${id}` })
 }
 
-function netExpenseAmount(expense: Expense): number {
-  return Math.max(0, subtractMoney(expense.amount, expense.refund_amount ?? 0))
-}
-
 async function onLongPress(id: number): Promise<void> {
-  const index = await actionSheet(['删除'])
-  if (index !== 0) return
-  const ok = await confirmDialog('删除支出？', '删除后无法恢复。')
+  const ok = await confirmDialog('删除支出？', '删除后无法恢复，确定要删除此支出记录吗？')
   if (!ok) return
   try {
-    await expenseStore.remove(id)
+    const deleted = await expenseStore.remove(id)
+    if (!deleted) {
+      showToast('支出不存在')
+      return
+    }
     showToast('已删除')
   } catch {
     showToast('删除失败')
@@ -77,117 +96,309 @@ onShow(() => {
 
 <template>
   <view class="page">
+    <!-- Top Filter Bar -->
     <view class="toolbar">
-      <uni-datetime-picker
-        class="date-button"
-        type="date"
-        :model-value="expenseStore.currentDate"
-        :clear-icon="false"
-        @change="onDateChange"
-      />
-      <button class="add" @click="goNew">+ 新建</button>
+      <view class="date-picker-wrap">
+        <uni-datetime-picker
+          class="date-picker"
+          type="date"
+          :model-value="expenseStore.currentDate"
+          :clear-icon="false"
+          @change="onDateChange"
+        />
+      </view>
+      <button class="add-button" @click="goNew">＋ 新建支出</button>
     </view>
 
-    <view v-if="expenseStore.loading" class="empty">支出加载中...</view>
-    <view v-else-if="expenseStore.list.length === 0" class="empty">该日期暂无支出</view>
-    <view v-else class="group">
-      <text class="group-date">{{ expenseStore.currentDate }}</text>
+    <!-- Summary Metrics Card -->
+    <view class="summary-card">
+      <view class="metric-item">
+        <text class="metric-label">{{ netAmountLabel }}</text>
+        <text class="metric-value">{{ formatAmountNumber(totalNetAmount) }}</text>
+      </view>
+      <view class="metric-divider" />
+      <view class="metric-item">
+        <text class="metric-label">支出笔数</text>
+        <text class="metric-value">{{ expenseStore.list.length }}</text>
+      </view>
+      <view class="metric-divider" />
+      <view class="metric-item">
+        <text class="metric-label">退差金额（元）</text>
+        <text class="metric-value">{{ formatAmountNumber(totalRefundAmount) }}</text>
+      </view>
+    </view>
+
+    <!-- Date Section Header -->
+    <view class="section-header">
+      <text class="section-date">{{ formatTodayLabel(expenseStore.currentDate) }}</text>
+      <text class="section-meta">共 {{ expenseStore.list.length }} 笔</text>
+    </view>
+
+    <!-- State Views -->
+    <view v-if="expenseStore.loading" class="state-card">
+      <text class="state-title">正在读取支出记录…</text>
+    </view>
+    <view v-else-if="expenseStore.list.length === 0" class="state-card">
+      <text class="state-title">该日期暂无支出</text>
+      <text class="state-hint">点击右上角「＋ 新建支出」记录第一笔支出</text>
+    </view>
+
+    <!-- Expense List Items -->
+    <view v-else class="list-wrap">
       <view
         v-for="expense in expenseStore.list"
         :key="expense.id"
-        class="item"
+        class="expense-card"
         @click="goDetail(expense.id)"
         @longpress="onLongPress(expense.id)"
       >
-        <view>
-          <text class="title">{{ categoryById.get(expense.category_id) ?? `分类 #${expense.category_id}` }}</text>
-          <text class="meta">{{ expense.note || '无备注' }}</text>
-          <text v-if="expense.refund_amount > 0" class="meta">
-            支出 {{ formatMoney(expense.amount) }} · 退差 {{ formatMoney(expense.refund_amount) }}
+        <view class="icon-avatar">
+          <text class="icon-text">{{ categoryMap.get(expense.category_id)?.icon || '💰' }}</text>
+        </view>
+        <view class="card-center">
+          <text class="category-name">
+            {{ categoryMap.get(expense.category_id)?.name || `分类 #${expense.category_id}` }}
+          </text>
+          <text class="expense-note">{{ expense.note || '无备注' }}</text>
+          <text v-if="expense.refund_amount > 0" class="refund-detail">
+            原支出 {{ formatMoney(expense.amount) }} · 退差 {{ formatMoney(expense.refund_amount) }}
           </text>
         </view>
-        <text class="amount">{{ formatMoney(netExpenseAmount(expense)) }}</text>
+        <view class="card-right">
+          <text class="net-amount">{{ formatMoney(netExpenseAmount(expense)) }}</text>
+          <text class="expense-time">{{ formatTime(expense.created_at) }}</text>
+        </view>
       </view>
     </view>
   </view>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .page {
   min-height: 100vh;
-  padding: 24rpx;
-  background: #f6f7f9;
+  padding: $hej-space-3;
+  background: $hej-color-canvas;
   box-sizing: border-box;
 }
 
-.toolbar,
-.item {
+.toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: $hej-space-3;
+  margin-bottom: $hej-space-3;
 }
 
-.toolbar {
-  gap: 20rpx;
-  margin-bottom: 20rpx;
+.date-picker-wrap {
+  flex: 1;
+  min-width: 0;
 }
 
-.date-button,
-.item,
-.group {
-  border-radius: 12rpx;
-  background: #ffffff;
+.date-picker :deep(.uni-date-x) {
+  height: 72rpx !important;
+  background-color: $hej-color-surface !important;
+  border: 1rpx solid $hej-color-border !important;
+  border-radius: $hej-radius-control !important;
+  padding: 0 $hej-space-3 !important;
+  box-sizing: border-box;
 }
 
-.date-button {
-  min-width: 260rpx;
+.date-picker :deep(.uni-date__x-input) {
+  color: $hej-color-text !important;
+  font-size: $hej-font-body !important;
+  font-weight: 500;
 }
 
-.add {
+.add-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  height: 72rpx;
+  line-height: 72rpx;
+  padding: 0 $hej-space-4;
   margin: 0;
-  border-radius: 12rpx;
-  background: #007aff;
+  border: 0;
+  border-radius: $hej-radius-control;
+  background: $hej-color-accent;
   color: #ffffff;
-  font-size: 28rpx;
+  font-size: $hej-font-body;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
-.group {
-  padding: 24rpx;
+.add-button::after {
+  border: 0;
 }
 
-.group-date {
+.summary-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $hej-space-4 $hej-space-2;
+  margin-bottom: $hej-space-4;
+  border: 1rpx solid $hej-color-border;
+  border-radius: $hej-radius-panel;
+  background: $hej-color-surface;
+  box-shadow: $hej-shadow-panel;
+}
+
+.metric-item {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+
+.metric-divider {
+  width: 1rpx;
+  height: 48rpx;
+  background: $hej-color-border;
+}
+
+.metric-label {
   display: block;
-  margin-bottom: 12rpx;
-  color: #222222;
-  font-size: 32rpx;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-caption;
+  line-height: 1.3;
+}
+
+.metric-value {
+  display: block;
+  margin-top: 8rpx;
+  color: $hej-color-text;
+  font-size: 36rpx;
+  font-weight: 700;
+  font-family: $hej-font-family;
+  line-height: 1.2;
+}
+
+.section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0 $hej-space-1;
+  margin-bottom: $hej-space-2;
+}
+
+.section-date {
+  color: $hej-color-text;
+  font-size: $hej-font-body;
   font-weight: 700;
 }
 
-.item {
-  min-height: 96rpx;
-  border-bottom: 1rpx solid #f0f0f0;
+.section-meta {
+  color: $hej-color-text-tertiary;
+  font-size: $hej-font-caption;
 }
 
-.title,
-.meta {
+.state-card {
+  padding: 100rpx $hej-space-4;
+  border: 1rpx solid $hej-color-border;
+  border-radius: $hej-radius-panel;
+  background: $hej-color-surface;
+  text-align: center;
+  box-shadow: $hej-shadow-panel;
+}
+
+.state-title {
   display: block;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-body;
+  font-weight: 500;
 }
 
-.title,
-.amount {
-  color: #222222;
+.state-hint {
+  display: block;
+  margin-top: $hej-space-2;
+  color: $hej-color-text-tertiary;
+  font-size: $hej-font-caption;
+}
+
+.list-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: $hej-space-3;
+}
+
+.expense-card {
+  display: flex;
+  align-items: center;
+  gap: $hej-space-3;
+  padding: $hej-space-3 $hej-space-4;
+  border: 1rpx solid $hej-color-border;
+  border-radius: $hej-radius-panel;
+  background: $hej-color-surface;
+  box-shadow: $hej-shadow-panel;
+  box-sizing: border-box;
+}
+
+.icon-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  background: $hej-color-surface-subtle;
+}
+
+.icon-text {
+  font-size: 40rpx;
+  line-height: 1;
+}
+
+.card-center {
+  flex: 1;
+  min-width: 0;
+}
+
+.category-name {
+  display: block;
+  color: $hej-color-text;
   font-size: 30rpx;
   font-weight: 700;
+  line-height: 1.3;
 }
 
-.meta,
-.empty {
-  color: #8f8f94;
-  font-size: 26rpx;
+.expense-note {
+  display: block;
+  margin-top: 4rpx;
+  color: $hej-color-text-secondary;
+  font-size: $hej-font-caption;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.empty {
-  padding: 120rpx 0;
-  text-align: center;
+.refund-detail {
+  display: block;
+  margin-top: 4rpx;
+  color: $hej-color-text-tertiary;
+  font-size: 22rpx;
+  line-height: 1.3;
+}
+
+.card-right {
+  flex: 0 0 auto;
+  text-align: right;
+}
+
+.net-amount {
+  display: block;
+  color: $hej-color-text;
+  font-size: 32rpx;
+  font-weight: 700;
+  font-family: $hej-font-family;
+  line-height: 1.2;
+}
+
+.expense-time {
+  display: block;
+  margin-top: 6rpx;
+  color: $hej-color-text-tertiary;
+  font-size: 22rpx;
+  line-height: 1.2;
 }
 </style>
