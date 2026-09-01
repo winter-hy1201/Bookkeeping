@@ -157,7 +157,7 @@
 | `src/components/StatCard.vue` | 通用数字卡片；props 为 `label` / `value` / `color?: 'normal' \| 'positive' \| 'negative'` / `hint?`；上方展示 label，下方展示大号 value，可选 hint；利润 label 在未显式传 color 时按数值正负自动映射绿色/红色。 |
 | `src/components/AmountInput.vue` | 金额输入组件；props 为 `modelValue: number` / `label` / `placeholder?`；事件 `update:modelValue`；内部用 `uni-easyinput` 保留字符串输入态，使用 `parseMoney()` 将输入解析为 number 回传，模板提供 `¥` 前缀。 |
 | `src/components/CustomerPicker.vue` | 客户选择组件；props 为 `modelValue: Customer \| null` / `showCreate?`；事件 `update:modelValue` / `create`；字段标签由外层 `<uni-forms-item>` 负责，组件只展示已选客户或占位和选择入口；点击输入区打开底部选择弹层，内部用 `uni-easyinput` 支持按姓名、微信、手机号前端搜索；列表复用 `src/utils/pinyin.ts` 按姓名拼音排序和首字母分组，右侧 `index-bar` 可跳转到对应分组，并展示客户名和折扣角标。 |
-| `src/components/HejiIcon.vue` | Lucide 图标统一入口；props 为 `name`（Lucide 原始导出名）、`size?`、`strokeWidth?`、`label?` 与 `decorative?`；从 `icon-registry.ts` 的 Lucide 原始节点生成 app-plus 安全的 CSS mask，负责静态图形、fallback 和可访问性属性，不承接业务动作；图标依赖固定为 `@lucide/vue@1.38.0`。 |
+| `src/components/HejiIcon.vue` | Lucide 图标统一入口；props 为 `name`（Lucide 原始导出名）、`size?`、`strokeWidth?`、`label?` 与 `decorative?`；从 `icon-registry.ts` 的 Lucide 原始节点生成 app-plus 安全的 CSS mask，负责静态图形、fallback 和可访问性属性，不承接业务动作；图标依赖固定为 `@lucide/vue@1.37.0`。 |
 
 ### composables/ — 页面交互复用
 

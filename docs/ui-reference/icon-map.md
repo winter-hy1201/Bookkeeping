@@ -1,6 +1,6 @@
 # 盒记 UI 参考图标映射
 
-本文记录 23 张参考图与当前页面实现之间的图标对应关系，作为 `HejiIcon` 注册表和逐页视觉复核的索引。图标名称均使用 `@lucide/vue@1.38.0` 的原始导出名；业务页面通过 `src/components/HejiIcon.vue` 渲染，原生 TabBar 使用由同一组 Lucide 节点生成的静态 PNG。
+本文记录 23 张参考图与当前页面实现之间的图标对应关系，作为 `HejiIcon` 注册表和逐页视觉复核的索引。图标名称均使用 `@lucide/vue@1.37.0` 的原始导出名；业务页面通过 `src/components/HejiIcon.vue` 渲染，原生 TabBar 使用由同一组 Lucide 节点生成的静态 PNG。
 
 ## 统一边界
 
@@ -44,9 +44,9 @@
 
 | Tab | Lucide 来源 | 普通态 / 选中态 |
 |---|---|---|
-| 今日 | `House` | `today.png` / `today-active.png` |
-| 订单 | `ClipboardList` | `orders.png` / `orders-active.png` |
-| 统计 | `ChartNoAxesCombined` | `stats.png` / `stats-active.png` |
-| 我的 | `UserRound` | `me.png` / `me-active.png` |
+| 今日 | `House` | `today-v2.png` / `today-active-v2.png` |
+| 订单 | `ClipboardList` | `orders-v2.png` / `orders-active-v2.png` |
+| 统计 | `ChartNoAxesCombined` | `stats-v2.png` / `stats-active-v2.png` |
+| 我的 | `UserRound` | `me-v2.png` / `me-active-v2.png` |
 
 PNG 使用透明背景、普通态 `#87867F`、选中态 `#C96442`；子页面不显示 TabBar，继续使用系统返回导航。

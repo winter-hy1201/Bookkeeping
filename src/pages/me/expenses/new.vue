@@ -175,7 +175,6 @@ onShow(() => {
           <view class="field-row">
             <uni-forms-item name="amount" label="金额" required>
               <view class="amount-control">
-                <HejiIcon class="amount-icon" name="CircleDollarSign" :size="16" />
                 <text class="amount-prefix">¥</text>
                 <uni-easyinput
                   v-model="form.amount"
@@ -195,14 +194,7 @@ onShow(() => {
           <!-- 退差 -->
           <view class="field-row">
             <uni-forms-item name="refund_amount" label="退差">
-              <template #label>
-                <view class="form-field-label">
-                  <text>退差</text>
-                  <HejiIcon name="CircleHelp" :size="14" />
-                </view>
-              </template>
               <view class="amount-control">
-                <HejiIcon class="amount-icon" name="CircleDollarSign" :size="16" />
                 <text class="amount-prefix">¥</text>
                 <uni-easyinput
                   v-model="form.refund_amount"
@@ -394,22 +386,6 @@ onShow(() => {
   color: $hej-color-text-secondary;
   font-size: $hej-font-body;
   font-weight: 600;
-}
-
-.amount-icon {
-  flex: 0 0 auto;
-  margin-right: $hej-space-1;
-  color: $hej-color-text-tertiary;
-}
-
-.form-field-label {
-  display: inline-flex;
-  align-items: center;
-  gap: $hej-space-1;
-  width: 100px;
-  color: $hej-color-text;
-  font-size: $hej-font-body;
-  font-weight: 500;
 }
 
 .amount-input {

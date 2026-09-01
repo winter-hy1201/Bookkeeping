@@ -1,6 +1,6 @@
 # 盒记 — 技术栈
 
-> 选型记录起源于 `design-document.md`（2026-06-09）；现役版本、脚本和目录以当前 `package.json`、`src/` 与 `memory-bank/architecture.md` 为准。原则：**简单 + 健壮 + 沿用用户栈**
+> 基于 design-document.md · 2026-06-09 · 原则：**简单 + 健壮 + 沿用用户栈**
 
 ---
 
@@ -19,21 +19,21 @@
 
 | 层 | 选 | 版本 | 理由 |
 |---|---|---|---|
-| **框架** | **uni-app (Vue 3) + Vite** | `@dcloudio/uni-app` `3.0.0-5000720260410001` / Vue `^3.4.21` / Vite `5.2.8` | 单代码库编译为 Android App；H5 可由 CLI 验证，SQLite 原生模块仍由 HBuilderX 链入 |
-| **语言** | **TypeScript** | `^4.9.4` | 当前模板基线与复杂状态机的类型保护 |
-| **状态管理** | **Pinia** | `2.0.36` | Vue 3 官方推荐；Pinia store 数量控制在 4 个以内 |
-| **UI 组件** | **本地 `src/uni_modules` uni-ui** | 随项目维护 | 通过 easycom 使用；主题与可见图标补丁随仓库维护，不通过 npm 安装 `@dcloudio/uni-ui` |
+| **框架** | **uni-app (Vue 3) + Vite** | uni-app 最新稳定 / Vue 3.4+ | 你的栈；单代码库编译为 Android APK；CLI 模式不依赖 HBuilderX |
+| **语言** | **TypeScript** | 5.x | 5 张表 + 复杂状态机，类型保护能省大量排查时间 |
+| **状态管理** | **Pinia** | 2.x | Vue 3 官方推荐；Pinia store 数量控制在 4 个以内 |
+| **UI 组件** | **uni-ui**（官方轻量） | latest | 比 uView Plus 轻 ~60%；5 个核心页够用；后期可补 |
 | **本地数据库** | **plus.sqlite** | 内置 | uni-app 原生 SQLite API，无第三方依赖；性能与稳定性最好 |
-| **日期** | **dayjs** | `^1.11.21` | 7KB，tree-shakable；处理"日/周/月"分组够用 |
-| **金额精确运算** | **big.js** | `^7.0.1` | 任意精度十进制运算；所有金额 `+ - * /` 走 `src/utils/format.ts` 的 5 个 helper（业务侧不直接 import）|
-| **图标** | **@lucide/vue + HejiIcon** | 1.38.0 | 本地打包的线性图标；业务代码与数据库直接使用 Lucide 原始名称，统一尺寸、线宽和 fallback；旧分类 emoji 由 schema v8 / 备份导入归一化 |
+| **日期** | **dayjs** | 1.11.x | 7KB，tree-shakable；处理"日/周/月"分组够用 |
+| **金额精确运算** | **big.js** | 7.0.x | 10KB 任意精度十进制运算；所有金额 `+ - * /` 走 `src/utils/format.ts` 的 5 个 helper（big.js 只在 helper 内部 import，业务侧不直接用）|
+| **图标** | **@lucide/vue + HejiIcon** | 1.37.0 | 本地打包的线性图标；业务代码与数据库直接使用 Lucide 原始名称，统一尺寸、线宽和 fallback；旧分类 emoji 由 schema v8 / 备份导入归一化 |
 | **图表** | **纯 CSS 进度条** | — | v1.0 不引图表库；统计页用文字 + CSS 简单条形图，v1.1 再加 uCharts |
-| **构建** | **@dcloudio/vite-plugin-uni** | `3.0.0-5000720260410001` | uni-app 官方 Vite 插件 |
-| **包管理** | **pnpm** | `package.json` 未固定 | 依赖版本由 `pnpm-lock.yaml` 锁定；具体命令以 `package.json` scripts 为准 |
-| **Lint** | **ESLint + @vue/eslint-config-typescript** | ESLint `^8.57.1` | 基础规范 |
-| **Format** | **Prettier** | `^3.8.4` | 自动格式化 |
-| **IDE** | **VSCode + Vue (Official) + TypeScript Vue Plugin (Volar)** | — | Vue 3 + TS 编辑；HBuilderX 只用于 Android app-plus 编译与原生回归 |
-| **测试** | **Node 内置测试 + CLI 门禁 + HBuilderX 回归** | — | `node:test` 契约 / 领域测试、`vue-tsc`、ESLint、H5 构建与 Android 平台回归分层验证 |
+| **构建** | **@dcloudio/vite-plugin-uni** | latest | uni-app 官方 Vite 插件 |
+| **包管理** | **pnpm** | 8.x | 比 npm 快、省磁盘；lock 文件稳定 |
+| **Lint** | **ESLint + @vue/eslint-config-typescript** | latest | 基础规范 |
+| **Format** | **Prettier** | 3.x | 自动格式化 |
+| **IDE** | **VSCode + Vue (Official) + TypeScript Vue Plugin (Volar)** | latest | Vue 3 + TS 必备；不要装 Vetur |
+| **测试** | **手动 + 真机调试** | — | v1.0 不写单测（5 个页面、5 张表，手测覆盖即可）；后期可加 vitest |
 
 ---
 
@@ -43,7 +43,7 @@
 
 | ❌ | 理由 |
 |---|---|
-| HBuilderX 作为 IDE | 代码仍由 VSCode + 终端维护；HBuilderX 保留为 Android app-plus 原生模块编译和回归工具 |
+| HBuilderX | 你的工作流是 VSCode + 终端，HBuilderX 是负担 |
 | uView Plus / NutUI / TDesign | uni-ui 够用；多一层库就多一份维护成本 |
 | uCharts / ECharts / F2 | v1.0 用文字 + CSS 进度条；图表是 v1.1 候选 |
 | Vuex | 已废弃，Pinia 是替代 |
@@ -53,7 +53,7 @@
 | Vue Router | uni-app 自带 pages.json 路由 |
 | Axios | 纯本地 App，无网络请求 |
 | Pinia 持久化插件 | SQLite 本身就是持久层，不需要 pinia-plugin-persistedstate |
-| ORM（如 Prisma / TypeORM）| 当前 11 张表直接写 SQL 比 ORM 学习成本低；后期真要换再考虑 |
+| ORM（如 Prisma / TypeORM）| 5 张表直接写 SQL 比 ORM 学习成本低；后期真要换再考虑 |
 | TypeORM 装饰器方案 | 跟 uni-app 编译兼容性差 |
 | Husky / lint-staged | 个人项目，commit 前手动 lint 即可 |
 | CI/CD | 手动构建 + 微信传 APK 即可 |
@@ -65,7 +65,7 @@
 ```
 bookkeeping/
 ├── docs/                          # 已定稿文档
-│   └── archive/PRD-v1.0.md
+│   └── PRD.md
 │
 ├── memory-bank/                   # 活文档区（AI 协作）
 │   ├── design-document.md
@@ -78,7 +78,7 @@ bookkeeping/
 │   ├── pages/                     # uni-app 自动路由
 │   │   ├── index/                 # Tab 1 Dashboard
 │   │   ├── order/                 # Tab 2 订单
-│   │   │   ├── index.vue
+│   │   │   ├── list.vue
 │   │   │   ├── new.vue            # 新建订单
 │   │   │   └── detail.vue
 │   │   ├── stats/                 # Tab 3 统计
@@ -91,7 +91,8 @@ bookkeeping/
 │   │       │   ├── list.vue
 │   │       │   └── new.vue
 │   │       └── settings/
-│   │           └── backup.vue     # 备份与恢复
+│   │           ├── backup.vue
+│   │           └── categories.vue # 支出分类管理
 │   ├── components/                # 跨页复用组件
 │   │   ├── AmountInput.vue        # 金额输入（含格式化）
 │   │   ├── CustomerPicker.vue     # 客户选择器（搜索 + 新建）
@@ -104,7 +105,7 @@ bookkeeping/
 │   │   └── stats.ts
 │   ├── db/                        # SQLite 数据层
 │   │   ├── index.ts               # 连接管理 + 初始化
-│   │   ├── schema.ts              # 当前 11 张表 DDL
+│   │   ├── schema.ts              # 5 张表 DDL
 │   │   ├── migrations.ts          # 版本迁移脚本
 │   │   └── seed.ts                # 首次启动种子数据
 │   ├── api/                       # 数据访问层（封装的 SQL）
@@ -124,50 +125,46 @@ bookkeeping/
 │   ├── App.vue
 │   └── main.ts
 │
-├── src/pages.json                # uni-app 路由配置
-├── src/manifest.json             # Android 包名 / 图标 / 权限
+├── pages.json                     # uni-app 路由配置
+├── manifest.json                  # Android 包名 / 图标 / 权限
 ├── package.json
 ├── tsconfig.json
 ├── vite.config.ts
 ├── .eslintrc.cjs
 ├── .prettierrc
 ├── .gitignore
-├── AGENTS.md / CLAUDE.md         # Agent 规则入口
-└── CONTEXT.md                    # 领域词汇与内容边界
+└── README.md
 ```
-
-> 上述结构只列核心目录；完整文件职责和当前页面清单以 `memory-bank/architecture.md` 与实际 `src/` 目录为准。
 
 ---
 
 ## 5. 关键依赖清单
 
-### `package.json`（现役核心依赖摘要）
+### `package.json`（核心）
 
 ```json
 {
   "dependencies": {
-    "@dcloudio/uni-app": "3.0.0-5000720260410001",
-    "@lucide/vue": "1.38.0",
-    "big.js": "^7.0.1",
-    "dayjs": "^1.11.21",
-    "pinia": "2.0.36",
-    "pinyin-pro": "^3.28.1",
-    "vue": "^3.4.21"
+    "vue": "^3.4.0",
+    "pinia": "^2.1.0",
+    "dayjs": "^1.11.10",
+    "@dcloudio/uni-app": "latest",
+    "@dcloudio/uni-ui": "latest"
   },
   "devDependencies": {
-    "@dcloudio/vite-plugin-uni": "3.0.0-5000720260410001",
-    "eslint": "^8.57.1",
-    "prettier": "^3.8.4",
-    "sass": "^1.100.0",
-    "typescript": "^4.9.4",
-    "vite": "5.2.8",
-    "vue-tsc": "^1.0.24"
+    "@dcloudio/vite-plugin-uni": "latest",
+    "vite": "^5.0.0",
+    "typescript": "^5.3.0",
+    "vue-tsc": "^1.8.0",
+    "@types/node": "^20.0.0",
+    "eslint": "^8.55.0",
+    "@vue/eslint-config-typescript": "^13.0.0",
+    "prettier": "^3.1.0"
   }
 }
 ```
 
-> 完整依赖和 scripts 只以仓库根目录 `package.json` 为准；本项目的 uni-ui 通过 `src/uni_modules` 携带，不是 npm 依赖。
+> 注：uni-app 系列包的具体版本以 `npx degit dcloudio/uni-preset-vue#vite` 模板里的为准，跟随官方升级。
 
 ---
 
@@ -213,7 +210,7 @@ export function tx<T>(fn: () => T): T {
 
 ### 6.3 查询层
 
-- **轻量查询直接用 SQL**（当前 11 张表仍在单机范围内，ORM 没必要）
+- **轻量查询直接用 SQL**（5 张表不多，ORM 没必要）
 - **类型安全**：在 `api/*.ts` 顶部定义 `interface`，每个查询返回类型用 `as` 断言
 - **聚合查询**（统计页）放 `api/stats.ts`，独立维护
 
@@ -247,35 +244,42 @@ v1.0 一律硬删除。软删除增加复杂度（所有查询要带 `WHERE dele
 ### 8.1 常用命令
 
 ```bash
-# 安装依赖
+# 一次性初始化（从 uni-app 模板）
+npx degit dcloudio/uni-preset-vue#vite bookkeeping
+cd bookkeeping
 pnpm install
 
-# H5 开发 / 构建
-pnpm dev:h5
-pnpm build:h5
+# 开发（连真机或模拟器）
+pnpm dev:app-android
 
-# 测试 / 类型 / Lint / Format
-pnpm test
-pnpm type-check
+# 打包 Debug APK（自己能跑、不能上架）
+pnpm build:app-android
+
+# 打包 Release APK（自签名，侧载）
+pnpm build:app-android:release
+
+# Lint + Format
 pnpm lint
 pnpm format
 ```
 
-> Android app-plus 不通过 package script 构建；需要在 HBuilderX 打开项目，使用“运行 → 运行到 Android App 基座”或“发行 → 原生 App-云打包 / 本地打包”。
+> 注：以上 dev/build 命令需要在 `package.json` 的 `scripts` 里配置。`npx degit` 拉下来的模板已含基础 scripts，需要按需调整。
 
 ### 8.2 真机调试流程
 
-1. Android 手机开启“开发者选项”与“USB 调试”。
-2. 在 HBuilderX 打开本项目，确认 `src/manifest.json` 已勾选 SQLite 模块。
-3. 选择“运行 → 运行到 Android App 基座”。
-4. CLI 侧先运行 `pnpm build:h5` 做编译检查；原生 SQLite、触摸和视觉结论只取 HBuilderX Android 回归。
+1. Android 手机开启"开发者选项" + "USB 调试"
+2. USB 连电脑
+3. 运行 `pnpm dev:app-android`
+4. uni-app 会把编译后的 H5 包推到手机浏览器 / 内置基座
+5. 改代码 → 自动热更新
 
 ### 8.3 构建 Release APK
 
-1. 准备签名：用 HBuilderX 或 `keytool` 生成 `.keystore` 文件（一次性）。
-2. 在 `src/manifest.json` 配置 Android 发布信息。
-3. 通过 HBuilderX“发行 → 原生 App-云打包”或本地打包。
-4. 产物路径以 HBuilderX 当前输出为准；本仓库没有 `build:app-android*` script。
+1. 准备签名：用 HBuilderX 或 `keytool` 生成 `.keystore` 文件（一次性）
+2. `manifest.json` 填入证书信息
+3. `pnpm build:app-android:release`
+4. 产物在 `dist/build/app-plus/release/` 下，文件名 `app-release.apk`
+5. 微信"文件传输助手"传到手机安装
 
 ---
 
@@ -286,8 +290,8 @@ pnpm format
 | 数据写入原子性 | 关键操作全用 `tx()` 包裹 | 1 个工具函数 |
 | 备份提醒 | 每周首次启动时弹"建议导出 JSON" | 几行代码 |
 | 启动时 schema 升级 | `migrations.ts` 顺序执行 + user_version | ~30 行 |
-| 低版本 Android 兼容 | uni-app 自带；`src/manifest.json` 配 `minSdkVersion: 21` | 1 行 |
-| 大数据量性能 | 当前 11 张表加好索引，订单 < 5W 行无压力 | 已在 design doc 写好 |
+| 低版本 Android 兼容 | uni-app 自带；manfest.json 配 `minSdkVersion: 21` | 1 行 |
+| 大数据量性能 | 5 张表加好索引，订单 < 5W 行无压力 | 已在 design doc 写好 |
 | 异常提示 | 关键错误 toast + 日志到 `plus.console` | 几行 |
 
 ---
@@ -310,7 +314,7 @@ pnpm format
 | # | 选择 | 替代方案 | 为什么这么选 |
 |---|---|---|---|
 | 1 | uni-app Vue 3 + Vite | Capacitor / Taro / RN | 你的栈；CLI 友好 |
-| 2 | TypeScript | JavaScript | 11 张表 + 状态机值得 TS |
+| 2 | TypeScript | JavaScript | 5 张表 + 状态机值得 TS |
 | 3 | Pinia | Vuex | Vue 3 标配 |
 | 4 | uni-ui | uView Plus / NutUI | 官方、轻量、够用 |
 | 5 | plus.sqlite | Capacitor SQLite 插件 / wxSQLite | uni-app 内置无依赖 |
@@ -318,16 +322,16 @@ pnpm format
 | 7 | pnpm | npm / yarn | 速度快、磁盘省 |
 | 8 | `@lucide/vue` + `HejiIcon` | `uni-icons` / Iconify 运行时加载 / emoji | 线性图形覆盖更完整；本地打包无运行时网络；业务名称直接使用 Lucide 原始导出名 |
 | 9 | 不用图表库 | uCharts / F2 | v1.0 文字+CSS 即可 |
-| 10 | 不用 ORM | Prisma / TypeORM | 当前 11 张表写 SQL 仍简单 |
-| 11 | Node 内置测试 | vitest | 已有领域 / 页面契约测试不增加测试依赖 |
+| 10 | 不用 ORM | Prisma / TypeORM | 5 张表写 SQL 简单 |
+| 11 | 不用单测 | vitest | v1.0 5 页手测覆盖 |
 | 12 | 不用 CI/CD | GitHub Actions | 手动构建 + 微信传 APK |
 
 ---
 
 ## 12. 第一次跑起来要做的 5 件事
 
-1. `pnpm install` 安装锁定依赖。
-2. `pnpm test`、`pnpm type-check`、`pnpm lint` 完成本地门禁。
-3. `pnpm build:h5` 确认 Vue 3 + TypeScript + uni-app 编译通过。
-4. 需要验证 SQLite、原生返回、触摸或视觉时，在 HBuilderX 运行到 Android App 基座。
-5. 变更页面、schema 或运行流程后，同步 `architecture.md`、`progress.md` / `CHANGELOG.md` 中对应的现役事实与证据边界。
+1. `npx degit dcloudio/uni-preset-vue#vite` 起项目
+2. `pnpm install` 装依赖
+3. `pnpm dev:app-android` 跑起来（确认 HBuilderX 不需要也能用）
+4. 写 `db/schema.ts` 5 张表 DDL + `db/index.ts` 初始化
+5. 写一个最简 Dashboard 页（显示 hardcoded 数字）确认 Vue 3 + TS 编译通过

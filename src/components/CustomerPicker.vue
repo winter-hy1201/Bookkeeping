@@ -290,6 +290,25 @@ function handleCreate(): void {
   min-width: 0;
 }
 
+.search-input :deep(.uni-easyinput__content) {
+  min-height: 72rpx !important;
+  padding: 0 $hej-space-2 !important;
+  border: 0 !important;
+  border-radius: $hej-radius-control !important;
+  background: $hej-color-control !important;
+  box-sizing: border-box;
+}
+
+.search-input :deep(.uni-easyinput__placeholder-class) {
+  color: $hej-color-text-tertiary !important;
+  font-size: $hej-font-body !important;
+}
+
+.search-input :deep(.uni-input-input) {
+  color: $hej-color-text !important;
+  font-size: $hej-font-body !important;
+}
+
 .customer-list {
   max-height: 52vh;
   margin-top: $hej-space-3;

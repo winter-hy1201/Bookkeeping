@@ -8,11 +8,11 @@
 ## 待发布（暖纸张主题细化与 Lucide 图标统一，2026-08-31）
 
 - 补齐暖纸张主题的控件层级：新增控件默认 / disabled / 强边框语义 token，通过 CSS 变量桥接到输入框、选择器、日期面板、数字步进器和折叠项；输入内容区统一为暖象牙色控件表面，聚焦、已填写、错误、只读和按下状态沿用现有状态色。
-- 引入固定版本 `@lucide/vue@1.38.0`，以 `src/components/HejiIcon.vue` 和 `src/components/icon-registry.ts` 作为唯一界面图标入口；页面操作图标和本轮可见的本地 uni-ui 内部图标改为直接使用 Lucide 原始导出名，不再维护业务语义 key 映射。针对 Android app-plus 不绘制内联 SVG 的实际问题，`HejiIcon` 改为从 Lucide 原始节点生成 CSS mask，保留 `currentColor` 主题继承。
+- 引入固定版本 `@lucide/vue@1.37.0`，以 `src/components/HejiIcon.vue` 和 `src/components/icon-registry.ts` 作为唯一界面图标入口；页面操作图标和本轮可见的本地 uni-ui 内部图标改为直接使用 Lucide 原始导出名，不再维护业务语义 key 映射。针对 Android app-plus 不绘制内联 SVG 的实际问题，`HejiIcon` 改为从 Lucide 原始节点生成 CSS mask，保留 `currentColor` 主题继承。
 - 用户已授权长期维护 `src/uni_modules`，本轮直接修补 `uni-easyinput`、`uni-data-checkbox`、`uni-data-select`、`uni-datetime-picker`、`uni-number-box`、`uni-collapse-item` 的主题与图标呈现；未使用的通用 uni-ui 组件仍保留 `uni-icons` 作为兼容依赖。
 - 支出分类表与 `src/db/seed.ts` 统一保存 Lucide 原始名称：`菜品/工具/耗材/配送/其他` 对应 `Utensils/Wrench/Package/Bike/Wallet`；新增 schema v8 迁移把已有库中的五个系统分类 emoji 转换为这些名称，旧备份导入也会归一化；内容模板 emoji 不变。详细边界见 `docs/adr/0003-heji-theme-and-lucide-icons.md` 与 `docs/third-party-licenses.md`。
 - 对照 `docs/ui-reference/images/01–23` 逐页面校准界面图标：补充首页 / 统计指标、订单状态与动作、客户档案、支出金额与危险区、菜单入口等 Lucide 原始名称；新增 `docs/ui-reference/icon-map.md`；原生四栏 TabBar 接入透明 PNG 资源。业务字段、状态机、分类持久化值和模板内容 emoji 均保持不变。
-- 统一业务表单标签列为 `label-width="100px"`，同步修正关联分隔线 / 错误提示缩进与页面契约测试；相关定向契约测试 33/33 通过。全量 Node 测试 118/118、ESLint、`vue-tsc`、H5 build、`git diff --check` PASS；`pnpm` 脚本因当前最小发布时间策略拒绝刚发布的 `@lucide/vue@1.38.0`，本轮未改锁文件。既有 CSS mask 基线已在 HBuilderX Android 模拟器确认，本轮新增页面图标与 TabBar 的 Android 视觉回归仍待执行，物理真机视觉与触摸回归仍 NOT_RUN。
+- 统一业务表单标签列为 `label-width="100px"`，同步修正关联分隔线 / 错误提示缩进与页面契约测试；相关定向契约测试 33/33 通过。全量 Node 测试 118/118、ESLint、`vue-tsc`、H5 build、`git diff --check` PASS；图标依赖回退到已满足 pnpm 最小发布时间策略的 `@lucide/vue@1.37.0`，`pnpm install --frozen-lockfile` 的 923 项供应链校验通过。既有 CSS mask 基线已在 HBuilderX Android 模拟器确认，本轮新增页面图标与 TabBar 的 Android 视觉回归仍待执行，物理真机视觉与触摸回归仍 NOT_RUN。
 
 ---
 
