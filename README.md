@@ -10,14 +10,14 @@
 
 ## 当前基线
 
-| 项目          | 当前状态                                                                                                          |
-| ------------- | ----------------------------------------------------------------------------------------------------------------- |
-| 目标运行端    | Android App（uni-app `app-plus`，侧载使用）                                                                       |
-| App 版本      | `3.0.2`（`src/manifest.json`）                                                                                    |
-| SQLite schema | v8（`src/db/schema.ts`）                                                                                          |
-| 数据位置      | 设备本地 SQLite；Pinia 只做页面缓存                                                                               |
-| 页面范围      | 4 个根 Tab、23 个现有路由                                                                                         |
-| 验收记录      | 23 个页面和主要业务链路已在 HBuilderX Android 模拟器完成集成验收；物理真机回归仍以 `memory-bank/progress.md` 为准 |
+| 项目          | 当前状态                                                                                                                  |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| 目标运行端    | Android App（uni-app `app-plus`，侧载使用）                                                                               |
+| App 版本      | `3.0.2`（`src/manifest.json`）                                                                                            |
+| SQLite schema | v8（`src/db/schema.ts`）                                                                                                  |
+| 数据位置      | 设备本地 SQLite；Pinia 只做页面缓存                                                                                       |
+| 页面范围      | 4 个根 Tab、23 个现有路由                                                                                                 |
+| 验收记录      | 23 个页面和主要业务链路已在 HBuilderX Android 模拟器完成集成验收；最新验证边界与物理真机状态见 `memory-bank/CHANGELOG.md` |
 
 ## 能做什么
 
@@ -79,7 +79,7 @@ H5 适合检查页面结构、样式和编译结果。当前项目的 `plus.sqli
 3. 选择“运行 → 运行到 Android App 基座”，在设备或模拟器中启动。
 4. 需要 Release APK 时，使用 HBuilderX 的“发行”流程；仓库当前没有对应的 npm 打包脚本。
 
-SQLite、原生文件选择器、剪贴板和 Android 触摸行为的调试边界，见 [`debug-docs/DEBUG-HANDOFF.md`](debug-docs/DEBUG-HANDOFF.md)。
+SQLite、原生文件选择器、剪贴板和 Android 触摸行为的约束见 [`AGENTS.md`](AGENTS.md)、[`src/db/index.ts`](src/db/index.ts) 和 [`memory-bank/architecture.md`](memory-bank/architecture.md)。
 
 ## 验证命令
 
@@ -108,8 +108,7 @@ git diff --check
 │   └── manifest.json        # App 元数据、Android 配置和 SQLite 模块
 ├── tests/                  # Node 回归测试、SQLite 冒烟测试和页面契约测试
 ├── docs/                   # UI 规范、已批准设计、参考图和第三方许可
-├── memory-bank/            # 产品设计、架构、进度、变更日志和 DB 基线
-├── debug-docs/             # Android / plus.sqlite 调试交接记录
+├── memory-bank/            # 产品设计、架构和唯一变更日志
 └── package.json            # 开发、构建、测试和检查脚本
 ```
 
@@ -119,8 +118,7 @@ git diff --check
 - [`CONTEXT.md`](CONTEXT.md)：次卡、月卡、模板和 UI 术语定义
 - [`memory-bank/design-document.md`](memory-bank/design-document.md)：产品数据模型、状态机、关键流程和统计口径
 - [`memory-bank/architecture.md`](memory-bank/architecture.md)：代码库文件职责和架构基线
-- [`memory-bank/progress.md`](memory-bank/progress.md)：当前进度、已验证项和待验证项
-- [`memory-bank/CHANGELOG.md`](memory-bank/CHANGELOG.md)：按版本记录的功能、修复和已知限制
+- [`memory-bank/CHANGELOG.md`](memory-bank/CHANGELOG.md)：唯一的功能变更、验证、阻塞和已知限制记录
 - [`docs/ui-reference/README.md`](docs/ui-reference/README.md)：23 个页面的 UI 参考图与路由索引
 - [`docs/third-party-licenses.md`](docs/third-party-licenses.md)：Lucide 和本地 uni-ui 组件的许可边界
 

@@ -96,7 +96,7 @@ Issue #2 的今日页采用暖纸张（warm-paper）契约：画布 #F5F4ED，�
 
 - 可滚动父页面通过 `navigateTo` 打开下级页面后，`navigateBack` 返回时必须恢复搜索 / 筛选 / 分栏 / 折叠 / 表单草稿和滚动上下文；业务数据仍由父页面刷新。
 - 返回时只恢复离开前的滚动像素，不记录或定位具体业务数据条目；条目移动或删除不改变恢复目标，列表已空时回到顶部。
-- 不跨页面卸载或冷启动持久化，也不恢复键盘、弹窗、选择器、拖拽过程和执行中状态。完整边界见 `docs/superpowers/specs/2026-08-09-page-return-snapshot-design.md`。
+- 不跨页面卸载或冷启动持久化，也不恢复键盘、弹窗、选择器、拖拽过程和执行中状态。架构取舍见 [`docs/adr/0001-in-memory-page-return-snapshots.md`](adr/0001-in-memory-page-return-snapshots.md)，实现以 `src/composables/usePageReturnSnapshot.ts` 为准。
 
 ## 4. 业务表单视觉规范
 

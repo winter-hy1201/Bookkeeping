@@ -1,47 +1,97 @@
 # 盒记 — 变更日志
 
-> v1.0 起的版本变更记录。每版一段：新增功能 / 行为变更 / 修复 / 已知限制 / TBD。
-> 详细决策见 `memory-bank/design-document.md`，实施进度见 `memory-bank/progress.md`。
+> 本文件是功能变更、验证、未验证项、阻塞、已知限制和后续候选的唯一历史记录。
+> 当前业务模型见 `memory-bank/design-document.md`，文件职责见 `memory-bank/architecture.md`；实现事实以 `src/`、配置和 `package.json` 为准。
 
 ---
 
-## 待发布（暖纸张主题细化与 Lucide 图标统一，2026-08-31）
+## 近期增量（2026-08-30—2026-09-01）
 
-- 补齐暖纸张主题的控件层级：新增控件默认 / disabled / 强边框语义 token，通过 CSS 变量桥接到输入框、选择器、日期面板、数字步进器和折叠项；输入内容区统一为暖象牙色控件表面，聚焦、已填写、错误、只读和按下状态沿用现有状态色。
-- 引入固定版本 `@lucide/vue@1.37.0`，以 `src/components/HejiIcon.vue` 和 `src/components/icon-registry.ts` 作为唯一界面图标入口；页面操作图标和本轮可见的本地 uni-ui 内部图标改为直接使用 Lucide 原始导出名，不再维护业务语义 key 映射。针对 Android app-plus 不绘制内联 SVG 的实际问题，`HejiIcon` 改为从 Lucide 原始节点生成 CSS mask，保留 `currentColor` 主题继承。
-- 用户已授权长期维护 `src/uni_modules`，本轮直接修补 `uni-easyinput`、`uni-data-checkbox`、`uni-data-select`、`uni-datetime-picker`、`uni-number-box`、`uni-collapse-item` 的主题与图标呈现；未使用的通用 uni-ui 组件仍保留 `uni-icons` 作为兼容依赖。
-- 支出分类表与 `src/db/seed.ts` 统一保存 Lucide 原始名称：`菜品/工具/耗材/配送/其他` 对应 `Utensils/Wrench/Package/Bike/Wallet`；新增 schema v8 迁移把已有库中的五个系统分类 emoji 转换为这些名称，旧备份导入也会归一化；内容模板 emoji 不变。详细边界见 `docs/adr/0003-heji-theme-and-lucide-icons.md` 与 `docs/third-party-licenses.md`。
-- 对照 `docs/ui-reference/images/01–23` 逐页面校准界面图标：补充首页 / 统计指标、订单状态与动作、客户档案、支出金额与危险区、菜单入口等 Lucide 原始名称；新增 `docs/ui-reference/icon-map.md`；原生四栏 TabBar 接入透明 PNG 资源。业务字段、状态机、分类持久化值和模板内容 emoji 均保持不变。
-- 统一业务表单标签列为 `label-width="100px"`，同步修正关联分隔线 / 错误提示缩进与页面契约测试；相关定向契约测试 33/33 通过。全量 Node 测试 118/118、ESLint、`vue-tsc`、H5 build、`git diff --check` PASS；图标依赖回退到已满足 pnpm 最小发布时间策略的 `@lucide/vue@1.37.0`，`pnpm install --frozen-lockfile` 的 923 项供应链校验通过。既有 CSS mask 基线已在 HBuilderX Android 模拟器确认，本轮新增页面图标与 TabBar 的 Android 视觉回归仍待执行，物理真机视觉与触摸回归仍 NOT_RUN。
+> 本节合并原实施进度中的唯一事实；功能过程、验证结果和阻塞均在此保留，过期的“当前 / 下一步”快照不再单独维护。
+
+### 文档治理收口（2026-09-01）
+
+- 已将实施进度中的有效实现事实、验证结果和阻塞合并到本文件；今后功能变更、验证、未验证项、阻塞和后续候选只更新本文件。
+- 已移除过时的技术栈缓存、旧 PRD 和历史 SQLite 调试交接文档；当前规则分别由 `package.json` / `src/`、`memory-bank/design-document.md`、`memory-bank/architecture.md`、`CONTEXT.md` 和 `docs/design.md` 承担。
+- 本次只整理文档和文档路径，不改变应用代码、数据库 schema、备份格式或业务行为。
+
+### 暖纸张主题与 Lucide 图标统一（2026-08-31）
+
+- UI.1–UI.3：补齐控件默认 / disabled / 强边框语义 token；引入固定版本 `@lucide/vue@1.37.0`、`HejiIcon` 和静态图形注册表；支出分类统一保存 `Utensils` / `Wrench` / `Package` / `Bike` / `Wallet`，schema v8 和旧备份导入负责归一化历史 emoji，内容模板 emoji 保持不变。
+- UI.4–UI.6：修补本地 `uni_modules` 的控件主题与图标呈现，按 23 张参考图校准页面图标，并接入原生四栏 TabBar PNG；业务字段、状态机和数据口径不变。
+- 验证：定向契约测试 33/33、Node 全量测试 118/118、类型检查、ESLint、H5 build、`git diff --check` 和 `pnpm install --frozen-lockfile` 供应链校验通过；既有 CSS mask 基线已在 HBuilderX Android 模拟器确认。
+- 未验证：本轮新增页面图标与 TabBar 的 Android 视觉回归、物理真机视觉和触摸回归仍为 NOT_RUN。
+
+### Issue #15：23 页集成验收与备份破坏性闭环（2026-08-31）
+
+- 在 HBuilderX Android 模拟器 `emulator-5554`（1440×2560 @ 480dpi）逐一进入 23 个现有路由，对照 375×812 参考图检查结构、层级、密度、色彩、导航和主动作；客户、订单、次卡、支出、菜单和两类模板数据均来自 SQLite，参考图未作为运行时资产。
+- 业务回归覆盖订单拖拽持久化、页面像素返回现场、组合支付、次卡 pending 预占与配送扣次、统计口径、模板历史恢复、根 Tab 与子页返回、系统返回键和手势返回。
+- 备份闭环通过：导出 schema v7 备份并核对文件存在 → 连续三次确认清空 → 导入覆盖确认 → 重启后各页数据与清空前一致，包含拖拽排序和模板版本历史。
+- 验证：Node 113/113、类型检查、ESLint、H5 build 和 `git diff --check` 通过；物理真机回归与人为错误态注入待执行。
+
+### Issue #14：备份恢复与危险清空（2026-08-31）
+
+- 备份页完成暖纸张“备份 → 恢复 → 危险清空”风险阶梯；粘贴、已保存备份和本地文件三入口均只载入待导入区，真正覆盖前必须再次确认；导入提交前增加 SQLite 完整性与外键检查，失败整笔回滚。
+- 危险清空保留连续三次确认，并在同一事务中恢复两类内置文案模板和 5 个默认支出分类；Android 模拟器已验证编译安装、SQLite 初始化、真实导出、文件选择和覆盖确认，完整覆盖 / 清空闭环由 Issue #15 补齐。
+- 验证：Node 113/113、类型检查、ESLint、H5 build 通过；H5 仅有既有 uni-ui / Dart Sass 弃用警告。
+
+### Issue #13：月卡文案模板与配送后复制（2026-08-31）
+
+- 完成月卡文案模板列表、新建 / 编辑和历史版本页面；支持默认切换、编辑前快照、历史恢复、删除默认模板时选择接替项，以及已配送次卡订单复制配送后的实际剩余份数。
+- 验证：页面契约测试与 Node 全量测试 107/107、类型检查、ESLint、H5 build、`git diff --check` 通过；HBuilderX Android 模拟器完成默认模板、新建、语法校验、默认切换、历史恢复和删除接替闭环。
+
+### Issue #12：社群文案模板与版本历史（2026-08-31）
+
+- 完成菜单社群文案模板列表、新建 / 编辑和历史版本页面；支持占位符插入与校验、编辑前快照、历史恢复、默认模板切换和删除接替。
+- 验证：页面契约测试与 Node 全量测试 100/100、类型检查、ESLint、H5 build、`git diff --check` 通过；HBuilderX Android 模拟器完成模板 CRUD、校验、历史恢复和删除默认模板闭环。
+
+### Issue #11：每日菜单维护闭环（2026-08-31）
+
+- 完成每日菜单列表与编辑页面；支持当前 / 历史分栏、午晚餐多行录入、保存并继续下一天、默认模板复制、编辑、硬删除和返回现场。
+- 验证：页面契约测试与 Node 全量测试 94/94、类型检查、ESLint、H5 build、`git diff --check` 通过；HBuilderX Android 模拟器完成空态、新建、连续录入、复制、编辑、删除和分栏闭环。
+
+### Issue #10：支出记录闭环（2026-08-31）
+
+- 完成支出列表、新建和详情页面；支持分类、金额、退差、净支出计算、编辑、危险区删除、长按删除和返回现场。
+- 验证：页面契约测试与 Node 全量测试 89/89、类型检查、ESLint、`git diff --check` 通过；HBuilderX Android 模拟器完成新建、退差校验、统计同步、编辑和删除闭环。
+
+### Issue #9：次卡开卡校正与充值记录（2026-08-31）
+
+- 完成次卡开卡、修改指定充值记录总次数和充值记录页面；保留已扣次记录不可删除、未扣次记录影响确认、余额池汇总和页面操作锁。
+- 验证：页面契约测试与 Node 全量测试 82/82、类型检查、ESLint、`git diff --check` 通过；HBuilderX Android 模拟器完成开卡、充值记录、总次数修改、配送扣次和删除保护闭环。
+
+### Issue #8：客户管理与客户档案闭环（2026-08-31）
+
+- 完成客户列表、新建档案和详情页面；支持拼音分组与检索、次卡身份标识、默认价 / 折扣、历史订单、返回现场和依赖保护删除。
+- 验证：页面契约测试与 Node 全量测试 77/77、类型检查、ESLint、H5 build、`git diff --check` 通过；HBuilderX Android 模拟器完成搜索、索引、新建、详情、删除保护和返回现场闭环。
+
+### Issue #7：我的业务入口页（2026-08-31）
+
+- 完成“我的”页面暖纸张入口卡和 6 个真实业务入口：菜单、文案模板、月卡文案模板、客户、支出、备份恢复；保持自定义状态栏和返回现场。
+- 验证：页面契约测试与 Node 全量测试 71/71、类型检查、ESLint、`git diff --check` 通过；HBuilderX Android 模拟器完成 6 个入口跳转与返回现场闭环。
+
+### Issue #4：新建订单高频录单界面（2026-08-30）
+
+- 完成暖纸张连续录单卡、统一标签列、组合支付次级入口、客户拼音选择、pending 合并提示、delivered 阻断、保存后继续录单 / 结束录单和辅助按钮触摸尺寸。
+- 验证：页面契约测试与 Node 全量测试 77/77、类型检查、ESLint、H5 build、`git diff --check` 通过；HBuilderX Android 模拟器完成客户选择、组合支付、不足提示、待配送合并、已配送阻断、键盘输入、拼音检索和连续录单闭环。
+
+### Issue #3：订单列表视觉重构（2026-08-30）
+
+- 完成订单列表暖纸张画布、自定义状态栏、午晚餐折叠卡、三态标签、完整支付摘要、空 / 载 / 错状态、拖拽排序和返回现场。
+- 验证：页面契约测试与 Node 全量测试 59/59、类型检查、ESLint、`git diff --check` 通过；HBuilderX Android 模拟器完成空态、录单、分组、拖拽持久化和返回现场闭环。
+
+### Issue #2：暖纸张设计契约与今日首个切片（2026-08-30）
+
+- 今日页接入暖纸张画布、系统字体栈、真实 store / SQLite 数据链路、菜单入口、加载 / 失败 / 空订单 / 长备注和真实支付 / 状态展示；不改 schema、API、统计口径、订单状态机或次卡规则。
+- 验证：Node 56/56、type-check、lint、H5 build 和 `git diff --check` 通过；HBuilderX Android 模拟器验收 BLOCKED，原因是 computer-use 控制内核连续异常退出，且连接设备为 1440×2560（非 375×812）。
 
 ---
-
-## 待发布（Issue #15：[UI 重构 14/14] 23 页集成验收与文档收口，2026-08-31）
-
-- 23 个现有路由在 HBuilderX Android 模拟器（`emulator-5554`，1440×2560 @ 480dpi）逐一实际进入并对照 375×812 参考图完成结构、层级、密度、色彩、导航与主动作检查；真实客户、订单、次卡、支出、菜单与两类模板数据全部来自 SQLite，参考图未作为运行时资产。本轮为集成验收，应用代码零变更。
-- 业务回归通过：订单拖拽重排与持久化、页面像素返回现场、组合支付展开与摘要、次卡 pending 预占提示与配送扣次（20→19）、已配送订单复制月卡信息、统计口径（今日收入 ¥508 / 支出 ¥100 / 利润 ¥408、有效订单 2单·3份）、模板改名生成历史版本并恢复、根 Tab 四栏与子页原生返回、系统返回键与手势返回。
-- 备份破坏性闭环补齐（仅模拟器）：导出 schema v7 备份并经 adb 核对文件存在 → 危险清空连续三次确认 → 导入覆盖确认 → 重启 App 后各页数据与清空前完全一致（含拖拽排序与模板版本历史）。
-- 自动检查：Node 113/113、类型检查、ESLint、H5 build、git diff 检查通过；H5 仍输出既有 uni-ui / Dart Sass 弃用警告。物理真机回归与人为错误态注入仍待执行。
-
-## 待发布（Issue #14：备份恢复与危险清空，2026-08-31）
-
-- 备份恢复页改为暖纸张“备份 → 恢复 → 危险清空”风险阶梯；导出保留本机 `_doc` 与下载目录双路径，页面明确不上传、不自动同步，导出仍是屏内唯一陶土色主动作。
-- 粘贴、已保存备份、本地文件三个恢复入口统一为“只载入待导入区”；选择已保存备份不再直接覆盖，用户必须再次点击“导入覆盖”并确认。读取中、无文件、读取失败、导入中、导入失败和成功结果均提供对象化文案与下一步。
-- `importBackup()` 在原有 schema / payload 校验和单事务全量替换基础上，提交前增加 SQLite `integrity_check` 与外键检查；任一校验失败由 `tx()` 整笔回滚。schema、迁移、备份 JSON 格式和业务口径均未改变。
-- 危险清空保持连续三次确认，明确清空范围，并在同一事务中恢复两类内置文案模板与 5 个默认支出分类；危险按钮与导出主动作在视觉上分层。
-- 自动检查：Node 113/113、类型检查、ESLint、H5 build 通过；H5 仍输出既有 uni-ui / Dart Sass 弃用警告。Android 模拟器已完成当前工作区编译、安装、SQLite 初始化、真实导出、已保存备份暂存、本地文件选择器与覆盖确认检查；覆盖执行与三次清空已于同日 Issue #15 验收中补齐（导出 → 三次确认清空 → 导入恢复 → 重启核对）。
-
-## 待发布（Issue #2：暖纸张设计契约与今日首个切片，2026-08-30）
-
-- 今日页切换为暖纸张画布与系统字体栈，沿用三 Store / SQLite 真实数据链路；保留社群菜单入口与四个根 Tab 路由，补齐加载、失败、空订单、长备注和真实支付 / 状态展示。
-- 同步 docs/design.md、src/uni.scss、src/pages.json 和架构登记；未改 schema、API、统计口径、订单状态机或次卡规则。
-- CLI：Node 56/56、type-check、lint、H5 build、diff-check 已通过；HBuilderX Android 模拟器验收 BLOCKED，原因是 computer-use 控制内核连续异常退出，且连接设备为 1440×2560（非 375×812）。
 
 ## v1.0（2026-06-11）
 
 首个可发布版本。盒饭档口老板的个人记账 App，Android 侧载 / 本地 SQLite / 单用户。
 
-### 已实现功能（按 PRD §4）
+### 已实现功能（v1.0 范围）
 
 | # | 功能 | 状态 | 关键实现位置 |
 | --- | --- | --- | --- |
@@ -73,16 +123,16 @@
 
 | 限制 | 位置 / 表现 | 何时回头评估 |
 | --- | --- | --- |
-| 无支出分类自定义增删 | 仅 5 个默认分类 | v1.1（design §8.4-A） |
-| 无"关于"页 | 设置页只有备份 / 恢复 + 危险区 | v1.1（design §8.4-B） |
-| "清空数据"塞在 backup 页（危险区） | 不另起独立页 | v1.1（design §8.4-C） |
+| 无支出分类自定义增删 | 仅 5 个默认分类 | 后续候选 |
+| 无"关于"页 | 当前没有该入口 | 后续候选 |
+| "清空数据"位于 backup 页危险区 | 不另起独立页 | 当前边界 |
 | 导入仅支持粘贴 JSON | 无 plus.io 文件选择 | v1.1 |
 | 备份导出不主动定时 | 用户手动触发 | v1.1 |
-| 单设备 | 无云同步 / 局域网同步 | v1.2（design §7.3） |
+| 单设备 | 无云同步 / 局域网同步 | 后续候选 |
 | **未做 50 单性能压测** | 个人内用规模小，Phase 8 真机 6 条 E2E 流程已验证主路径流畅 | 真实使用一段时间后看响应 |
 | **未打 Release APK** | v1.0 用 HBuilderX 标准基座的 debug APK 侧载发布，省掉自签名 keystore / 云打包步骤 | 后续若要分发给他人再补 Release |
 
-### TBD / v1.1 候选（来自 design §7.2 / §8.2）
+### TBD / 后续候选
 
 - CSV 单表导出（按 orders / expenses）
 - 支出分类自定义图标
@@ -96,7 +146,7 @@
 ### 阶段基线
 
 - 实施总进度：61 / 63 步（Phase 1-9 全部完成；Step 9.3 / 9.4 按用户决策跳过——个人内用规模无需 50 单压测和 Release 打包）
-- 数据库基线：`memory-bank/bookkeeping-v1.db`（Phase 8 真机 E2E 通过后的归档）
+- 数据库基线：Phase 8 真机 E2E 后曾生成 v1 快照；当前仓库不保留二进制 DB，结构以 `src/db/` 为准
 - 工具链：HBuilderX（Android 真机 debug APK 侧载）；CLI 仅 type-check / lint / H5 编译验证
 - 发布方式：HBuilderX 标准基座 debug APK 直发侧载，不走云打包 / 自签名 Release
 
@@ -240,7 +290,7 @@ v1.0 范围内对备份恢复页的两点小修，主要为"导出 = 直接下�
 ### 背景：为什么之前的思路无效
 
 v1.4 用 `@longpress` 激活 + `@touchmove` 绑在整个 `order-item` 上，零 `preventDefault`；scroll-view 在 touchstart 阶段已进入滚动跟踪，重排与滚动并发 → 抖动。
-曾尝试用 `@touchstart.stop` + 阈值 + JS 层 `event.preventDefault()/stopPropagation()`（旧版 v1.6 文案），**但 AGENTS.md §11 自己承认：JS 层 `preventDefault` 在 Android HBuilderX 标准基座下不生效**，scroll-view 照样滚，bug 依旧。故改为**绕开冲突而非对抗它**。
+曾尝试用 `@touchstart.stop` + 阈值 + JS 层 `event.preventDefault()/stopPropagation()`（旧版 v1.6 文案），**但旧版 AGENTS.md 的调试速查条目已确认：JS 层 `preventDefault` 在 Android HBuilderX 标准基座下不生效**，scroll-view 照样滚，bug 依旧。故改为**绕开冲突而非对抗它**。
 
 ### 修复（方案 B：动态 `:scroll-y` 开关 + 边缘自动滚屏）
 
@@ -375,7 +425,7 @@ v1.4 用 `@longpress` 激活 + `@touchmove` 绑在整个 `order-item` 上，零 
 
 - `src/api/meal-cards.ts` 新增 `updateCardTotalMeals()`，在事务内校验下限、更新总次数并同步状态。
 - `src/pages/me/customers/open-card.vue` 改为 `<uni-forms>` + `<uni-forms-item>`，兼容开卡和充值记录修改两种模式。
-- 设计基线见 `docs/superpowers/specs/2026-07-14-meal-card-recharge-records-design.md`。
+- 业务基线见 `memory-bank/design-document.md §4.7`，实现和验证以 `src/api/meal-cards.ts` 与相关测试为准。
 
 ### 验证门禁
 
